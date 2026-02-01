@@ -7,7 +7,6 @@ import { LogOut, Copy, Check, CreditCard, Activity, Clock, ShieldCheck, Zap } fr
 import PaymentModal from '../../components/landing/PaymentModal';
 
 function DashboardContent() {
-  // 1. Khai báo Hook & Lấy dữ liệu quân nhu
   const { user, profile, logout } = useAuth();
   const searchParams = useSearchParams();
   
@@ -15,16 +14,13 @@ function DashboardContent() {
   const [isPayOpen, setIsPayOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState("yearly");
 
-  // 2. Tính toán logic Hết hạn (Sẽ nhấp nháy đỏ nếu hết hạn)
   const isExpired = useMemo(() => {
     if (!profile?.expiryDate) return false;
-    // Kiểm tra cả 2 định dạng Timestamp của Firebase
     const seconds = profile.expiryDate.seconds || profile.expiryDate._seconds;
     if (!seconds) return false;
     return seconds < Date.now() / 1000;
   }, [profile]);
 
-  // 3. Xử lý logic từ URL (Checkout từ Landing Page)
   useEffect(() => {
     const action = searchParams.get("action");
     const plan = searchParams.get("plan");
@@ -36,7 +32,6 @@ function DashboardContent() {
     }
   }, [searchParams]);
 
-  // 4. Các hàm hỗ trợ
   const handleCopy = () => {
     if (profile?.licenseKey) {
       navigator.clipboard.writeText(profile.licenseKey);
@@ -52,7 +47,6 @@ function DashboardContent() {
     return new Date(seconds * 1000).toLocaleDateString('vi-VN');
   };
 
-  // 5. Chặn lỗi hiển thị khi dữ liệu chưa tải xong
   if (!profile && user) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-4 text-green-500">
@@ -64,7 +58,6 @@ function DashboardContent() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-green-500/30">
-      {/* 🚀 THANH ĐIỀU HƯỚNG */}
       <nav className="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md px-6 py-4 flex justify-between items-center sticky top-0 z-50">
         <div className="flex items-center gap-2 font-black text-xl italic text-green-500 tracking-tighter">
           SPARTAN <span className="text-white opacity-50 underline decoration-green-500">V3.0</span>
@@ -78,7 +71,6 @@ function DashboardContent() {
       </nav>
 
       <div className="max-w-6xl mx-auto p-8 space-y-8">
-        {/* 📋 TIÊU ĐỀ & CỤM NÚT HÀNH ĐỘNG */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
           <div>
             <h1 className="text-4xl md:text-5xl font-black mb-3 leading-none tracking-tight">
@@ -94,7 +86,6 @@ function DashboardContent() {
           </div>
           
           <div className="flex flex-wrap gap-4">
-            {/* Nút Gia hạn (Dành cho lính đã có quân hàm) */}
             {profile?.plan && profile?.plan !== "free" && (
               <button 
                 onClick={() => { setSelectedPlan(profile.plan); setIsPayOpen(true); }}
@@ -104,12 +95,8 @@ function DashboardContent() {
               </button>
             )}
 
-            {/* Nút Nâng cấp tổng lực (Luôn lấp lánh kích cầu) */}
             <button 
-              onClick={() => {
-                setSelectedPlan("starter"); 
-                setIsPayOpen(true);
-              }}
+              onClick={() => { setSelectedPlan("starter"); setIsPayOpen(true); }}
               className="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-amber-600 to-amber-400 text-black font-black rounded-2xl hover:scale-105 transition-all shadow-[0_0_30px_rgba(245,158,11,0.4)] animate-pulse"
             >
               <Zap size={20} fill="currentColor" /> NÂNG CẤP TÀI KHOẢN
@@ -117,7 +104,7 @@ function DashboardContent() {
           </div>
         </div>
 
-        {/* 🛡️ LICENSE CARD (Mã kích hoạt Bot) */}
+        {/* 🛡️ LICENSE CARD */}
         <div className="bg-slate-900 border border-slate-800 p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden group">
           <div className="relative z-10">
             <h3 className="text-slate-500 font-bold uppercase text-[10px] mb-4 tracking-[0.2em]">Kích hoạt License tại MT5</h3>
@@ -134,50 +121,45 @@ function DashboardContent() {
               </button>
             </div>
           </div>
-          {/* Hiệu ứng trang trí nền */}
           <div className="absolute -right-20 -top-20 w-80 h-80 bg-green-500/10 blur-[120px] group-hover:bg-green-500/20 transition-all duration-700"></div>
-          <div className="absolute -left-20 -bottom-20 w-80 h-80 bg-blue-500/5 blur-[120px]"></div>
         </div>
 
-        {/* 📊 GRID THÔNG SỐ CHIẾN ĐẤU */}
+        {/* 🚀 KHU VỰC TẢI VŨ KHÍ (Nằm trong return) */}
+        {profile?.plan && profile?.plan !== "free" && (
+          <div className="bg-gradient-to-r from-green-900/20 to-slate-900 border border-green-500/30 p-8 rounded-[2rem] flex flex-col md:flex-row items-center justify-between gap-6 shadow-[0_0_40px_rgba(34,197,94,0.1)]">
+            <div className="flex items-center gap-5">
+              <div className="bg-green-500 p-4 rounded-2xl shadow-[0_0_20px_rgba(34,197,94,0.4)]">
+                <Activity size={32} className="text-black" />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-white uppercase tracking-tighter">Kho Vũ Khí Spartan V3.0</h3>
+                <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Sẵn sàng xuất kích trên MT5</p>
+              </div>
+            </div>
+            <a 
+              href="https://drive.google.com/your-bot-file-link" 
+              target="_blank"
+              className="flex items-center gap-3 px-10 py-5 bg-green-500 hover:bg-green-400 text-black font-black rounded-2xl transition-all hover:scale-105 shadow-lg active:scale-95 group"
+            >
+              <Zap size={20} fill="currentColor" className="group-hover:animate-bounce" />
+              TẢI BOT CHIẾN ĐẤU NGAY
+            </a>
+          </div>
+        )}
+
+        {/* 📊 GRID THÔNG SỐ */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <StatBox 
-            label="Tài khoản MT5" 
-            value={profile?.mt5Account || "CHƯA KẾT NỐI"} 
-            icon={<Activity size={18}/>} 
-          />
-          
-          <StatBox 
-            label="Hạn sử dụng" 
-            value={formatExpiryDate()} 
-            icon={<Clock size={18}/>} 
-            color={isExpired ? "text-red-500 animate-pulse font-black" : "text-blue-400"} 
-          />
-          
-          <StatBox 
-            label="Cấp bậc quân hàm" 
-            value={
-              profile?.plan === "starter" ? "PRO (Thuê tháng)" : 
-              profile?.plan === "yearly" ? "VIP (Thuê năm)" : 
-              profile?.plan === "lifetime" ? "VIP (Vĩnh viễn/Parter)" : "DÙNG THỬ"
-            } 
-            icon={<ShieldCheck size={18}/>} 
-            color={profile?.plan === "starter" ? "text-green-400" : "text-amber-400"} 
-          />
+          <StatBox label="Tài khoản MT5" value={profile?.mt5Account || "CHƯA KẾT NỐI"} icon={<Activity size={18}/>} />
+          <StatBox label="Hạn sử dụng" value={formatExpiryDate()} icon={<Clock size={18}/>} color={isExpired ? "text-red-500 animate-pulse font-black" : "text-blue-400"} />
+          <StatBox label="Quân hàm" value={profile?.plan === "starter" ? "PRO" : profile?.plan === "yearly" ? "VIP YEARLY" : profile?.plan === "lifetime" ? "VIP LIFETIME" : "FREE"} icon={<ShieldCheck size={18}/>} color={profile?.plan === "starter" ? "text-green-400" : "text-amber-400"} />
         </div>
       </div>
 
-      {/* 💳 MODAL THANH TOÁN (Cổng tiếp tế quân lương) */}
-      <PaymentModal 
-        isOpen={isPayOpen} 
-        onClose={() => setIsPayOpen(false)} 
-        plan={selectedPlan} 
-      />
+      <PaymentModal isOpen={isPayOpen} onClose={() => setIsPayOpen(false)} plan={selectedPlan} />
     </div>
   );
 }
 
-// 📦 COMPONENT HIỂN THỊ Ô THÔNG SỐ
 function StatBox({ label, value, icon, color = "text-white" }: any) {
   return (
     <div className="bg-slate-900/40 border border-slate-800 p-8 rounded-3xl backdrop-blur-sm hover:border-slate-700 transition-all group">
@@ -189,15 +171,10 @@ function StatBox({ label, value, icon, color = "text-white" }: any) {
   );
 }
 
-// 🛡️ BỌC BẢO VỆ TRANG ĐĂNG NHẬP
 export default function DashboardPage() {
   return (
     <ProtectedRoute>
-      <Suspense fallback={
-        <div className="min-h-screen bg-slate-950 flex items-center justify-center text-green-500 font-black tracking-widest animate-pulse italic">
-          INITIALIZING SPARTAN SYSTEMS...
-        </div>
-      }>
+      <Suspense fallback={<div className="min-h-screen bg-slate-950 flex items-center justify-center text-green-500 font-black italic">INITIALIZING...</div>}>
         <DashboardContent />
       </Suspense>
     </ProtectedRoute>
