@@ -9,7 +9,7 @@ export default function Hero() {
 
   // ID Video Youtube của Đại tá (Thay cái này bằng ID thật)
   // Ví dụ link là: https://www.youtube.com/watch?v=dQw4w9WgXcQ -> ID là dQw4w9WgXcQ
-  const VIDEO_ID = "dQw4w9WgXcQ"; 
+  const VIDEO_ID = "Jf2CZdV1TuU"; 
 
   return (
     <section className="relative z-10 pt-32 pb-20 text-center px-4">
