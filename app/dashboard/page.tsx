@@ -137,7 +137,7 @@ function DashboardContent() {
               </div>
             </div>
             <a 
-              href="https://drive.google.com/your-bot-file-link" 
+              href="https://drive.google.com/file/d/188effdjSpmDbMy3J3fBCY2tQTGU9RCoA/view?usp=sharing" 
               target="_blank"
               className="flex items-center gap-3 px-10 py-5 bg-green-500 hover:bg-green-400 text-black font-black rounded-2xl transition-all hover:scale-105 shadow-lg active:scale-95 group"
             >
