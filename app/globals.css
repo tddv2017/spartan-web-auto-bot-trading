@@ -1,0 +1,28 @@
+/* Import Tailwind v4 */
+@import "tailwindcss";
+
+/* Cấu hình Theme trực tiếp tại đây */
+@theme {
+  /* Gán font mặc định (sans) thành Be Vietnam Pro */
+  --font-sans: var(--font-be-vietnam), ui-sans-serif, system-ui, sans-serif;
+  
+  /* Gán font mono (dùng cho số liệu/tiêu đề hầm hố) thành Chakra Petch */
+  --font-mono: var(--font-chakra), ui-monospace, SFMono-Regular, monospace;
+}
+
+/* Các custom style khác của Đại tá (nếu có) */
+:root {
+  --background: #000000;
+  --foreground: #ededed;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans); /* Kích hoạt font Be Vietnam cho toàn trang */
+}
+
+:root {
+  --sidebar-width-collapsed: 80px;
+  --sidebar-width-expanded: 260px;
+}
