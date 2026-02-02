@@ -4,13 +4,13 @@ import { auth, db } from "../lib/firebase";
 import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
 
-// 🎖️ ĐỊNH NGHĨA HỒ SƠ CHIẾN BINH
-interface UserProfile {
-  id: string; // UID của người dùng
+// 👇 1. Đảm bảo có dòng export này và có trường id
+export interface UserProfile {
+  id: string; // 👈 QUAN TRỌNG NHẤT
   licenseKey: string;
   plan: string;
-  mt5Account: string;   // Tài khoản số 1
-  mt5Account2?: string;  // Tài khoản số 2 (Dành cho Lifetime)
+  mt5Account: string;
+  mt5Account2?: string;
   email: string;
   expiryDate?: any;
   createdAt?: any;
@@ -27,7 +27,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// 🛡️ DANH SÁCH BỘ CHỈ HUY (ADMIN)
 const ADMIN_EMAILS = [
   "tddv2017@gmail.com", 
   "itcrazy2021pro@gmail.com", 
@@ -43,11 +42,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setLoading(true);
-      
       if (currentUser) {
         setUser(currentUser);
-        
-        // 🛡️ KIỂM TRA QUYỀN ADMIN TỪ DANH SÁCH
         const checkAdmin = currentUser.email ? ADMIN_EMAILS.includes(currentUser.email) : false;
         setIsAdmin(checkAdmin);
 
@@ -55,33 +51,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           const userRef = doc(db, "users", currentUser.uid);
           const userSnap = await getDoc(userRef);
 
-          // 🚀 KHỞI TẠO HỒ SƠ CHO LÍNH MỚI
           if (!userSnap.exists()) {
-            console.log("🚀 Đang rèn License Key cho lính mới...");
             await setDoc(userRef, {
               email: currentUser.email,
               licenseKey: "SPARTAN-" + Math.random().toString(36).substring(2, 10).toUpperCase(),
               mt5Account: "",
-              mt5Account2: "", 
+              mt5Account2: "",
               plan: "FREE",
               createdAt: new Date(),
-              expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) 
+              expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
             });
           }
 
-          // 🛡️ LẮNG NGHE BIẾN ĐỘNG DỮ LIỆU REALTIME
           const unsubProfile = onSnapshot(userRef, (docSnap) => {
             if (docSnap.exists()) {
-              // 👇👇👇 ĐOẠN ĐÃ SỬA Ở ĐÂY 👇👇👇
+              // 👇 2. Đảm bảo lấy ID ở đây
               setProfile({
-                id: docSnap.id, // Lấy ID từ document gán vào state
+                id: docSnap.id, 
                 ...docSnap.data()
               } as UserProfile);
-              // 👆👆👆 -----------------------
             }
             setLoading(false);
           });
-
           return () => unsubProfile();
 
         } catch (error) {
@@ -89,14 +80,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setLoading(false);
         }
       } else {
-        // KHI THOÁT HỆ THỐNG
         setUser(null);
         setProfile(null);
         setIsAdmin(false);
         setLoading(false);
       }
     });
-
     return () => unsubscribe();
   }, []);
 
@@ -106,16 +95,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       provider.setCustomParameters({ prompt: 'select_account' });
       await signInWithPopup(auth, provider);
     } catch (error) {
-      console.error("Lỗi đăng nhập quân doanh:", error);
+      console.error("Lỗi đăng nhập:", error);
     }
   };
 
   const logout = async () => {
     try {
       await signOut(auth);
-      window.location.href = "/"; 
+      window.location.href = "/";
     } catch (error) {
-      console.error("Lỗi rút quân:", error);
+      console.error("Lỗi đăng xuất:", error);
     }
   };
 
