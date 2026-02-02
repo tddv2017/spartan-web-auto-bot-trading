@@ -30,6 +30,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const ADMIN_EMAILS = [
   "tddv2017@gmail.com", 
   "itcrazy2021pro@gmail.com", // Đại tá thay email thực tế của Phó tư lệnh vào đây
+  "tran.tuan.2821994@gmail.com",
 ];
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
