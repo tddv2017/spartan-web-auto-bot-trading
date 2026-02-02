@@ -61,7 +61,7 @@ export default function Performance() {
               icon={<CheckCircle2 className="w-6 h-6 text-purple-500" />}
             />
 
-            {/* Link sang Myfxbook (Tăng độ uy tín) */}
+            {/* Link sang Myfxbook (Tăng độ uy tín)
             <div className="col-span-2 mt-4 p-4 bg-slate-900 rounded-xl border border-dashed border-slate-700 flex items-center justify-between hover:border-green-500/50 transition-colors cursor-pointer group">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-black rounded flex items-center justify-center font-bold text-white text-xs">MYFX</div>
@@ -74,7 +74,7 @@ export default function Performance() {
                 </div>
               </div>
               <ArrowUpRight className="w-5 h-5 text-slate-500 group-hover:text-green-500 transition-colors"/>
-            </div>
+            </div> */}
           </div>
 
           {/* --- CỘT PHẢI: BẢNG LIVE LOG --- */}
