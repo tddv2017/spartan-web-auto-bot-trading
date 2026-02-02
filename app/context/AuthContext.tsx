@@ -4,9 +4,9 @@ import { auth, db } from "../lib/firebase";
 import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
 
-// 👇 1. Đảm bảo có dòng export này và có trường id
+// 👇 1. CẬP NHẬT INTERFACE (Thêm displayName và photoURL)
 export interface UserProfile {
-  id: string; // 👈 QUAN TRỌNG NHẤT
+  id: string; 
   licenseKey: string;
   plan: string;
   mt5Account: string;
@@ -14,6 +14,8 @@ export interface UserProfile {
   email: string;
   expiryDate?: any;
   createdAt?: any;
+  displayName?: string; // 👈 Thêm dòng này (Tên hiển thị)
+  photoURL?: string;    // 👈 Thêm dòng này (Avatar)
 }
 
 interface AuthContextType {
@@ -27,6 +29,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// DANH SÁCH ADMIN
 const ADMIN_EMAILS = [
   "tddv2017@gmail.com", 
   "itcrazy2021pro@gmail.com", 
@@ -42,6 +45,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setLoading(true);
+      
       if (currentUser) {
         setUser(currentUser);
         const checkAdmin = currentUser.email ? ADMIN_EMAILS.includes(currentUser.email) : false;
@@ -51,21 +55,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           const userRef = doc(db, "users", currentUser.uid);
           const userSnap = await getDoc(userRef);
 
+          // 🚀 KHỞI TẠO HỒ SƠ CHO LÍNH MỚI
           if (!userSnap.exists()) {
+            console.log("🚀 Đang rèn License Key cho lính mới...");
             await setDoc(userRef, {
               email: currentUser.email,
+              // 👇 2. LƯU THÔNG TIN TỪ GOOGLE VÀO FIRESTORE
+              displayName: currentUser.displayName || "Chiến Binh Mới",
+              photoURL: currentUser.photoURL || "",
               licenseKey: "SPARTAN-" + Math.random().toString(36).substring(2, 10).toUpperCase(),
               mt5Account: "",
-              mt5Account2: "",
+              mt5Account2: "", 
               plan: "FREE",
               createdAt: new Date(),
-              expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+              expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) 
             });
           }
 
+          // 🛡️ LẮNG NGHE REALTIME
           const unsubProfile = onSnapshot(userRef, (docSnap) => {
             if (docSnap.exists()) {
-              // 👇 2. Đảm bảo lấy ID ở đây
               setProfile({
                 id: docSnap.id, 
                 ...docSnap.data()
@@ -73,6 +82,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             }
             setLoading(false);
           });
+
           return () => unsubProfile();
 
         } catch (error) {
@@ -86,6 +96,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setLoading(false);
       }
     });
+
     return () => unsubscribe();
   }, []);
 
@@ -102,7 +113,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const logout = async () => {
     try {
       await signOut(auth);
-      window.location.href = "/";
+      window.location.href = "/"; 
     } catch (error) {
       console.error("Lỗi đăng xuất:", error);
     }
