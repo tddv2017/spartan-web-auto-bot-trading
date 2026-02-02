@@ -5,7 +5,7 @@ import { collection, getDocs, updateDoc, doc, Timestamp } from 'firebase/firesto
 import { useAuth } from '../context/AuthContext';
 import { 
   ShieldAlert, Crown, Zap, RefreshCw, Infinity, 
-  Search, Filter, UserCheck, AlertTriangle, FileText, Download 
+  Search, Filter, UserCheck, AlertTriangle, FileText 
 } from 'lucide-react';
 
 export default function AdminPage() {
@@ -63,26 +63,22 @@ export default function AdminPage() {
   const updateUserSoldier = async (userId: string, currentExpiry: any, days: number, plan: string, manualDate?: string) => {
     const userRef = doc(db, "users", userId);
     let newDate;
-    let message = "";
 
     try {
       if (manualDate) {
         newDate = Timestamp.fromDate(new Date(manualDate));
-        message = `Đã cập nhật hạn dùng đến: ${manualDate}`;
       } else if (plan === 'lifetime') {
         newDate = Timestamp.fromDate(new Date("2099-12-31T23:59:59"));
-        message = "Đã kích hoạt chế độ BẤT TỬ (Lifetime)!";
       } else {
         const now = Date.now();
         const expiryMillis = currentExpiry ? currentExpiry.seconds * 1000 : 0;
         const baseDate = (expiryMillis > now) ? new Date(expiryMillis) : new Date();
         baseDate.setDate(baseDate.getDate() + days);
         newDate = Timestamp.fromDate(baseDate);
-        message = `Đã cộng thêm ${days} ngày cho chiến binh!`;
       }
       
       await updateDoc(userRef, { expiryDate: newDate, plan: plan });
-      alert(`✅ QUÂN LỆNH THỰC THI:\n${message}`);
+      alert(`✅ Đã cập nhật thành công!`);
       fetchUsers(); 
     } catch (e) {
       alert("❌ Lỗi cập nhật: " + e);
@@ -101,42 +97,52 @@ export default function AdminPage() {
     }
   };
 
-  // 📂 TẢI FILE HỒ SƠ PHÁP LÝ (Agreement)
-  const downloadAgreement = (u: any) => {
+  // 📂 HÀM TẢI FILE TXT (BẢN GỐC ĐƠN GIẢN)
+  const downloadAgreementTxt = (u: any) => {
     const timeString = new Date().toLocaleString('vi-VN');
-    const expiryString = u.expiryDate ? new Date(u.expiryDate.seconds * 1000).toLocaleDateString('vi-VN') : "Chưa kích hoạt";
+    const expiryStr = u.expiryDate ? new Date(u.expiryDate.seconds * 1000).toLocaleDateString('vi-VN') : "Chưa kích hoạt";
     
+    // Nội dung file TXT
     const content = `
-=== BIÊN BẢN XÁC NHẬN SỬ DỤNG DỊCH VỤ SPARTAN AI ===
-Ngày trích xuất: ${timeString}
-Người trích xuất: ADMIN SYSTEM
+CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM
+Độc lập - Tự do - Hạnh phúc
+---------------------------
+
+BIÊN BẢN XÁC NHẬN SỬ DỤNG DỊCH VỤ SPARTAN AI
+Ngày xuất: ${timeString}
+Người xuất: ADMIN SYSTEM
 
 1. THÔNG TIN KHÁCH HÀNG:
+   - Họ tên: ${u.displayName || "Khách hàng"}
+   - Email: ${u.email}
    - ID Hệ thống: ${u.id}
-   - Họ tên/Display Name: ${u.displayName || "Unknown"}
-   - Email đăng ký: ${u.email}
    - License Key: ${u.licenseKey}
-   - Tài khoản MT5 đang liên kết: ${u.mt5Account || "Chưa liên kết"}
+   - Tài khoản MT5: ${u.mt5Account || "Chưa liên kết"}
 
-2. TRẠNG THÁI DỊCH VỤ:
+2. THÔNG TIN GÓI DỊCH VỤ:
    - Gói đăng ký: ${u.plan ? u.plan.toUpperCase() : "FREE"}
-   - Hạn sử dụng: ${expiryString}
+   - Hạn sử dụng: ${expiryStr}
 
-3. CAM KẾT ĐIỆN TỬ:
-   Khách hàng này đã xác nhận đồng ý với "Điều khoản sử dụng & Chính sách rủi ro" của Spartan AI khi thực hiện thanh toán/đăng ký.
-   - Chấp nhận rủi ro thị trường tài chính.
-   - Đồng ý chính sách KHÔNG HOÀN TIỀN (No Refund).
-   - Cam kết không bẻ khóa/phân phối lại phần mềm.
+3. NỘI DUNG CAM KẾT ĐIỆN TỬ:
+   Khách hàng xác nhận đã đọc và đồng ý với "Điều khoản sử dụng & Chính sách rủi ro" của Spartan AI.
+   
+   - Đồng ý rằng giao dịch tài chính có rủi ro mất vốn.
+   - Đồng ý chính sách KHÔNG HOÀN TIỀN (No Refund) đối với sản phẩm số.
+   - Cam kết không bẻ khóa, sao chép hoặc phân phối lại phần mềm trái phép.
 
-=== HẾT VĂN BẢN ===
-Digital Signature: ${u.id}_${Date.now()}
+---------------------------
+XÁC NHẬN CHỮ KÝ SỐ:
+[SIGNED_BY_${u.licenseKey}]
+[TIMESTAMP_${Date.now()}]
+---------------------------
 `;
 
-    const blob = new Blob([content], { type: "text/plain" });
+    // Tạo file và tải xuống
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `HoSo_${u.email}_${new Date().toISOString().split('T')[0]}.txt`;
+    link.download = `BienBan_${u.licenseKey}.txt`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -280,17 +286,17 @@ Digital Signature: ${u.id}_${Date.now()}
                           )}
                         </td>
 
-                        {/* 5. FILE HỒ SƠ (MỚI) */}
+                        {/* 5. TẢI FILE TXT */}
                         <td className="p-6 text-center align-top">
                             <button 
-                                onClick={() => downloadAgreement(u)}
-                                className="group/btn flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-cyan-400 transition-colors"
-                                title="Tải biên bản xác nhận"
+                                onClick={() => downloadAgreementTxt(u)}
+                                className="group/btn flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-green-400 transition-colors"
+                                title="Tải Biên Bản (TXT)"
                             >
-                                <div className="p-3 bg-slate-800 group-hover/btn:bg-cyan-500/10 rounded-xl border border-slate-700 group-hover/btn:border-cyan-500/50 transition-all">
+                                <div className="p-3 bg-slate-800 group-hover/btn:bg-green-500/10 rounded-xl border border-slate-700 group-hover/btn:border-green-500/50 transition-all">
                                     <FileText size={20} />
                                 </div>
-                                <span className="text-[10px] font-bold">Tải HS</span>
+                                <span className="text-[10px] font-bold">TẢI .TXT</span>
                             </button>
                         </td>
 
