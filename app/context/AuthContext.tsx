@@ -6,6 +6,7 @@ import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from
 
 // 🎖️ ĐỊNH NGHĨA HỒ SƠ CHIẾN BINH
 interface UserProfile {
+  id: string; // UID của người dùng
   licenseKey: string;
   plan: string;
   mt5Account: string;   // Tài khoản số 1
