@@ -20,9 +20,9 @@ export default function Sidebar() {
 
   const menuItems = [
     { name: 'DASHBOARD', icon: <LayoutDashboard size={22} />, path: '/dashboard' },
-    { name: 'LỊCH SỬ GIAO DỊCH', icon: <History size={22} />, path: '/dashboard/history' },
-    { name: 'HỒ SƠ TÀI KHOẢN', icon: <UserCircle size={22} />, path: '/dashboard/profile' },
-    { name: 'NẠP QUÂN LƯƠNG', icon: <CreditCard size={22} />, path: '/dashboard/billing' },
+    // { name: 'LỊCH SỬ GIAO DỊCH', icon: <History size={22} />, path: '/dashboard/history' },
+    // { name: 'HỒ SƠ TÀI KHOẢN', icon: <UserCircle size={22} />, path: '/dashboard/profile' },
+    // { name: 'NẠP QUÂN LƯƠNG', icon: <CreditCard size={22} />, path: '/dashboard/billing' },
   ];
 
   if (isAdmin) {
