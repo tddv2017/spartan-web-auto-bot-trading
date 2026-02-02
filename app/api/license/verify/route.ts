@@ -1,5 +1,6 @@
 import { adminDb } from "../../../lib/firebaseAdmin";
 import { NextResponse } from "next/server";
+export const dynamic = 'force-dynamic'; // 👈 DÒNG LỆNH BÀI MIỄN TỬ
 
 // 🚀 1. HÀM GỬI THÔNG BÁO VỀ TELEGRAM
 async function sendTelegramAlert(message: string) {
