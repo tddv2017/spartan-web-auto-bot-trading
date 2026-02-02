@@ -4,16 +4,19 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { useAuth } from '../context/AuthContext';
-import { useLanguage } from '../context/LanguageContext'; // 👈 1. Import LanguageContext
+import { useLanguage } from '../context/LanguageContext';
 import { 
   LogOut, Copy, Check, CreditCard, Activity, Clock, ShieldCheck, Zap, 
   Home, ChevronLeft, Terminal, PlayCircle 
 } from 'lucide-react';
 import PaymentModal from '../../components/landing/PaymentModal';
 
+// 👇 1. IMPORT LIVE PERFORMANCE (Vũ khí mới)
+import LivePerformance from '../dashboard/LivePerformance'; 
+
 function DashboardContent() {
   const { user, profile, logout } = useAuth();
-  const { t } = useLanguage(); // 👈 2. Lấy từ điển t
+  const { t } = useLanguage(); 
   const searchParams = useSearchParams();
   
   const [copied, setCopied] = useState(false);
@@ -53,7 +56,6 @@ function DashboardContent() {
     return new Date(seconds * 1000).toLocaleDateString('vi-VN');
   };
 
-  // Màn hình chờ
   if (!profile && user) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-4 text-green-500">
@@ -154,7 +156,15 @@ function DashboardContent() {
           <div className="absolute -right-20 -top-20 w-80 h-80 bg-green-500/5 blur-[100px] group-hover:bg-green-500/10 transition-all duration-700"></div>
         </div>
 
-        {/* 4. DOWNLOAD SECTION */}
+        {/* ---------------------------------------------------- */}
+        {/* 👇 4. KHU VỰC LIVE PERFORMANCE (THÊM MỚI TẠI ĐÂY)    */}
+        {/* ---------------------------------------------------- */}
+        <div className="my-8">
+           <LivePerformance />
+        </div>
+        {/* ---------------------------------------------------- */}
+
+        {/* 5. DOWNLOAD SECTION */}
         {profile?.plan && profile?.plan !== "free" ? (
           <div className="bg-gradient-to-r from-green-900/20 to-slate-900 border border-green-500/30 p-8 rounded-[2rem] flex flex-col md:flex-row items-center justify-between gap-6 shadow-[0_0_30px_rgba(34,197,94,0.05)] relative overflow-hidden">
             <div className="absolute inset-0 bg-green-500/5 animate-pulse"></div>
@@ -181,14 +191,14 @@ function DashboardContent() {
           </div>
         )}
 
-        {/* 5. STATS GRID */}
+        {/* 6. STATS GRID */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <StatBox label={t.dashboard.stats.account} value={profile?.mt5Account || t.dashboard.status.unconnected} icon={<Activity size={18}/>} />
           <StatBox label={t.dashboard.stats.expiry} value={formatExpiryDate()} icon={<Clock size={18}/>} color={isExpired ? "text-red-500 animate-pulse font-black" : "text-blue-400"} />
           <StatBox label={t.dashboard.stats.rank} value={profile?.plan === "starter" ? "PRO" : profile?.plan === "yearly" ? "VIP YEARLY" : profile?.plan === "lifetime" ? "VIP LIFETIME" : "FREE"} icon={<ShieldCheck size={18}/>} color={profile?.plan === "starter" ? "text-green-400" : "text-amber-400"} />
         </div>
 
-        {/* 6. GUIDE */}
+        {/* 7. GUIDE */}
         <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-6 md:p-8">
           <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2 uppercase tracking-wide">
             <Terminal size={20} className="text-green-500" />
