@@ -27,10 +27,10 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// 🛡️ DANH SÁCH BỘ CHỈ HUY (ADMIN) - Thêm email vào đây để phân quyền
+// 🛡️ DANH SÁCH BỘ CHỈ HUY (ADMIN)
 const ADMIN_EMAILS = [
   "tddv2017@gmail.com", 
-  "itcrazy2021pro@gmail.com", // Đại tá thay email thực tế của Phó tư lệnh vào đây
+  "itcrazy2021pro@gmail.com", 
   "tran.tuan.2821994@gmail.com",
 ];
 
@@ -62,17 +62,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               email: currentUser.email,
               licenseKey: "SPARTAN-" + Math.random().toString(36).substring(2, 10).toUpperCase(),
               mt5Account: "",
-              mt5Account2: "", // Khởi tạo sẵn ô tài khoản thứ 2
+              mt5Account2: "", 
               plan: "FREE",
               createdAt: new Date(),
-              expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // Tặng 7 ngày dùng thử
+              expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) 
             });
           }
 
           // 🛡️ LẮNG NGHE BIẾN ĐỘNG DỮ LIỆU REALTIME
           const unsubProfile = onSnapshot(userRef, (docSnap) => {
             if (docSnap.exists()) {
-              setProfile(docSnap.data() as UserProfile);
+              // 👇👇👇 ĐOẠN ĐÃ SỬA Ở ĐÂY 👇👇👇
+              setProfile({
+                id: docSnap.id, // Lấy ID từ document gán vào state
+                ...docSnap.data()
+              } as UserProfile);
+              // 👆👆👆 -----------------------
             }
             setLoading(false);
           });
@@ -98,7 +103,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const login = async () => {
     try {
       const provider = new GoogleAuthProvider();
-      // Thêm gợi ý tài khoản để tránh lính bấm nhầm
       provider.setCustomParameters({ prompt: 'select_account' });
       await signInWithPopup(auth, provider);
     } catch (error) {
@@ -109,7 +113,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const logout = async () => {
     try {
       await signOut(auth);
-      window.location.href = "/"; // Đuổi về trang chủ khi thoát
+      window.location.href = "/"; 
     } catch (error) {
       console.error("Lỗi rút quân:", error);
     }
