@@ -97,7 +97,7 @@ export const content = {
         period: "/năm",
         btn: "Đăng Ký Ngay",
         tag: "Khuyên Dùng",
-        features: ["Full Tính năng V7.2", "Tự động vào lệnh 100%", "Hỗ trợ 3 Tài khoản Live", "Tặng VPS 6 tháng", "Ưu tiên Support"]
+        features: ["Full Tính năng V7.2", "Tự động vào lệnh 100%", "Hỗ trợ 1 Tài khoản Live", "Tặng VPS 6 tháng", "Ưu tiên Support"]
       },
       // 4. LIFETIME ($699)
       lifetime: {
@@ -106,7 +106,7 @@ export const content = {
         period: "/vĩnh viễn",
         btn: "Trở Thành Đối Tác",
         tag: "Business VIP",
-        features: ["Sở hữu vĩnh viễn V7.2", "Free Update trọn đời", "Hỗ trợ 10 Tài khoản Live", "Tặng VPS 1 năm", "Đặc quyền: Làm Reseller (Hoa hồng 40%)"]
+        features: ["Sở hữu vĩnh viễn V7.2", "Free Update trọn đời", "Hỗ trợ 1 Tài khoản Live", "Tặng VPS 1 năm", "Đặc quyền: Làm Reseller (Hoa hồng 40%)"]
       }
     },
     footer: {
@@ -213,7 +213,7 @@ export const content = {
         period: "/yr",
         btn: "Save Now",
         tag: "Best Choice",
-        features: ["Full Features V7.2", "100% Auto Execution", "3 Live Accounts", "Free VPS (6 mos)", "Priority Support"]
+        features: ["Full Features V7.2", "100% Auto Execution", "1 Live Accounts", "Free VPS (6 mos)", "Priority Support"]
       },
       // 4. LIFETIME ($699)
       lifetime: {
@@ -222,7 +222,7 @@ export const content = {
         period: "/life",
         btn: "Become Partner",
         tag: "Business VIP",
-        features: ["Lifetime License V7.2", "Free Lifetime Updates", "10 Live Accounts", "Free VPS (1 year)", "Reseller Rights (40% Commission)"]
+        features: ["Lifetime License V7.2", "Free Lifetime Updates", "1 Live Accounts", "Free VPS (1 year)", "Reseller Rights (40% Commission)"]
       }
     },
     footer: {
