@@ -6,7 +6,7 @@ import { Loader2, X, Shield, Star, Crown, CheckSquare, Square, FileText, Copy, C
 import Link from "next/link";
 
 // 🔥 CẤU HÌNH VÍ USDT CỦA ĐẠI TÁ TẠI ĐÂY
-const MY_USDT_WALLET = "TJxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"; // Thay bằng ví thật của Đại tá (TRC20)
+const MY_USDT_WALLET = "TXWxf32YxYWZ99J7ZrvD3zBF8NPkPobKGG"; // Thay bằng ví thật của Đại tá (TRC20)
 
 export default function PaymentModal({ isOpen, onClose, plan: initialPlan }: { isOpen: boolean; onClose: () => void; plan: string }) {
   const { profile } = useAuth();
