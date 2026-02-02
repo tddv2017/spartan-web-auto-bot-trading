@@ -14,7 +14,7 @@ export const content = {
       title_2: "SPARTAN SNIPER",
       desc: "Hệ thống giao dịch tự động <strong>Dual-Core</strong> đầu tiên. Chuyển đổi linh hoạt giữa <span class='text-white'>Scalping tốc độ cao</span> và <span class='text-white'>Swing dài hạn</span>.",
       cta_primary: "Thuê Bot Ngay",
-      cta_secondary: "Xem Live Signal",
+      cta_secondary: "Video Backtest",
       stats: { winrate: "Tỷ lệ Win", profit: "Lợi nhuận", latency: "Độ trễ", users: "Người dùng" }
     },
     features: {

@@ -35,9 +35,9 @@ export default function Hero() {
 
       {/* CỤM NÚT BẤM ĐIỀU KHIỂN */}
       <div className="flex flex-col sm:flex-row justify-center gap-4">
-        <button className="px-8 py-4 bg-green-500 hover:bg-green-400 text-black font-bold text-lg rounded-xl transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(34,197,94,0.4)]">
+        <a href="#pricing" className="px-8 py-4 bg-green-500 hover:bg-green-400 text-black font-bold text-lg rounded-xl transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(34,197,94,0.4)]">
           {t.hero.cta_primary} <ArrowRight className="w-5 h-5"/>
-        </button>
+        </a>
 
         <button 
           onClick={() => setOpen(true)}
