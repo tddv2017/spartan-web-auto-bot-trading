@@ -7,107 +7,127 @@ import {
   LayoutDashboard, 
   ShieldAlert, 
   LogOut, 
-  User, 
-  ChevronRight,
   History,
   UserCircle,
-  CreditCard
+  CreditCard,
+  ChevronRight,
+  Menu
 } from 'lucide-react';
 
 export default function Sidebar() {
   const pathname = usePathname();
   const { isAdmin, logout, user, profile } = useAuth();
 
-  // 1. DANH SÁCH MENU CHÍNH
   const menuItems = [
     { name: 'DASHBOARD', icon: <LayoutDashboard size={22} />, path: '/dashboard' },
     { name: 'LỊCH SỬ GIAO DỊCH', icon: <History size={22} />, path: '/dashboard/history' },
-    { name: 'TÀI KHOẢN', icon: <UserCircle size={22} />, path: '/dashboard/profile' },
+    { name: 'HỒ SƠ TÀI KHOẢN', icon: <UserCircle size={22} />, path: '/dashboard/profile' },
     { name: 'NẠP QUÂN LƯƠNG', icon: <CreditCard size={22} />, path: '/dashboard/billing' },
   ];
 
-  // 2. NẾU LÀ ADMIN THÌ THÊM NÚT ĐẶC BIỆT
   if (isAdmin) {
     menuItems.push({ 
       name: 'TỔNG HÀNH DINH', 
       icon: <ShieldAlert size={22} />, 
-      path: '/admin' // Trỏ về trang /admin/page.tsx ta đã làm
+      path: '/admin' 
     });
   }
 
   return (
-    /* Sidebar: Mặc định w-20, Hover vào group sẽ bung ra w-72 */
-    <div className="group fixed left-0 top-0 h-screen w-20 hover:w-72 bg-slate-900/90 backdrop-blur-xl border-r border-slate-800 flex flex-col p-4 transition-all duration-300 ease-in-out z-50 overflow-hidden shadow-2xl">
+    // ✨ FIX 1: Thêm group để bắt sự kiện hover toàn cục
+    // ✨ FIX 2: Thêm z-50 để đè lên mọi thứ
+    <aside className="group fixed left-0 top-0 h-screen w-20 hover:w-[280px] bg-slate-950 border-r border-slate-800 transition-all duration-300 ease-in-out z-50 shadow-2xl flex flex-col overflow-hidden">
       
-      {/* LOGO BRAND */}
-      <div className="flex items-center gap-4 px-1 py-6 mb-2">
-        <div className="min-w-[40px] h-10 bg-green-500 rounded-xl flex items-center justify-center font-black text-black italic shadow-[0_0_15px_rgba(34,197,94,0.4)] shrink-0 group-hover:rotate-12 transition-transform">
+      {/* --- LOGO AREA --- */}
+      <div className="h-20 flex items-center px-4 mb-2 relative">
+        {/* Logo Icon (Luôn cố định) */}
+        <div className="min-w-[48px] h-12 bg-green-500 rounded-xl flex items-center justify-center text-black font-black text-xl italic shadow-[0_0_15px_rgba(34,197,94,0.4)] z-10">
           S
         </div>
-        <div className="flex flex-col opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap overflow-hidden">
-          <span className="text-xl font-black italic tracking-tighter text-white">
-            SPARTAN <span className="text-green-500">BOT</span>
-          </span>
-          <span className="text-[10px] text-slate-500 font-bold tracking-widest">AUTO TRADING SYSTEM</span>
+
+        {/* Logo Text (Trượt ra khi hover) */}
+        {/* ✨ FIX 3: whitespace-nowrap để chữ không xuống dòng */}
+        <div className="absolute left-20 opacity-0 group-hover:opacity-100 transition-all duration-300 delay-100 whitespace-nowrap pl-2">
+          <h1 className="text-xl font-black italic tracking-tighter text-white">
+            SPARTAN <span className="text-green-500">AI</span>
+          </h1>
+          <p className="text-[10px] text-slate-500 font-bold tracking-[0.2em] uppercase">Trading System</p>
         </div>
       </div>
 
-      {/* MENU NAVIGATION */}
-      <nav className="flex-1 space-y-2 mt-4">
+      {/* --- MENU LIST --- */}
+      <nav className="flex-1 px-3 space-y-2 py-4">
         {menuItems.map((item) => {
           const isActive = pathname === item.path;
           const isAdminItem = item.path === '/admin';
 
           return (
-            <Link key={item.path} href={item.path}>
-              <div className={`flex items-center gap-4 px-3 py-3.5 rounded-xl font-bold transition-all cursor-pointer whitespace-nowrap group/item relative overflow-hidden ${
-                isAdminItem 
-                  ? (isActive ? 'bg-red-600 text-white shadow-[0_0_15px_rgba(220,38,38,0.5)]' : 'text-red-500 hover:bg-red-500/10')
-                  : (isActive ? 'bg-green-500 text-black shadow-[0_0_15px_rgba(34,197,94,0.4)]' : 'text-slate-400 hover:bg-slate-800 hover:text-white')
-              }`}>
-                {/* Icon */}
-                <div className={`min-w-[32px] flex justify-center ${isActive ? 'animate-pulse' : ''}`}>
+            <Link key={item.path} href={item.path} className="block">
+              <div 
+                className={`relative flex items-center h-12 px-3 rounded-xl transition-all duration-200 cursor-pointer overflow-hidden ${
+                  isActive 
+                    ? (isAdminItem ? 'bg-red-600/10 text-red-500' : 'bg-green-500/10 text-green-400') 
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+                }`}
+              >
+                {/* Active Indicator (Thanh kẻ dọc bên trái) */}
+                {isActive && (
+                  <div className={`absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 rounded-r-full ${isAdminItem ? 'bg-red-500' : 'bg-green-500'}`} />
+                )}
+
+                {/* Icon (Luôn căn giữa ô 48px) */}
+                <div className="min-w-[24px] flex items-center justify-center z-10">
                   {item.icon}
                 </div>
-                
-                {/* Tên Menu (Hiện khi hover sidebar) */}
-                <span className="text-sm tracking-wide opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-75">
+
+                {/* Text (Hiện ra mượt mà) */}
+                {/* ✨ FIX 4: translate-x để tạo hiệu ứng trượt nhẹ */}
+                <span className={`ml-4 font-bold text-sm whitespace-nowrap opacity-0 -translate-x-4 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 delay-75 ${isActive ? '' : 'font-medium'}`}>
                   {item.name}
                 </span>
 
-                {/* Tooltip khi sidebar thu nhỏ (Hiện tên khi hover vào icon) */}
-                <div className="absolute left-16 bg-slate-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/item:opacity-100 group-hover:opacity-0 pointer-events-none transition-opacity z-50 whitespace-nowrap border border-slate-700 font-normal">
-                  {item.name}
-                </div>
+                {/* Hiệu ứng Glow nền khi Active */}
+                {isActive && (
+                  <div className={`absolute inset-0 opacity-20 blur-xl ${isAdminItem ? 'bg-red-500' : 'bg-green-500'}`}></div>
+                )}
               </div>
             </Link>
           );
         })}
       </nav>
 
-      {/* USER PROFILE & LOGOUT */}
-      <div className="mt-auto border-t border-slate-800 pt-6 space-y-2">
-        <div className="flex items-center gap-3 px-1 p-2 rounded-xl bg-slate-950/50 border border-slate-800/50">
-          <div className="min-w-[36px] h-9 rounded-full bg-slate-800 border border-slate-600 overflow-hidden flex items-center justify-center shrink-0">
-             {/* Lấy ký tự đầu của tên làm Avatar */}
-             <span className="font-black text-green-500">{profile?.displayName?.[0] || "U"}</span>
+      {/* --- USER FOOTER --- */}
+      <div className="p-4 border-t border-slate-800 bg-slate-900/50">
+        <div className="flex items-center overflow-hidden relative h-12">
+          
+          {/* Avatar (Luôn hiện) */}
+          <div className="min-w-[40px] h-10 rounded-full bg-slate-800 border border-slate-600 flex items-center justify-center shrink-0 z-10">
+             {profile?.photoURL ? (
+                <img src={profile.photoURL} alt="User" className="w-full h-full rounded-full object-cover" />
+             ) : (
+                <span className="font-bold text-green-500">{profile?.displayName?.[0] || "U"}</span>
+             )}
           </div>
-          <div className="overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">
-            <p className="text-xs font-black text-white truncate uppercase">{profile?.displayName || "CHIẾN BINH"}</p>
-            <p className="text-[9px] text-slate-500 truncate font-mono">{user?.email}</p>
+
+          {/* Info (Trượt ra) */}
+          <div className="ml-3 opacity-0 group-hover:opacity-100 transition-all duration-300 delay-100 whitespace-nowrap">
+            <p className="text-xs font-bold text-white truncate w-32">{profile?.displayName || "Chiến Binh"}</p>
+            <button 
+              onClick={logout} 
+              className="text-[10px] text-red-400 hover:text-red-300 hover:underline flex items-center gap-1 mt-0.5"
+            >
+              <LogOut size={10} /> Đăng xuất
+            </button>
           </div>
         </div>
-        
-        <button onClick={logout} className="w-full flex items-center gap-4 px-3 py-3 rounded-xl font-bold text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all whitespace-nowrap group/logout">
-          <div className="min-w-[32px] flex justify-center group-hover/logout:-translate-x-1 transition-transform"><LogOut size={20} /></div>
-          <span className="text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300">RÚT QUÂN (LOGOUT)</span>
-        </button>
       </div>
 
-      {/* ICON GỢI Ý MỞ RỘNG (Chỉ hiện khi thu nhỏ) */}
-      <div className="absolute -right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-0 transition-opacity text-slate-700 delay-500 animate-pulse">
-        <ChevronRight size={24} />
+      {/* --- DECORATION --- */}
+      {/* Icon mũi tên gợi ý mở rộng (Chỉ hiện khi đóng) */}
+      <div className="absolute top-1/2 -right-3 p-1 bg-slate-800 rounded-full border border-slate-700 text-slate-500 opacity-100 group-hover:opacity-0 transition-opacity duration-200 pointer-events-none">
+        <ChevronRight size={12} />
       </div>
-    </div>
+
+    </aside>
   );
 }
