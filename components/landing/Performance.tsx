@@ -1,9 +1,10 @@
 "use client";
 import React from 'react';
-import { TrendingUp, Activity, PieChart, ArrowUpRight, CheckCircle2 } from 'lucide-react';
+import { TrendingUp, Activity, PieChart, CheckCircle2 } from 'lucide-react';
 import { useLanguage } from '../../app/context/LanguageContext';
+import Efficiency from './Efficiency'; // Nếu có dùng Efficiency thì import vào
 
-// Dữ liệu giả lập cho bảng lịch sử (Sau này Đại tá có thể nối API thật vào đây)
+// Dữ liệu giả lập cho bảng lịch sử
 const MOCK_HISTORY = [
   { time: "15 mins ago", symbol: "XAUUSD", type: "BUY", profit: "+$125.50", status: "WIN" },
   { time: "4 hours ago", symbol: "XAUUSD", type: "SELL", profit: "+$89.20", status: "WIN" },
@@ -14,10 +15,20 @@ const MOCK_HISTORY = [
 
 export default function Performance() {
   const { t } = useLanguage();
+  
+  // 👇 LẤY DỮ LIỆU TỪ MỤC HIGHLIGHTS (Đã tạo ở content.ts)
+  const h = t.performance?.highlights; 
+
+  // Lưới an toàn: Nếu chưa load được từ điển thì không render để tránh lỗi
+  if (!h) return null;
 
   return (
-    <section id="performance" className="relative z-10 py-24 bg-slate-950 border-t border-slate-900">
-      <div className="max-w-7xl mx-auto px-4">
+    <section id="performance" className="relative z-10 py-24 bg-slate-950 border-t border-slate-900 overflow-hidden">
+      
+      {/* Background Decor */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-green-500/5 blur-[120px] rounded-full pointer-events-none"></div>
+
+      <div className="max-w-7xl mx-auto px-4 relative z-10">
         
         {/* Header Section */}
         <div className="text-center mb-16">
@@ -34,52 +45,49 @@ export default function Performance() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           
-          {/* --- CỘT TRÁI: THỐNG KÊ TỔNG QUAN --- */}
+          {/* --- CỘT TRÁI: THỐNG KÊ TỔNG QUAN (ĐÃ KẾT NỐI TỪ ĐIỂN) --- */}
           <div className="grid grid-cols-2 gap-6">
+            
+            {/* Card 1: Tổng lợi nhuận */}
             <StatCard 
-              label={t.performance.stats.total_gain} 
-              value="+$7.2M" // Hoặc ghi %: "+72,000%"
-              trend="Profit Factor 3.27" // Số PF quá đẹp, phải khoe ở đây
+              label={h.card1_label} 
+              value={h.card1_val} 
+              trend={h.pf_badge}
+              trendColor="text-green-400 bg-green-500/10"
               icon={<TrendingUp className="w-6 h-6 text-green-500" />}
             />
-             <StatCard 
-              label={t.performance.stats.monthly} 
-              value="Autoscale" // Vì lãi kép nên không tính tháng cố định được
-              trend="Lãi kép cực đại"
+            
+            {/* Card 2: Lãi kép (Autoscale) */}
+            <StatCard 
+              label={h.card2_label} 
+              value={h.card2_val} 
+              trend={h.compounding_badge}
+              trendColor="text-blue-400 bg-blue-500/10"
               icon={<Activity className="w-6 h-6 text-blue-500" />}
             />
-             <StatCard 
-              label={t.performance.stats.drawdown} 
-              value="2.80%" // Con số huỷ diệt mọi đối thủ
-              trend="Rủi ro siêu thấp"
+            
+            {/* Card 3: Drawdown (Rủi ro) */}
+            <StatCard 
+              label={h.card3_label} 
+              value={h.card3_val} 
+              trend={h.risk_badge}
+              trendColor="text-yellow-400 bg-yellow-500/10"
               icon={<PieChart className="w-6 h-6 text-yellow-500" />}
             />
-             <StatCard 
-              label={t.performance.stats.won_trades} 
-              value="10,450" 
-              trend="Winrate ~97.4%" // Winrate này là vô đối
+            
+            {/* Card 4: Winrate */}
+            <StatCard 
+              label={h.card4_label} 
+              value={h.card4_val} 
+              trend={h.winrate_badge}
+              trendColor="text-purple-400 bg-purple-500/10"
               icon={<CheckCircle2 className="w-6 h-6 text-purple-500" />}
             />
 
-            {/* Link sang Myfxbook (Tăng độ uy tín)
-            <div className="col-span-2 mt-4 p-4 bg-slate-900 rounded-xl border border-dashed border-slate-700 flex items-center justify-between hover:border-green-500/50 transition-colors cursor-pointer group">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-black rounded flex items-center justify-center font-bold text-white text-xs">MYFX</div>
-                <div>
-                  <p className="text-white font-bold text-sm">Verified by Myfxbook</p>
-                  <p className="text-xs text-green-500 flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> 
-                    Live Tracking
-                  </p>
-                </div>
-              </div>
-              <ArrowUpRight className="w-5 h-5 text-slate-500 group-hover:text-green-500 transition-colors"/>
-            </div> */}
           </div>
 
-          {/* --- CỘT PHẢI: BẢNG LIVE LOG --- */}
+          {/* --- CỘT PHẢI: BẢNG LIVE LOG (Giữ nguyên logic cũ) --- */}
           <div className="relative">
-            {/* Decor nền */}
             <div className="absolute inset-0 bg-green-500/5 blur-3xl -z-10 rounded-full"></div>
             
             <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
@@ -124,33 +132,33 @@ export default function Performance() {
                     ))}
                   </tbody>
                 </table>
-                
-                {/* Gradient che mờ phía dưới để tạo cảm giác danh sách dài */}
                 <div className="absolute bottom-0 left-0 w-full h-12 bg-gradient-to-t from-slate-900 to-transparent"></div>
               </div>
             </div>
           </div>
 
         </div>
+        
       </div>
     </section>
   );
 }
 
-// Component con: Card thống kê
-function StatCard({ label, value, trend, icon }: any) {
+// Component con: Card thống kê (Đã nâng cấp để nhận màu sắc động)
+function StatCard({ label, value, trend, icon, trendColor }: any) {
   return (
-    <div className="p-5 bg-slate-900/50 border border-slate-800 rounded-xl hover:border-green-500/30 transition-all">
+    <div className="p-5 bg-slate-900/50 border border-slate-800 rounded-xl hover:border-green-500/30 transition-all hover:-translate-y-1">
       <div className="flex justify-between items-start mb-4">
         <div className="p-2 bg-slate-950 rounded-lg border border-slate-800">
           {icon}
         </div>
-        <span className="text-[10px] font-mono text-green-400 bg-green-500/10 px-2 py-1 rounded-full">
+        {/* Badge động */}
+        <span className={`text-[10px] font-bold font-mono px-2 py-1 rounded-full ${trendColor || 'text-slate-400 bg-slate-800'}`}>
           {trend}
         </span>
       </div>
       <p className="text-2xl font-black text-white mb-1">{value}</p>
-      <p className="text-xs text-slate-500 uppercase tracking-wider">{label}</p>
+      <p className="text-xs text-slate-500 uppercase tracking-wider font-bold">{label}</p>
     </div>
   );
 }

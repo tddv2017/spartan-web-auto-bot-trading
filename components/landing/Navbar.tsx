@@ -43,15 +43,15 @@ export default function Navbar() {
 
         {/* --- 2. MENU GIỮA (DESKTOP ONLY) --- */}
         <div className="hidden md:flex gap-8 text-sm font-bold text-slate-400">
-          <a href="#features" className="hover:text-green-400 transition-colors">{t.nav?.features || "Tính năng"}</a>
-          <a href="#performance" className="hover:text-green-400 transition-colors">{t.nav?.performance || "Hiệu suất"}</a>
-          <a href="#pricing" className="hover:text-green-400 transition-colors">{t.nav?.pricing || "Bảng giá"}</a>
+          <a href="#features" className="hover:text-green-400 transition-colors">{t.nav?.features}</a>
+          <a href="#performance" className="hover:text-green-400 transition-colors">{t.nav?.performance}</a>
+          <a href="#pricing" className="hover:text-green-400 transition-colors">{t.nav?.pricing}</a>
         </div>
 
-        {/* --- 3. KHU VỰC BÊN PHẢI (CHỨA CẢ LANG + USER + MENU MOBILE) --- */}
+        {/* --- 3. KHU VỰC BÊN PHẢI --- */}
         <div className="flex items-center gap-3 md:gap-4">
           
-          {/* 🔥 NÚT ĐỔI NGÔN NGỮ (LUÔN HIỆN TRÊN CẢ MOBILE & PC) */}
+          {/* NÚT ĐỔI NGÔN NGỮ */}
           <button 
             onClick={() => setLanguage(language === 'vi' ? 'en' : 'vi')}
             className="flex items-center gap-1.5 text-xs font-bold border border-slate-700 rounded-lg px-2.5 py-2 hover:border-green-500 transition-colors bg-slate-900/80 text-slate-300"
@@ -60,7 +60,7 @@ export default function Navbar() {
             <span className="uppercase">{language}</span>
           </button>
 
-          {/* --- USER / LOGIN (CHỈ HIỆN TRÊN PC) --- */}
+          {/* --- USER / LOGIN (DESKTOP) --- */}
           <div className="hidden md:block">
             {user ? (
               // ✅ PC: ĐÃ LOGIN
@@ -87,17 +87,25 @@ export default function Navbar() {
               </Link>
             ) : (
               // ❌ PC: CHƯA LOGIN
-              <Link 
-                href="/login"
-                className="flex items-center gap-2 bg-green-500 hover:bg-green-400 text-black px-6 py-2 rounded-full text-sm font-bold transition-all shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:scale-105"
-              >
-                <LogIn className="w-4 h-4" />
-                {t.nav?.login || "Đăng nhập"}
-              </Link>
+              <div className="flex items-center gap-3">
+                <Link 
+                  href="/login"
+                  className="text-sm font-bold text-white hover:text-green-400 transition-colors"
+                >
+                  {t.nav?.login}
+                </Link>
+                <Link 
+                  href="/login"
+                  className="flex items-center gap-2 bg-green-500 hover:bg-green-400 text-black px-5 py-2 rounded-full text-sm font-bold transition-all shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:scale-105"
+                >
+                  <Zap size={16} fill="currentColor" />
+                  {t.nav?.join}
+                </Link>
+              </div>
             )}
           </div>
 
-          {/* --- NÚT 3 GẠCH (CHỈ HIỆN TRÊN MOBILE) --- */}
+          {/* --- NÚT 3 GẠCH (MOBILE) --- */}
           <button 
             className="md:hidden text-white hover:text-green-500 transition-colors p-1"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -116,10 +124,13 @@ export default function Navbar() {
           {/* Links Mobile */}
           <div className="flex flex-col gap-4 text-base font-bold text-slate-300">
              <a href="#features" onClick={() => setIsMobileMenuOpen(false)} className="flex justify-between items-center hover:text-green-400 py-3 border-b border-slate-800/50">
-               {t.nav?.features || "Tính năng"} <ChevronRight size={16}/>
+               {t.nav?.features} <ChevronRight size={16}/>
+             </a>
+             <a href="#performance" onClick={() => setIsMobileMenuOpen(false)} className="flex justify-between items-center hover:text-green-400 py-3 border-b border-slate-800/50">
+               {t.nav?.performance} <ChevronRight size={16}/>
              </a>
              <a href="#pricing" onClick={() => setIsMobileMenuOpen(false)} className="flex justify-between items-center hover:text-green-400 py-3 border-b border-slate-800/50">
-               {t.nav?.pricing || "Bảng giá"} <ChevronRight size={16}/>
+               {t.nav?.pricing} <ChevronRight size={16}/>
              </a>
           </div>
 
@@ -132,9 +143,9 @@ export default function Navbar() {
                   {user.photoURL ? <img src={user.photoURL} alt="User" className="w-full h-full object-cover" /> : <User size={24} />}
                 </div>
                 <div>
-                  <p className="font-bold text-white text-lg">{profile?.displayName || "Chiến Binh"}</p>
+                  <p className="font-bold text-white text-lg">{profile?.displayName || t.nav?.warrior}</p>
                   <p className="text-xs text-green-500 font-mono flex items-center gap-1 bg-green-500/10 px-2 py-1 rounded w-fit mt-1">
-                     <Shield size={10} /> Đã kích hoạt
+                     <Shield size={10} /> {t.nav?.activated}
                   </p>
                 </div>
               </div>
@@ -143,7 +154,7 @@ export default function Navbar() {
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="w-full py-4 bg-green-500 text-black font-black rounded-xl flex items-center justify-center gap-2 text-lg shadow-lg active:scale-95 transition-transform"
               >
-                <LayoutDashboard size={20} /> {t.nav?.dashboard || "VÀO DASHBOARD"}
+                <LayoutDashboard size={20} /> {t.nav?.dashboard}
               </Link>
             </div>
           ) : (
@@ -154,14 +165,14 @@ export default function Navbar() {
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="w-full py-4 bg-slate-800 text-white font-bold rounded-xl flex items-center justify-center border border-slate-700 hover:bg-slate-700"
               >
-                <User size={20} className="mr-2"/> Đăng nhập
+                <User size={20} className="mr-2"/> {t.nav?.login}
               </Link>
               <Link 
                 href="/login" 
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="w-full py-4 bg-green-500 text-black font-black rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:scale-105 transition-transform"
               >
-                <Zap size={20} fill="currentColor" className="mr-2"/> THAM CHIẾN NGAY
+                <Zap size={20} fill="currentColor" className="mr-2"/> {t.nav?.join}
               </Link>
             </div>
           )}
