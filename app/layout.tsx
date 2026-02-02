@@ -76,9 +76,9 @@ export default function RootLayout({
       <body className={`${beVietnam.variable} ${chakra.variable} antialiased bg-slate-950 text-slate-200`}>
         <AuthProvider>
           <LanguageProvider>
-            <LayoutContent>
+            
               {children}
-            </LayoutContent>
+            
           </LanguageProvider>
         </AuthProvider>
       </body>
