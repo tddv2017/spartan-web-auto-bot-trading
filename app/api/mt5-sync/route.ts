@@ -10,7 +10,7 @@ export async function POST(request: Request) {
 
   // 🛡️ CHECK 1: Kiểm tra xem chìa khóa môi trường có tồn tại không
   if (!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) {
-    console.error("❌ LỖI NGHIÊM TRỌNG: Server không thấy biến môi trường!");
+    console.error("❌ LỖI  Server không thấy biến môi trường!");
     return NextResponse.json({ valid: false, error: 'Server Missing Env Vars' }, { status: 500 });
   }
 
