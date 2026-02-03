@@ -1,17 +1,21 @@
 "use client";
 import React, { createContext, useContext, useEffect, useState } from "react";
 
+// Định nghĩa cấu trúc tin nhắn
 interface Message {
   id: number;
   text: string;
   sender: "user" | "bot";
+  timestamp?: Date; // Thêm timestamp cho chuyên nghiệp
 }
 
+// Định nghĩa các hàm sẽ dùng chung
 interface ChatContextType {
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
   messages: Message[];
-  sendMessage: (text: string) => void;
+  // ⚠️ QUAN TRỌNG: Cập nhật dòng này để nhận thêm tham số sender
+  sendMessage: (text: string, sender?: "user" | "bot") => void;
   clearChat: () => void;
 }
 
@@ -20,46 +24,56 @@ const ChatContext = createContext<ChatContextType | undefined>(undefined);
 export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const [isOpen, setIsOpen] = useState(false);
   
-  // Mặc định có tin nhắn chào
-  const defaultMsg: Message = { id: 1, text: "Chào Đại tá! 👋 Hệ thống Spartan AI hỗ trợ gì được cho ngài?", sender: "bot" };
+  // Tin nhắn mặc định của Bot
+  const defaultMsg: Message = { 
+    id: 1, 
+    text: "Báo cáo! Spartan Commander đã sẵn sàng. Đại tá cần tham vấn gì về thị trường? 🫡", 
+    sender: "bot",
+    timestamp: new Date()
+  };
+
   const [messages, setMessages] = useState<Message[]>([defaultMsg]);
 
-  // 1. LOAD LỊCH SỬ TỪ LOCAL STORAGE (Khi mới vào web)
+  // 1. LOAD LỊCH SỬ TỪ LOCAL STORAGE
   useEffect(() => {
-    const savedMsg = localStorage.getItem("spartan_chat_history");
-    const savedStatus = localStorage.getItem("spartan_chat_open");
-    
-    if (savedMsg) setMessages(JSON.parse(savedMsg));
-    if (savedStatus) setIsOpen(savedStatus === "true");
+    if (typeof window !== "undefined") {
+      const savedMsg = localStorage.getItem("spartan_chat_history");
+      const savedStatus = localStorage.getItem("spartan_chat_open");
+      
+      if (savedMsg) {
+        try {
+            setMessages(JSON.parse(savedMsg));
+        } catch (e) {
+            console.error("Lỗi đọc lịch sử chat", e);
+        }
+      }
+      if (savedStatus) setIsOpen(savedStatus === "true");
+    }
   }, []);
 
-  // 2. LƯU LỊCH SỬ VÀO LOCAL STORAGE (Mỗi khi có tin mới)
+  // 2. LƯU LỊCH SỬ (Chạy mỗi khi tin nhắn thay đổi)
   useEffect(() => {
-    localStorage.setItem("spartan_chat_history", JSON.stringify(messages));
-    localStorage.setItem("spartan_chat_open", String(isOpen));
+    if (typeof window !== "undefined") {
+      localStorage.setItem("spartan_chat_history", JSON.stringify(messages));
+      localStorage.setItem("spartan_chat_open", String(isOpen));
+    }
   }, [messages, isOpen]);
 
-  // 3. HÀM GỬI TIN NHẮN & BOT TRẢ LỜI
-  const sendMessage = (text: string) => {
-    const newMsg: Message = { id: Date.now(), text, sender: "user" };
-    setMessages((prev) => [...prev, newMsg]);
-
-    // Bot trả lời tự động sau 1.5s
-    setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        { 
-          id: Date.now() + 1, 
-          text: "Cảm ơn ngài. Admin đang kết nối, vui lòng để lại Email hoặc Telegram để được hỗ trợ nhanh nhất ạ! 🫡", 
-          sender: "bot" 
-        }
-      ]);
-    }, 1500);
+  // 3. HÀM GỬI TIN NHẮN (ĐÃ NÂNG CẤP)
+  const sendMessage = (text: string, sender: 'user' | 'bot' = 'user') => {
+    setMessages(prev => [...prev, { 
+        id: Date.now(), 
+        text, 
+        sender, // Lưu rõ ai là người gửi
+        timestamp: new Date() 
+    }]);
   };
 
   const clearChat = () => {
     setMessages([defaultMsg]);
-    localStorage.removeItem("spartan_chat_history");
+    if (typeof window !== "undefined") {
+        localStorage.removeItem("spartan_chat_history");
+    }
   };
 
   return (
