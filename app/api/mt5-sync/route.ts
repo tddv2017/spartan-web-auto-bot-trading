@@ -1,16 +1,16 @@
 import { NextResponse } from 'next/server';
-// ⚠️ Thay ../../ bằng @/ nếu Next.js có hỗ trợ, nếu không giữ nguyên nhưng nhớ kiểm tra kỹ
+// ⚠️ Đại tá kiểm tra lại đường dẫn import này cho đúng với máy mình nhé
 import { db } from '../../lib/firebase'; 
 import { collection, addDoc, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    let { licenseKey, ticket, symbol, type, profit } = body;
+    
+    // 👇 Lấy dữ liệu từ Bot gửi lên
+    let { licenseKey, mt5Account, ticket, symbol, type, profit } = body;
 
-    // 1. CHUẨN HÓA DỮ LIỆU ĐẦU VÀO (FIX LỖI 0 vs "BUY")
-    // Chuyển đổi type từ số sang chữ cho dễ đọc trên Database
-    // MT5: 0=Buy, 1=Sell. Nếu nhận được chuỗi "BUY"/"SELL" rồi thì giữ nguyên.
+    // 1. CHUẨN HÓA DỮ LIỆU (FIX LỖI 0 vs "BUY")
     let strType = "UNKNOWN";
     if (type === 0 || type === "0" || type === "BUY") strType = "BUY";
     else if (type === 1 || type === "1" || type === "SELL") strType = "SELL";
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ valid: false, error: 'Key Required' }, { status: 400 });
     }
 
-    // 2. Tìm User
+    // 2. TÌM USER ID DỰA TRÊN LICENSE KEY (Đoạn này quan trọng để có userId)
     const usersRef = collection(db, "users");
     const q = query(usersRef, where("licenseKey", "==", licenseKey));
     const querySnapshot = await getDocs(q);
@@ -29,28 +29,31 @@ export async function POST(request: Request) {
     }
 
     const userDoc = querySnapshot.docs[0];
-    const userId = userDoc.id;
+    const userId = userDoc.id; // ✅ ĐÂY LÀ DÒNG KHAI BÁO USERID (Sẽ hết lỗi đỏ)
 
-    // 3. Lưu lệnh trade
+    // 3. LƯU LỆNH TRADE
     if (ticket) {
       const tradesRef = collection(db, "users", userId, "trades");
       
       // Ép kiểu ticket sang Number để tìm kiếm chính xác
       const numTicket = Number(ticket);
       
+      // Kiểm tra trùng lệnh (Duplicate check)
       const tradeQuery = query(tradesRef, where("ticket", "==", numTicket));
       const tradeSnap = await getDocs(tradeQuery);
 
       if (tradeSnap.empty) {
         await addDoc(tradesRef, {
-          ticket: numTicket, // Lưu thống nhất là số
+          mt5Account: Number(mt5Account), // ✅ Lưu số TK MT5
+          licenseKey: licenseKey,         // ✅ Lưu License Key
+          ticket: numTicket,
           symbol: symbol || "XAUUSD",
-          type: strType,     // Lưu thống nhất là "BUY" hoặc "SELL"
+          type: strType,
           profit: Number(profit) || 0,
           closeTime: new Date().toISOString(),
           createdAt: serverTimestamp()
         });
-        console.log(`✅ Synced Trade #${ticket} for User ${userId}`);
+        console.log(`✅ Synced Trade #${ticket} | MT5: ${mt5Account}`);
       }
     }
 
@@ -66,6 +69,7 @@ export async function POST(request: Request) {
   }
 }
 
+// Hàm hỗ trợ CORS
 export async function OPTIONS() {
   return new NextResponse(null, {
     status: 200,
