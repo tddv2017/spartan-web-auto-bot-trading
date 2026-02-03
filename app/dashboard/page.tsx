@@ -11,9 +11,6 @@ import {
 } from 'lucide-react';
 import PaymentModal from '../../components/landing/PaymentModal';
 
-// 👇 1. IMPORT LIVE PERFORMANCE (Vũ khí mới)
-import LivePerformance from '../dashboard/LivePerformance'; 
-
 function DashboardContent() {
   const { user, profile, logout } = useAuth();
   const { t } = useLanguage(); 
@@ -155,14 +152,6 @@ function DashboardContent() {
           </div>
           <div className="absolute -right-20 -top-20 w-80 h-80 bg-green-500/5 blur-[100px] group-hover:bg-green-500/10 transition-all duration-700"></div>
         </div>
-
-        {/* ---------------------------------------------------- */}
-        {/* 👇 4. KHU VỰC LIVE PERFORMANCE (THÊM MỚI TẠI ĐÂY)    */}
-        {/* ---------------------------------------------------- */}
-        <div className="my-8">
-           <LivePerformance />
-        </div>
-        {/* ---------------------------------------------------- */}
 
         {/* 5. DOWNLOAD SECTION */}
         {profile?.plan && profile?.plan !== "free" ? (
