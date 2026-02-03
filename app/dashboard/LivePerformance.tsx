@@ -1,7 +1,7 @@
 "use client"; // Bắt buộc dùng cho Next.js App Router
 
 import React, { useEffect, useState } from 'react';
-import { db } from '../lib/firebase'; // Đại tá kiểm tra lại đường dẫn import này
+import { db } from '@/lib/firebase'; // Đại tá kiểm tra lại đường dẫn import này
 import { 
   collectionGroup, 
   query, 

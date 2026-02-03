@@ -1,4 +1,4 @@
-import { adminDb } from "../../../lib/firebaseAdmin";
+import { adminDb } from "@/lib/firebaseAdmin";
 import { NextResponse } from "next/server";
 export const dynamic = 'force-dynamic'; // 👈 DÒNG LỆNH BÀI MIỄN TỬ
 

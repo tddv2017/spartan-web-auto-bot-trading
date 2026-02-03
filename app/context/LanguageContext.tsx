@@ -1,6 +1,6 @@
 "use client";
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { content } from '../lib/content'; 
+import { content } from '@/lib/content'; 
 
 type Language = 'vi' | 'en';
 
