@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from 'react';
 import { ArrowRight, PlayCircle, X } from 'lucide-react';
-import { useLanguage } from '../../app/context/LanguageContext';
+import { useLanguage } from '@/app/context/LanguageContext';
 
 export default function Hero() {
   const { t } = useLanguage();

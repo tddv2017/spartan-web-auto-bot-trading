@@ -1,7 +1,7 @@
 "use client";
 import React from 'react';
 import { CheckCircle2, Zap, Star, Briefcase, Crown, Shield } from 'lucide-react'; 
-import { useLanguage } from '../../app/context/LanguageContext';
+import { useLanguage } from '@/app/context/LanguageContext';
 
 export default function Pricing() {
   const { t } = useLanguage();

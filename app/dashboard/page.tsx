@@ -9,7 +9,7 @@ import {
   LogOut, Copy, Check, CreditCard, Activity, Clock, ShieldCheck, Zap, 
   Home, ChevronLeft, Terminal, PlayCircle 
 } from 'lucide-react';
-import PaymentModal from '../../components/landing/PaymentModal';
+import PaymentModal from '@/components/landing/PaymentModal';
 
 function DashboardContent() {
   const { user, profile, logout } = useAuth();

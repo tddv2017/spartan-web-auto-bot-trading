@@ -1,28 +1,71 @@
 /* Import Tailwind v4 */
 @import "tailwindcss";
 
-/* Cấu hình Theme trực tiếp tại đây */
+/* 1. CẤU HÌNH THEME (FONTS & COLORS) */
 @theme {
   /* Gán font mặc định (sans) thành Be Vietnam Pro */
   --font-sans: var(--font-be-vietnam), ui-sans-serif, system-ui, sans-serif;
   
-  /* Gán font mono (dùng cho số liệu/tiêu đề hầm hố) thành Chakra Petch */
+  /* Gán font mono (số liệu hầm hố) thành Chakra Petch */
   --font-mono: var(--font-chakra), ui-monospace, SFMono-Regular, monospace;
+
+  /* Định nghĩa màu Slate-950 chuẩn quân đội (Nếu Tailwind v4 chưa tự nhận) */
+  --color-slate-950: #020617;
 }
 
-/* Các custom style khác của Đại tá (nếu có) */
+/* 2. BIẾN MÔI TRƯỜNG (DARK MODE VĨNH VIỄN) */
 :root {
-  --background: #000000;
-  --foreground: #ededed;
+  /* Màu nền: Slate-950 (Xanh đen quân sự) thay vì đen tuyền #000000 */
+  --background: #020617; 
+  --foreground: #e2e8f0; /* Slate-200 cho chữ dễ đọc */
+  
+  --sidebar-width-collapsed: 80px;
+  --sidebar-width-expanded: 260px;
 }
 
+/* 3. THIẾT LẬP CƠ BẢN CHO BODY */
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans); /* Kích hoạt font Be Vietnam cho toàn trang */
+  font-family: var(--font-sans);
+  overflow-x: hidden; /* Chặn thanh cuộn ngang */
 }
 
-:root {
-  --sidebar-width-collapsed: 80px;
-  --sidebar-width-expanded: 260px;
+/* 4. 🛡️ THANH CUỘN QUÂN SỰ (CUSTOM SCROLLBAR) */
+/* Dành cho Chrome, Edge, Safari */
+::-webkit-scrollbar {
+  width: 6px;      /* Độ rộng thanh dọc */
+  height: 6px;     /* Độ cao thanh ngang */
+}
+
+::-webkit-scrollbar-track {
+  background: #0f172a; /* Slate-900: Màu đường ray */
+}
+
+::-webkit-scrollbar-thumb {
+  background: #15803d; /* Green-700: Màu thanh kéo (Xanh lá Spartan) */
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #22c55e; /* Green-500: Sáng lên khi di chuột */
+}
+
+/* 5. CÁC CLASS TIỆN ÍCH BỔ SUNG */
+@utility text-balance {
+  text-wrap: balance;
+}
+
+/* Class riêng cho bảng tin tức (Thanh cuộn mảnh hơn) */
+@utility custom-scrollbar {
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: #334155; /* Slate-700 */
+    border-radius: 10px;
+  }
 }

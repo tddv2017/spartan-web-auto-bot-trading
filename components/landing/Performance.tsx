@@ -1,7 +1,7 @@
 "use client";
 import React from 'react';
 import { TrendingUp, Activity, PieChart, CheckCircle2 } from 'lucide-react';
-import { useLanguage } from '../../app/context/LanguageContext';
+import { useLanguage } from '@/app/context/LanguageContext';
 import Efficiency from './Efficiency'; // Nếu có dùng Efficiency thì import vào
 
 // Dữ liệu giả lập cho bảng lịch sử

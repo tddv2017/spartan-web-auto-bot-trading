@@ -1,7 +1,7 @@
 "use client";
 import React from 'react';
 import { Download, ShieldCheck, FileText } from 'lucide-react';
-import { useLanguage } from '../../app/context/LanguageContext';
+import { useLanguage } from '@/app/context/LanguageContext';
 
 export default function VerifiedReport() {
   const { t } = useLanguage();

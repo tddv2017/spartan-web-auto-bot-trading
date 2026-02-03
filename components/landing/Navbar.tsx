@@ -5,8 +5,8 @@ import {
   Menu, X, Globe, User, LayoutDashboard, LogIn, 
   ChevronRight, Shield, Zap 
 } from 'lucide-react';
-import { useLanguage } from '../../app/context/LanguageContext';
-import { useAuth } from '../../app/context/AuthContext';
+import { useLanguage } from '@/app/context/LanguageContext';
+import { useAuth } from '@/app/context/AuthContext';
 
 export default function Navbar() {
   const { language, setLanguage, t } = useLanguage(); 

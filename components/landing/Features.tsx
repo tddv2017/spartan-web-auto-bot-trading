@@ -1,7 +1,7 @@
 "use client";
 import React from 'react';
 import { Layers, Zap, ShieldCheck, BarChart3, Cpu, Lock } from 'lucide-react';
-import { useLanguage } from '../../app/context/LanguageContext';
+import { useLanguage } from '@/app/context/LanguageContext';
 
 export default function Features() {
   const { t } = useLanguage();
