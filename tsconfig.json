@@ -13,16 +13,12 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
+    
     "plugins": [
       {
         "name": "next"
       }
     ],
-    
-    // 👇 THÊM DÒNG NÀY (Định vị gốc là thư mục chứa file tsconfig)
-    "baseUrl": ".",
-    
-    // 👇 Đoạn này Đại tá đã làm đúng:
     "paths": {
       "@/*": ["./*"]
     }
