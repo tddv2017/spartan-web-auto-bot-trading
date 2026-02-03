@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 // ⚠️ Thay ../../ bằng @/ nếu Next.js có hỗ trợ, nếu không giữ nguyên nhưng nhớ kiểm tra kỹ
-import { db } from '@/lib/firebase'; 
+import { db } from '../../lib/firebase'; 
 import { collection, addDoc, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
 
 export async function POST(request: Request) {
