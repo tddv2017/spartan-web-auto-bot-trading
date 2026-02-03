@@ -1,18 +1,25 @@
 import { NextResponse } from 'next/server';
-import { db } from '../../lib/firebase'; 
+// ⚠️ Thay ../../ bằng @/ nếu Next.js có hỗ trợ, nếu không giữ nguyên nhưng nhớ kiểm tra kỹ
+import { db } from '@/lib/firebase'; 
 import { collection, addDoc, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
 
-// 🛡️ HÀM XỬ LÝ CHÍNH (POST)
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { licenseKey, ticket, symbol, type, profit } = body;
+    let { licenseKey, ticket, symbol, type, profit } = body;
+
+    // 1. CHUẨN HÓA DỮ LIỆU ĐẦU VÀO (FIX LỖI 0 vs "BUY")
+    // Chuyển đổi type từ số sang chữ cho dễ đọc trên Database
+    // MT5: 0=Buy, 1=Sell. Nếu nhận được chuỗi "BUY"/"SELL" rồi thì giữ nguyên.
+    let strType = "UNKNOWN";
+    if (type === 0 || type === "0" || type === "BUY") strType = "BUY";
+    else if (type === 1 || type === "1" || type === "SELL") strType = "SELL";
 
     if (!licenseKey) {
       return NextResponse.json({ valid: false, error: 'Key Required' }, { status: 400 });
     }
 
-    // Tìm User
+    // 2. Tìm User
     const usersRef = collection(db, "users");
     const q = query(usersRef, where("licenseKey", "==", licenseKey));
     const querySnapshot = await getDocs(q);
@@ -24,38 +31,41 @@ export async function POST(request: Request) {
     const userDoc = querySnapshot.docs[0];
     const userId = userDoc.id;
 
-    // Lưu lệnh trade
+    // 3. Lưu lệnh trade
     if (ticket) {
       const tradesRef = collection(db, "users", userId, "trades");
-      const tradeQuery = query(tradesRef, where("ticket", "==", ticket));
+      
+      // Ép kiểu ticket sang Number để tìm kiếm chính xác
+      const numTicket = Number(ticket);
+      
+      const tradeQuery = query(tradesRef, where("ticket", "==", numTicket));
       const tradeSnap = await getDocs(tradeQuery);
 
       if (tradeSnap.empty) {
         await addDoc(tradesRef, {
-          ticket: ticket,
+          ticket: numTicket, // Lưu thống nhất là số
           symbol: symbol || "XAUUSD",
-          type: type || "BUY",
+          type: strType,     // Lưu thống nhất là "BUY" hoặc "SELL"
           profit: Number(profit) || 0,
           closeTime: new Date().toISOString(),
           createdAt: serverTimestamp()
         });
+        console.log(`✅ Synced Trade #${ticket} for User ${userId}`);
       }
     }
 
-    // ✅ PHẢN HỒI CHO BOT (Rất quan trọng để g_IsAuthenticated = true)
     return NextResponse.json({ 
       valid: true, 
       success: true,
-      message: 'Spartan: Received' 
+      message: 'Spartan: Synced' 
     }, { status: 200 });
 
   } catch (error: any) {
-    console.error("Firebase Sync Error:", error);
-    return NextResponse.json({ valid: false, error: 'Server Error' }, { status: 500 });
+    console.error("🔥 Sync Error:", error);
+    return NextResponse.json({ valid: false, error: error.message }, { status: 500 });
   }
 }
 
-// 🌐 HÀM HỖ TRỢ (OPTIONS) - Giúp fix lỗi 405/CORS
 export async function OPTIONS() {
   return new NextResponse(null, {
     status: 200,
