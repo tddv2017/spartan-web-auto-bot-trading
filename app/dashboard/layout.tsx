@@ -1,7 +1,7 @@
 // app/dashboard/layout.tsx
 "use client";
 import Sidebar from '@/components/landing/Sidebar';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '@/app/context/AuthContext';
 import { Loader2 } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

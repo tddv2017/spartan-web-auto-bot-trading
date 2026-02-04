@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState } from 'react';
-import { db } from '@/lib/firebase';
+import { db } from '@/lib/firebase'; // ⚠️ Kiểm tra đường dẫn import
 import { collection, getDocs, updateDoc, doc, Timestamp } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { 
@@ -23,11 +23,14 @@ export default function AdminPage() {
       const querySnapshot = await getDocs(collection(db, "users"));
       const userList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       
-      // Sắp xếp: Hết hạn trước lên đầu
+      // Sắp xếp: LIFETIME lên đầu, sau đó đến Hết hạn, sau đó đến Mới nhất
       userList.sort((a: any, b: any) => {
-        const dateA = a.expiryDate?.seconds || 9999999999;
-        const dateB = b.expiryDate?.seconds || 9999999999;
-        return dateA - dateB;
+        if (a.plan === 'LIFETIME' && b.plan !== 'LIFETIME') return -1;
+        if (b.plan === 'LIFETIME' && a.plan !== 'LIFETIME') return 1;
+        
+        const dateA = a.expiryDate?.seconds || 0;
+        const dateB = b.expiryDate?.seconds || 0;
+        return dateA - dateB; // Hết hạn xếp trước
       });
 
       setUsers(userList);
@@ -67,18 +70,25 @@ export default function AdminPage() {
     try {
       if (manualDate) {
         newDate = Timestamp.fromDate(new Date(manualDate));
-      } else if (plan === 'lifetime') {
+      } else if (plan === 'LIFETIME') { // ⚠️ QUAN TRỌNG: CHECK ĐÚNG GÓI LIFETIME
         newDate = Timestamp.fromDate(new Date("2099-12-31T23:59:59"));
       } else {
         const now = Date.now();
+        // Nếu đã hết hạn hoặc chưa có hạn -> tính từ ngày hiện tại
+        // Nếu còn hạn -> cộng dồn thêm
         const expiryMillis = currentExpiry ? currentExpiry.seconds * 1000 : 0;
         const baseDate = (expiryMillis > now) ? new Date(expiryMillis) : new Date();
+        
         baseDate.setDate(baseDate.getDate() + days);
         newDate = Timestamp.fromDate(baseDate);
       }
       
-      await updateDoc(userRef, { expiryDate: newDate, plan: plan });
-      alert(`✅ Đã cập nhật thành công!`);
+      await updateDoc(userRef, { 
+          expiryDate: newDate, 
+          plan: plan // Cập nhật gói cước (starter, yearly, LIFETIME)
+      });
+      
+      alert(`✅ Đã cập nhật gói ${plan} thành công!`);
       fetchUsers(); 
     } catch (e) {
       alert("❌ Lỗi cập nhật: " + e);
@@ -97,12 +107,11 @@ export default function AdminPage() {
     }
   };
 
-  // 📂 HÀM TẢI FILE TXT (BẢN GỐC ĐƠN GIẢN)
+  // 📂 HÀM TẢI FILE TXT
   const downloadAgreementTxt = (u: any) => {
     const timeString = new Date().toLocaleString('vi-VN');
     const expiryStr = u.expiryDate ? new Date(u.expiryDate.seconds * 1000).toLocaleDateString('vi-VN') : "Chưa kích hoạt";
     
-    // Nội dung file TXT
     const content = `
 CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM
 Độc lập - Tự do - Hạnh phúc
@@ -120,24 +129,18 @@ Người xuất: ADMIN SYSTEM
    - Tài khoản MT5: ${u.mt5Account || "Chưa liên kết"}
 
 2. THÔNG TIN GÓI DỊCH VỤ:
-   - Gói đăng ký: ${u.plan ? u.plan.toUpperCase() : "FREE"}
+   - Gói đăng ký: ${u.plan ? u.plan : "FREE"}
    - Hạn sử dụng: ${expiryStr}
 
-3. NỘI DUNG CAM KẾT ĐIỆN TỬ:
-   Khách hàng xác nhận đã đọc và đồng ý với "Điều khoản sử dụng & Chính sách rủi ro" của Spartan AI.
-   
-   - Đồng ý rằng giao dịch tài chính có rủi ro mất vốn.
-   - Đồng ý chính sách KHÔNG HOÀN TIỀN (No Refund) đối với sản phẩm số.
-   - Cam kết không bẻ khóa, sao chép hoặc phân phối lại phần mềm trái phép.
+3. CAM KẾT:
+   Khách hàng xác nhận đã đọc và đồng ý với điều khoản sử dụng.
+   Giao dịch tài chính có rủi ro. Không hoàn tiền sản phẩm số.
 
 ---------------------------
 XÁC NHẬN CHỮ KÝ SỐ:
 [SIGNED_BY_${u.licenseKey}]
-[TIMESTAMP_${Date.now()}]
 ---------------------------
 `;
-
-    // Tạo file và tải xuống
     const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -166,8 +169,8 @@ XÁC NHẬN CHỮ KÝ SỐ:
             </h1>
             <div className="flex flex-wrap gap-6 text-sm font-bold uppercase tracking-widest text-slate-400">
               <span className="flex items-center gap-2"><UserCheck size={18} className="text-blue-500"/> Tổng: {users.length}</span>
-              <span className="flex items-center gap-2"><Crown size={18} className="text-purple-500"/> Lifetime: {users.filter(u=>u.plan==='lifetime').length}</span>
-              <span className="flex items-center gap-2"><AlertTriangle size={18} className="text-red-500"/> Hết hạn: {users.filter(u=>u.expiryDate?.seconds * 1000 < Date.now()).length}</span>
+              <span className="flex items-center gap-2"><Crown size={18} className="text-purple-500"/> Lifetime: {users.filter(u=>u.plan==='LIFETIME').length}</span>
+              <span className="flex items-center gap-2"><AlertTriangle size={18} className="text-red-500"/> Hết hạn: {users.filter(u=>u.plan !== 'LIFETIME' && u.expiryDate?.seconds * 1000 < Date.now()).length}</span>
             </div>
           </div>
           
@@ -198,8 +201,8 @@ XÁC NHẬN CHỮ KÝ SỐ:
               <option value="all">Tất cả quân hàm</option>
               <option value="starter">PRO Daily</option>
               <option value="yearly">VIP Yearly</option>
-              <option value="lifetime">Lifetime</option>
-              <option value="free">Lính mới</option>
+              <option value="LIFETIME">Lifetime (Agency)</option> {/* ⚠️ Value chuẩn LIFETIME */}
+              <option value="free">Lính mới (Free)</option>
             </select>
           </div>
         </div>
@@ -229,7 +232,7 @@ XÁC NHẬN CHỮ KÝ SỐ:
                    <tr><td colSpan={6} className="p-16 text-center text-slate-500 text-lg italic">Không tìm thấy dữ liệu...</td></tr>
                 ) : (
                   filteredUsers.map((u) => {
-                    const isExpired = u.expiryDate?.seconds * 1000 < Date.now();
+                    const isExpired = u.plan !== 'LIFETIME' && u.expiryDate?.seconds * 1000 < Date.now();
                     return (
                       <tr key={u.id} className="hover:bg-slate-800/40 transition-colors group">
                         
@@ -262,7 +265,7 @@ XÁC NHẬN CHỮ KÝ SỐ:
                         {/* 3. QUÂN HÀM */}
                         <td className="p-6 text-center align-top">
                           <span className={`inline-block px-4 py-2 rounded-xl text-xs font-black uppercase border tracking-wide shadow-lg ${
-                            u.plan === 'lifetime' ? 'bg-purple-600 text-white border-purple-400' :
+                            u.plan === 'LIFETIME' ? 'bg-purple-600 text-white border-purple-400' :
                             u.plan === 'yearly' ? 'bg-amber-500 text-black border-amber-300' :
                             u.plan === 'starter' ? 'bg-blue-600 text-white border-blue-400' : 
                             'bg-slate-800 text-slate-400 border-slate-600'
@@ -273,13 +276,13 @@ XÁC NHẬN CHỮ KÝ SỐ:
 
                         {/* 4. HẠN DÙNG */}
                         <td className="p-6 align-top">
-                          <div className={`text-base font-bold mb-1 ${isExpired && u.plan !== 'lifetime' ? 'text-red-500' : 'text-slate-200'}`}>
-                            {u.plan === 'lifetime' 
+                          <div className={`text-base font-bold mb-1 ${isExpired ? 'text-red-500' : 'text-slate-200'}`}>
+                            {u.plan === 'LIFETIME' 
                               ? <span className="flex items-center gap-2 text-purple-400"><Infinity size={20}/> Vĩnh viễn</span> 
                               : u.expiryDate ? new Date(u.expiryDate.seconds * 1000).toLocaleDateString('vi-VN') 
                               : "Chưa kích hoạt"}
                           </div>
-                          {isExpired && u.plan !== 'lifetime' && (
+                          {isExpired && (
                             <span className="text-xs bg-red-500/10 text-red-500 px-2 py-1 rounded border border-red-500/20 inline-block font-bold">
                               ⚠️ ĐÃ HẾT HẠN
                             </span>
@@ -300,7 +303,7 @@ XÁC NHẬN CHỮ KÝ SỐ:
                             </button>
                         </td>
 
-                        {/* 6. THAO TÁC */}
+                        {/* 6. THAO TÁC (QUAN TRỌNG NHẤT) */}
                         <td className="p-6 align-top">
                           <div className="flex flex-col items-end gap-3">
                             <input 
@@ -315,15 +318,30 @@ XÁC NHẬN CHỮ KÝ SỐ:
                             />
 
                             <div className="flex gap-2">
-                              <button onClick={() => updateUserSoldier(u.id, u.expiryDate, 30, "starter")} title="+30 Ngày (PRO)" className="h-10 w-10 flex items-center justify-center bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition-all shadow-lg hover:scale-105 border border-blue-400">
+                              {/* Nút Tháng */}
+                              <button 
+                                onClick={() => updateUserSoldier(u.id, u.expiryDate, 30, "starter")} 
+                                title="+30 Ngày (PRO)" 
+                                className="h-10 w-10 flex items-center justify-center bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition-all shadow-lg hover:scale-105 border border-blue-400"
+                              >
                                 <Zap size={20} />
                               </button>
                               
-                              <button onClick={() => updateUserSoldier(u.id, u.expiryDate, 365, "yearly")} title="+365 Ngày (VIP)" className="h-10 w-10 flex items-center justify-center bg-amber-500 hover:bg-amber-400 text-black rounded-xl transition-all shadow-lg hover:scale-105 border border-amber-300">
+                              {/* Nút Năm */}
+                              <button 
+                                onClick={() => updateUserSoldier(u.id, u.expiryDate, 365, "yearly")} 
+                                title="+365 Ngày (VIP)" 
+                                className="h-10 w-10 flex items-center justify-center bg-amber-500 hover:bg-amber-400 text-black rounded-xl transition-all shadow-lg hover:scale-105 border border-amber-300"
+                              >
                                 <Crown size={20} />
                               </button>
                               
-                              <button onClick={() => updateUserSoldier(u.id, null, 0, "lifetime")} title="LIFETIME" className="h-10 w-10 flex items-center justify-center bg-purple-600 hover:bg-purple-500 text-white rounded-xl transition-all shadow-lg hover:scale-105 border border-purple-400">
+                              {/* Nút LIFETIME (ĐÃ SỬA ID THÀNH LIFETIME) */}
+                              <button 
+                                onClick={() => updateUserSoldier(u.id, null, 0, "LIFETIME")} 
+                                title="Kích hoạt LIFETIME & Reseller" 
+                                className="h-10 w-10 flex items-center justify-center bg-purple-600 hover:bg-purple-500 text-white rounded-xl transition-all shadow-lg hover:scale-105 border border-purple-400"
+                              >
                                 <Infinity size={20} />
                               </button>
                             </div>

@@ -7,10 +7,147 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { 
   LogOut, Copy, Check, CreditCard, Activity, Clock, ShieldCheck, Zap, 
-  Home, ChevronLeft, Terminal, PlayCircle 
+  Home, ChevronLeft, Terminal, PlayCircle, Users, TrendingUp, DollarSign,
+  LayoutDashboard, Menu, X, Lock, Wallet, CheckCircle, Share2, Globe, FileText // 👈 Đã thêm icon Marketing
 } from 'lucide-react';
 import PaymentModal from '@/components/landing/PaymentModal';
 
+// --- 1. COMPONENT CON: KHU VỰC RESELLER (NÂNG CẤP AGENCY) ---
+const ResellerSection = ({ wallet, profile, onWithdraw }: { wallet: any, profile: any, onWithdraw: () => void }) => {
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedAd, setCopiedAd] = useState(false);
+
+  // Link giới thiệu dựa trên LicenseKey
+  const refLink = `https://spartan-bot.com/?ref=${profile?.licenseKey}`;
+  
+  // Mẫu quảng cáo có sẵn
+  const adText = `🔥 SPARTAN BOT V7.3 - SÁT THỦ XAUUSD 🔥\n✅ Lợi nhuận 15-30%/tháng\n✅ Tự động 100%, Không gồng lỗ\n✅ Vốn nhỏ từ $100\n👉 Tải Bot & Dùng thử miễn phí tại: ${refLink}`;
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(refLink);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
+
+  const handleCopyAd = () => {
+    navigator.clipboard.writeText(adText);
+    setCopiedAd(true);
+    setTimeout(() => setCopiedAd(false), 2000);
+  };
+
+  return (
+    <div className="space-y-8 animate-in slide-in-from-right duration-500 mt-6">
+      
+      {/* HEADER: CHÀO MỪNG ĐỐI TÁC */}
+      <div className="flex flex-col md:flex-row justify-between items-end gap-4 border-b border-slate-800 pb-6">
+         <div>
+            <h2 className="text-2xl font-black text-white flex items-center gap-2">
+               <ShieldCheck className="text-yellow-500" /> SPARTAN AGENCY
+            </h2>
+            <p className="text-sm text-slate-400 mt-1">Cấp bậc: <span className="text-yellow-500 font-bold">COMMANDER (40% Hoa hồng)</span></p>
+         </div>
+         <div className="bg-slate-900 px-4 py-2 rounded-lg border border-slate-800 flex items-center gap-3">
+            <Globe size={16} className="text-green-500"/>
+            <span className="text-xs text-slate-400">Ref Code:</span>
+            <span className="text-sm font-mono font-bold text-white">{profile?.licenseKey}</span>
+         </div>
+      </div>
+
+      {/* 1. VÍ TIỀN (WALLET) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-gradient-to-br from-green-900/40 to-slate-900 border border-green-500/50 p-6 rounded-[2rem] relative overflow-hidden group hover:border-green-400 transition-colors">
+              <div className="absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
+                  <Wallet size={100}/>
+              </div>
+              <p className="text-[10px] text-green-400 font-black uppercase mb-2 flex items-center gap-2 tracking-widest"><CheckCircle size={12}/> Available Balance</p>
+              <h2 className="text-4xl font-black text-white font-chakra mb-6">${wallet.available.toFixed(2)}</h2>
+              <button 
+                  onClick={onWithdraw} 
+                  className="w-full py-3 bg-green-600 hover:bg-green-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-green-900/50 active:scale-95 transition-all"
+              >
+                  RÚT TIỀN NGAY
+              </button>
+          </div>
+          <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem]">
+              <p className="text-[10px] text-yellow-500 font-black uppercase mb-2 flex items-center gap-2 tracking-widest"><Clock size={12}/> Pending</p>
+              <h2 className="text-4xl font-black text-slate-300 font-chakra mb-2">${wallet.pending.toFixed(2)}</h2>
+              <p className="text-[10px] text-slate-500 italic">*Duyệt sau 24h.</p>
+          </div>
+          <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem]">
+              <p className="text-[10px] text-slate-400 font-black uppercase mb-2 flex items-center gap-2 tracking-widest"><Users size={12}/> Total Ref</p>
+              <h2 className="text-4xl font-black text-slate-300 font-chakra mb-2">{profile?.referrals?.length || 0}</h2>
+              <div className="flex items-center gap-2 mt-2 text-xs font-bold text-slate-500"><TrendingUp size={12} className="text-green-500"/> Team Growth</div>
+          </div>
+      </div>
+
+      {/* 2. MARKETING TOOLS (MỚI) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+         {/* Link Giới thiệu */}
+         <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem]">
+            <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2 uppercase"><Share2 size={16} className="text-blue-500"/> Link Giới thiệu</h3>
+            <div className="bg-black/50 p-3 rounded-xl border border-slate-700 flex items-center gap-2 mb-3">
+               <span className="text-xs text-slate-400 truncate flex-1 font-mono">{refLink}</span>
+               <button onClick={handleCopyLink} className="p-2 bg-slate-800 hover:bg-slate-700 rounded text-white transition-colors">
+                  {copiedLink ? <Check size={16} className="text-green-500"/> : <Copy size={16}/>}
+               </button>
+            </div>
+            <p className="text-[10px] text-slate-500">Khách hàng đăng ký qua link này sẽ tự động được gắn vào Team của Đại tá.</p>
+         </div>
+
+         {/* Mẫu Quảng Cáo */}
+         <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem]">
+            <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2 uppercase"><FileText size={16} className="text-purple-500"/> Mẫu Quảng Cáo</h3>
+            <div className="bg-black/50 p-3 rounded-xl border border-slate-700 relative group h-24 overflow-hidden">
+               <p className="text-[10px] text-slate-300 whitespace-pre-line font-mono">{adText}</p>
+               <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex items-end justify-center pb-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={handleCopyAd} className="text-xs bg-purple-600 hover:bg-purple-500 text-white px-3 py-1 rounded font-bold">Copy Content</button>
+               </div>
+            </div>
+         </div>
+      </div>
+      
+      {/* 3. BẢNG HOA HỒNG */}
+      <div className="bg-slate-900/60 border border-slate-800 rounded-[2rem] p-8">
+          <div className="flex justify-between items-center mb-6">
+             <h3 className="font-bold text-slate-300 flex items-center gap-2 uppercase text-sm tracking-wider"><CreditCard size={16} className="text-green-500"/> LỊCH SỬ HOA HỒNG</h3>
+             <button className="text-[10px] font-bold text-green-500 hover:underline">XEM TẤT CẢ</button>
+          </div>
+          <div className="overflow-x-auto">
+             <table className="w-full text-xs text-left text-slate-400">
+                <thead className="text-slate-500 uppercase font-black border-b border-slate-800">
+                   <tr><th className="py-3">Thời gian</th><th className="py-3">Khách hàng</th><th className="py-3">Gói Mua</th><th className="py-3 text-right">Hoa hồng (40%)</th><th className="py-3 text-center">Trạng thái</th></tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                   {/* Kiểm tra và hiển thị dữ liệu thật */}
+                   {(!profile?.referrals || profile.referrals.length === 0) ? (
+                      <>
+                        <tr><td className="py-4 font-mono text-slate-600">--</td><td className="py-4 text-slate-600">Chưa có dữ liệu</td><td className="py-4">--</td><td className="py-4 text-right">--</td><td className="py-4 text-center">--</td></tr>
+                      </>
+                   ) : (
+                      profile.referrals.map((ref: any, idx: number) => (
+                        <tr key={idx} className="hover:bg-slate-800/30 transition-colors">
+                           <td className="py-4 font-mono text-slate-300">{ref.date}</td>
+                           <td className="py-4 font-bold text-white">{ref.user}</td>
+                           <td className="py-4"><span className="bg-slate-800 px-2 py-1 rounded border border-slate-700 text-[10px]">{ref.package}</span></td>
+                           <td className="py-4 text-right font-bold text-green-400">+${ref.commission}</td>
+                           <td className="py-4 text-center">
+                              {ref.status === 'approved' 
+                                ? <span className="bg-green-900/30 text-green-500 px-2 py-1 rounded font-bold border border-green-900/50 text-[10px]">ĐÃ DUYỆT</span>
+                                : <span className="bg-yellow-900/20 text-yellow-500 px-2 py-1 rounded font-bold border border-yellow-900/50 text-[10px]">CHỜ DUYỆT</span>
+                              }
+                           </td>
+                        </tr>
+                      ))
+                   )}
+                </tbody>
+             </table>
+          </div>
+      </div>
+    </div>
+  );
+};
+
+// --- 2. NỘI DUNG CHÍNH ---
 function DashboardContent() {
   const { user, profile, logout } = useAuth();
   const { t } = useLanguage(); 
@@ -19,6 +156,10 @@ function DashboardContent() {
   const [copied, setCopied] = useState(false);
   const [isPayOpen, setIsPayOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState("yearly");
+  const [activeTab, setActiveTab] = useState("overview"); 
+  
+  // Wallet lấy từ profile
+  const wallet = profile?.wallet || { available: 0, pending: 0, total_paid: 0 };
 
   const isExpired = useMemo(() => {
     if (!profile?.expiryDate) return false;
@@ -30,7 +171,6 @@ function DashboardContent() {
   useEffect(() => {
     const action = searchParams.get("action");
     const plan = searchParams.get("plan");
-    
     if (action === "checkout") {
       if (plan) setSelectedPlan(plan);
       setIsPayOpen(true);
@@ -53,50 +193,87 @@ function DashboardContent() {
     return new Date(seconds * 1000).toLocaleDateString('vi-VN');
   };
 
+  const handleWithdrawRequest = async () => {
+    const amountStr = prompt("Nhập số tiền muốn rút ($):"); 
+    if (!amountStr) return;
+    const amount = parseFloat(amountStr);
+    
+    if (isNaN(amount) || amount <= 0) {
+        alert("Số tiền không hợp lệ");
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/withdraw', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                email: user.email, 
+                amount: amount 
+            })
+        });
+        const data = await res.json();
+        alert(data.message);
+    } catch (e) {
+        alert("Lỗi kết nối Server!");
+    }
+  };
+
   if (!profile && user) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-4 text-green-500">
         <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
         <p className="font-black tracking-[0.3em] uppercase animate-pulse text-sm">
-          {t.dashboard.loading || "Đang quét danh bạ chiến binh..."}
+          {t.dashboard.loading || "INITIALIZING..."}
         </p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-green-500/30">
+    <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-green-500/30 pb-20">
       
-      {/* 1. NAVBAR */}
-      <nav className="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md px-6 py-4 flex justify-between items-center sticky top-0 z-50">
+      {/* NAVBAR */}
+      <nav className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md px-6 py-4 flex justify-between items-center sticky top-0 z-50 shadow-2xl">
         <div className="flex items-center gap-6">
           <div className="hidden md:flex items-center gap-2 font-black text-xl italic text-green-500 tracking-tighter">
-            SPARTAN <span className="text-white opacity-50 underline decoration-green-500">V3.0</span>
+            SPARTAN <span className="text-white opacity-50 underline decoration-green-500">CMD</span>
           </div>
 
-          <Link 
-            href="/" 
-            className="flex items-center gap-2 text-slate-400 hover:text-green-400 transition-colors text-xs font-bold uppercase tracking-widest group"
-          >
-            <div className="p-1 rounded-full border border-slate-700 group-hover:border-green-500 transition-colors">
-              <ChevronLeft size={12} />
-            </div>
-            <Home size={14} /> 
-            <span className="hidden sm:inline">{t.dashboard.home}</span>
+          <Link href="/" className="flex items-center gap-2 text-slate-400 hover:text-green-400 transition-colors text-xs font-bold uppercase tracking-widest group">
+            <div className="p-1 rounded-full border border-slate-700 group-hover:border-green-500 transition-colors"><ChevronLeft size={12} /></div>
+            <Home size={14} /> <span className="hidden sm:inline">{t.dashboard.home}</span>
           </Link>
         </div>
 
-        <button 
-          onClick={() => logout()} 
-          className="flex items-center gap-2 text-slate-400 hover:text-red-500 transition-all font-bold text-xs bg-slate-800/50 px-4 py-2 rounded-lg border border-slate-700 hover:border-red-500/30"
-        >
-          <LogOut size={16} /> <span className="hidden sm:inline">{t.dashboard.logout}</span>
-        </button>
+        <div className="flex items-center gap-4">
+             {/* MENU SWITCHER (CHỈ HIỆN CHO LIFETIME - Viết hoa) */}
+             {profile?.plan === 'LIFETIME' && (
+                 <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
+                     <button 
+                        onClick={() => setActiveTab('overview')}
+                        className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase transition-all flex items-center gap-2 ${activeTab === 'overview' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-white'}`}
+                     >
+                        <LayoutDashboard size={14}/> <span className="hidden sm:inline">Tổng quan</span>
+                     </button>
+                     <button 
+                        onClick={() => setActiveTab('reseller')}
+                        className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase transition-all flex items-center gap-2 ${activeTab === 'reseller' ? 'bg-green-600 text-black shadow' : 'text-slate-500 hover:text-white'}`}
+                     >
+                        <DollarSign size={14}/> <span className="hidden sm:inline">Đối tác</span>
+                     </button>
+                 </div>
+             )}
+
+            <button onClick={() => logout()} className="flex items-center gap-2 text-slate-400 hover:text-red-500 transition-all font-bold text-xs bg-slate-800/50 px-4 py-2 rounded-lg border border-slate-700 hover:border-red-500/30">
+              <LogOut size={16} /> <span className="hidden sm:inline">{t.dashboard.logout}</span>
+            </button>
+        </div>
       </nav>
 
       <div className="max-w-6xl mx-auto p-4 md:p-8 space-y-8 animate-in fade-in duration-500">
         
-        {/* 2. HEADER */}
+        {/* HEADER */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
           <div>
             <h1 className="text-3xl md:text-5xl font-black mb-3 leading-none tracking-tight">
@@ -112,114 +289,90 @@ function DashboardContent() {
           </div>
           
           <div className="flex flex-wrap gap-3">
-            {profile?.plan && profile?.plan !== "free" && (
-              <button 
-                onClick={() => { setSelectedPlan(profile.plan); setIsPayOpen(true); }}
-                className="flex items-center gap-2 px-5 py-3 bg-slate-800 text-white font-bold text-sm rounded-xl hover:bg-slate-700 transition-all border border-slate-700 active:scale-95 group"
-              >
+            {profile?.plan !== "free" && (
+              <button onClick={() => { setSelectedPlan(profile?.plan || "monthly"); setIsPayOpen(true); }} className="flex items-center gap-2 px-5 py-3 bg-slate-800 text-white font-bold text-sm rounded-xl hover:bg-slate-700 transition-all border border-slate-700 active:scale-95 group">
                 <CreditCard size={16} className="group-hover:rotate-12 transition-transform" /> {t.dashboard.btn.renew}
               </button>
             )}
-
-            <button 
-              onClick={() => { setSelectedPlan("starter"); setIsPayOpen(true); }}
-              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-amber-600 to-amber-400 text-black font-black text-sm rounded-xl hover:scale-105 transition-all shadow-[0_0_20px_rgba(245,158,11,0.3)] animate-pulse"
-            >
+            <button onClick={() => { setSelectedPlan("starter"); setIsPayOpen(true); }} className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-amber-600 to-amber-400 text-black font-black text-sm rounded-xl hover:scale-105 transition-all shadow-[0_0_20px_rgba(245,158,11,0.3)] animate-pulse">
               <Zap size={18} fill="currentColor" /> {t.dashboard.btn.upgrade}
             </button>
           </div>
         </div>
 
-        {/* 3. LICENSE CARD */}
-        <div className="bg-slate-900 border border-slate-800 p-6 md:p-8 rounded-[2rem] shadow-2xl relative overflow-hidden group hover:border-green-500/30 transition-colors">
-          <div className="relative z-10">
-            <h3 className="text-slate-500 font-bold uppercase text-[10px] mb-4 tracking-[0.2em] flex items-center gap-2">
-              <Activity size={12} className="text-green-500"/> {t.dashboard.license.title}
-            </h3>
-            <div className="flex flex-col md:flex-row gap-4 md:items-center">
-              <code className="text-3xl md:text-5xl font-mono font-black text-white tracking-tighter break-all select-all">
-                {profile?.licenseKey || "LOADING..."}
-              </code>
-              <button 
-                onClick={handleCopy} 
-                className="bg-white text-black px-6 py-3 rounded-xl font-black hover:bg-green-500 transition-all flex items-center justify-center gap-2 text-sm active:scale-95 shadow-lg w-fit"
-              >
-                {copied ? <Check size={18} className="text-green-700" /> : <Copy size={18}/>} 
-                {copied ? t.dashboard.btn.copied : t.dashboard.btn.copy}
-              </button>
-            </div>
-            <p className="text-slate-500 text-xs italic mt-4">{t.dashboard.license.note}</p>
-          </div>
-          <div className="absolute -right-20 -top-20 w-80 h-80 bg-green-500/5 blur-[100px] group-hover:bg-green-500/10 transition-all duration-700"></div>
-        </div>
+        {/* --- NỘI DUNG THAY ĐỔI THEO TAB --- */}
+        {activeTab === 'overview' ? (
+            <>
+                {/* 1. LICENSE CARD */}
+                <div className="bg-slate-900 border border-slate-800 p-6 md:p-8 rounded-[2rem] shadow-2xl relative overflow-hidden group hover:border-green-500/30 transition-colors">
+                  <div className="relative z-10">
+                    <h3 className="text-slate-500 font-bold uppercase text-[10px] mb-4 tracking-[0.2em] flex items-center gap-2">
+                      <Activity size={12} className="text-green-500"/> {t.dashboard.license.title}
+                    </h3>
+                    <div className="flex flex-col md:flex-row gap-4 md:items-center">
+                      <code className="text-3xl md:text-5xl font-mono font-black text-white tracking-tighter break-all select-all">
+                        {profile?.licenseKey || "LOADING..."}
+                      </code>
+                      <button onClick={handleCopy} className="bg-white text-black px-6 py-3 rounded-xl font-black hover:bg-green-500 transition-all flex items-center justify-center gap-2 text-sm active:scale-95 shadow-lg w-fit">
+                        {copied ? <Check size={18} className="text-green-700" /> : <Copy size={18}/>} 
+                        {copied ? t.dashboard.btn.copied : t.dashboard.btn.copy}
+                      </button>
+                    </div>
+                    <p className="text-slate-500 text-xs italic mt-4">{t.dashboard.license.note}</p>
+                  </div>
+                  <div className="absolute -right-20 -top-20 w-80 h-80 bg-green-500/5 blur-[100px] group-hover:bg-green-500/10 transition-all duration-700"></div>
+                </div>
 
-        {/* 5. DOWNLOAD SECTION */}
-        {profile?.plan && profile?.plan !== "free" ? (
-          <div className="bg-gradient-to-r from-green-900/20 to-slate-900 border border-green-500/30 p-8 rounded-[2rem] flex flex-col md:flex-row items-center justify-between gap-6 shadow-[0_0_30px_rgba(34,197,94,0.05)] relative overflow-hidden">
-            <div className="absolute inset-0 bg-green-500/5 animate-pulse"></div>
-            <div className="flex items-center gap-5 relative z-10">
-              <div className="bg-green-500 p-4 rounded-2xl shadow-[0_0_20px_rgba(34,197,94,0.4)]">
-                <ShieldCheck size={32} className="text-black" />
-              </div>
-              <div>
-                <h3 className="text-xl font-black text-white uppercase tracking-tighter">{t.dashboard.download.title}</h3>
-                <p className="text-green-400 text-xs font-bold uppercase tracking-widest mt-1">{t.dashboard.download.unlocked}</p>
-              </div>
-            </div>
-            <a 
-              href="https://docs.google.com/uc?export=download&id=1BGtSMioGSIk-kkSrhmvipGW1gTg4LHTQ" // Link tải về bản cài đặt
-              className="relative z-10 flex items-center gap-3 px-8 py-4 bg-green-500 hover:bg-green-400 text-black font-black rounded-xl transition-all hover:scale-105 shadow-lg active:scale-95 group w-full md:w-auto justify-center"
-            >
-              <Zap size={20} fill="currentColor" className="group-hover:animate-bounce" />
-              {t.dashboard.btn.download}  
-            </a>
-          </div>
+                {/* 2. DOWNLOAD SECTION */}
+                {profile?.plan && profile?.plan !== "free" ? (
+                  <div className="bg-gradient-to-r from-green-900/20 to-slate-900 border border-green-500/30 p-8 rounded-[2rem] flex flex-col md:flex-row items-center justify-between gap-6 shadow-[0_0_30px_rgba(34,197,94,0.05)] relative overflow-hidden">
+                    <div className="absolute inset-0 bg-green-500/5 animate-pulse"></div>
+                    <div className="flex items-center gap-5 relative z-10">
+                      <div className="bg-green-500 p-4 rounded-2xl shadow-[0_0_20px_rgba(34,197,94,0.4)]">
+                        <ShieldCheck size={32} className="text-black" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-black text-white uppercase tracking-tighter">{t.dashboard.download.title}</h3>
+                        <p className="text-green-400 text-xs font-bold uppercase tracking-widest mt-1">{t.dashboard.download.unlocked}</p>
+                      </div>
+                    </div>
+                    <a href="https://docs.google.com/uc?export=download&id=1BGtSMioGSIk-kkSrhmvipGW1gTg4LHTQ" className="relative z-10 flex items-center gap-3 px-8 py-4 bg-green-500 hover:bg-green-400 text-black font-black rounded-xl transition-all hover:scale-105 shadow-lg active:scale-95 group w-full md:w-auto justify-center">
+                      <Zap size={20} fill="currentColor" className="group-hover:animate-bounce" /> {t.dashboard.btn.download}  
+                    </a>
+                  </div>
+                ) : (
+                  <div className="bg-slate-900/50 border border-slate-800 p-8 rounded-[2rem] text-center flex flex-col items-center gap-4">
+                    <Lock size={40} className="text-slate-600"/>
+                    <div>
+                        <p className="text-slate-500 font-bold mb-1">{t.dashboard.download.locked}</p>
+                        <p className="text-xs text-slate-600">Nâng cấp gói để mở khóa kho vũ khí.</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. STATS GRID */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <StatBox label={t.dashboard.stats.account} value={profile?.mt5Account || t.dashboard.status.unconnected} icon={<Activity size={18}/>} />
+                  <StatBox label={t.dashboard.stats.expiry} value={formatExpiryDate()} icon={<Clock size={18}/>} color={isExpired ? "text-red-500 animate-pulse font-black" : "text-blue-400"} />
+                  <StatBox label={t.dashboard.stats.rank} value={profile?.plan === "starter" ? "PRO" : profile?.plan === "yearly" ? "VIP YEARLY" : profile?.plan === "LIFETIME" ? "VIP LIFETIME" : "FREE"} icon={<ShieldCheck size={18}/>} color={profile?.plan === "starter" ? "text-green-400" : "text-amber-400"} />
+                </div>
+
+                {/* 4. GUIDE */}
+                <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-6 md:p-8">
+                  <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2 uppercase tracking-wide">
+                    <Terminal size={20} className="text-green-500" /> {t.dashboard.guide.title}
+                  </h3>
+                  <div className="space-y-6">
+                    <Step num="01" title={t.dashboard.guide.step1_title} desc={t.dashboard.guide.step1_desc} />
+                    <Step num="02" title={t.dashboard.guide.step2_title} desc={t.dashboard.guide.step2_desc} code="https://spartan-web-auto-bot-trading.vercel.app/" />
+                    <Step num="03" title={t.dashboard.guide.step3_title} desc={t.dashboard.guide.step3_desc} />
+                  </div>
+                </div>
+            </>
         ) : (
-          <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[2rem] text-center">
-            <p className="text-slate-500 text-sm">{t.dashboard.download.locked}</p>
-          </div>
+            // --- TAB RESELLER (Chỉ hiện khi LIFETIME) ---
+            <ResellerSection wallet={wallet} profile={profile} onWithdraw={handleWithdrawRequest} />
         )}
-
-        {/* 6. STATS GRID */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <StatBox label={t.dashboard.stats.account} value={profile?.mt5Account || t.dashboard.status.unconnected} icon={<Activity size={18}/>} />
-          <StatBox label={t.dashboard.stats.expiry} value={formatExpiryDate()} icon={<Clock size={18}/>} color={isExpired ? "text-red-500 animate-pulse font-black" : "text-blue-400"} />
-          <StatBox label={t.dashboard.stats.rank} value={profile?.plan === "starter" ? "PRO" : profile?.plan === "yearly" ? "VIP YEARLY" : profile?.plan === "lifetime" ? "VIP LIFETIME" : "FREE"} icon={<ShieldCheck size={18}/>} color={profile?.plan === "starter" ? "text-green-400" : "text-amber-400"} />
-        </div>
-
-        {/* 7. GUIDE */}
-        <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-6 md:p-8">
-          <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2 uppercase tracking-wide">
-            <Terminal size={20} className="text-green-500" />
-            {t.dashboard.guide.title}
-          </h3>
-
-          <div className="space-y-6">
-            <Step 
-              num="01" 
-              title={t.dashboard.guide.step1_title} 
-              desc={t.dashboard.guide.step1_desc}
-            />
-            <Step 
-              num="02" 
-              title={t.dashboard.guide.step2_title} 
-              desc={t.dashboard.guide.step2_desc}
-              code="https://spartan-web-auto-bot-trading.vercel.app/" 
-            />
-            <Step 
-              num="03" 
-              title={t.dashboard.guide.step3_title} 
-              desc={t.dashboard.guide.step3_desc}
-            />
-          </div>
-
-          <div className="mt-8 pt-6 border-t border-slate-800 text-center">
-            <button className="text-slate-400 hover:text-white flex items-center justify-center gap-2 mx-auto transition-colors text-sm hover:underline">
-              <PlayCircle size={16} /> {t.dashboard.btn.video}
-            </button>
-          </div>
-        </div>
-
       </div>
 
       <PaymentModal isOpen={isPayOpen} onClose={() => setIsPayOpen(false)} plan={selectedPlan} />
@@ -247,11 +400,7 @@ function Step({ num, title, desc, code }: { num: string, title: string, desc: st
       <div>
         <h4 className="font-bold text-white text-base mb-1">{title}</h4>
         <p className="text-slate-400 text-sm leading-relaxed mb-2">{desc}</p>
-        {code && (
-          <div className="bg-black/50 p-2 rounded border border-slate-700 font-mono text-green-400 text-xs inline-block break-all select-all">
-            {code}
-          </div>
-        )}
+        {code && <div className="bg-black/50 p-2 rounded border border-slate-700 font-mono text-green-400 text-xs inline-block break-all select-all">{code}</div>}
       </div>
     </div>
   );

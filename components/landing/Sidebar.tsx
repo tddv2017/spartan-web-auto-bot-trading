@@ -22,7 +22,7 @@ export default function Sidebar() {
     // 👇 CHỈ GIỮ LẠI DASHBOARD (Các tính năng kia tạm ẩn)
     { name: 'DASHBOARD', icon: <LayoutDashboard size={22} />, path: '/dashboard' },
     
-    { name: 'BATTLEFIED LIVE', icon: <History size={22} />, path: '/battlefield' },
+    //{ name: 'BATTLEFIED LIVE', icon: <History size={22} />, path: '/battlefield' },
     // { name: 'HỒ SƠ TÀI KHOẢN', icon: <UserCircle size={22} />, path: '/dashboard/profile' },
     // { name: 'NẠP QUÂN LƯƠNG', icon: <CreditCard size={22} />, path: '/dashboard/billing' },
   ];

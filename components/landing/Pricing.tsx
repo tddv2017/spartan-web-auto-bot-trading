@@ -1,137 +1,135 @@
 "use client";
 import React from 'react';
-import { CheckCircle2, Zap, Star, Briefcase, Crown, Shield } from 'lucide-react'; 
 import { useLanguage } from '@/app/context/LanguageContext';
+import { Check, Zap, Star, Crown } from 'lucide-react';
+import Link from 'next/link';
 
 export default function Pricing() {
   const { t } = useLanguage();
 
+  // MẢNG CẤU HÌNH GÓI CƯỚC
+  // ⚠️ QUAN TRỌNG: ID phải khớp với logic trong Dashboard
+  const plans = [
+    {
+      id: "starter", // Gói tháng
+      data: t.pricing.starter,
+      icon: Zap,
+      isRecommended: false,
+      isPopular: false
+    },
+    {
+      id: "yearly", // Gói năm
+      data: t.pricing.yearly,
+      icon: Star,
+      isRecommended: true, // Tag: Best Choice
+      isPopular: false
+    },
+    {
+      id: "LIFETIME", // ⚠️ VIẾT HOA ĐỂ KÍCH HOẠT QUYỀN RESELLER
+      data: t.pricing.lifetime,
+      icon: Crown,
+      isRecommended: false,
+      isPopular: true // Tag: Business VIP
+    }
+  ];
+
   return (
-    <section id="pricing" className="relative z-10 py-24">
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold text-white">{t.pricing.title}</h2>
-          <p className="text-slate-400 mt-4">{t.pricing.sub}</p>
+    <section id="pricing" className="py-20 relative overflow-hidden bg-slate-950">
+      {/* Background Gradients */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-green-500/5 blur-[120px] rounded-full pointer-events-none"></div>
+
+      <div className="max-w-7xl mx-auto px-4 relative z-10">
+        <div className="text-center mb-16 animate-in slide-in-from-bottom-10 duration-700">
+          <h2 className="text-4xl md:text-5xl font-black text-white mb-4 tracking-tighter">
+            {t.pricing.title}
+          </h2>
+          <p className="text-slate-400 max-w-2xl mx-auto text-lg">
+            {t.pricing.sub}
+          </p>
         </div>
 
-        {/* CHIA 3 CỘT (Cực đẹp trên Desktop) */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto items-center">
-          
-          {/* 1. MONTHLY ($30) - NHẬP MÔN */}
-          <PricingCard 
-            title={t.pricing.starter.name} 
-            price={t.pricing.starter.price} 
-            period={t.pricing.starter.period}
-            btnText={t.pricing.starter.btn}
-            features={t.pricing.starter.features}
-            icon={<Shield className="w-6 h-6 text-slate-400 mb-2"/>}
-          />
-
-          {/* 2. YEARLY ($299) - BEST CHOICE (TO NHẤT) */}
-          <div className="relative group transform md:-translate-y-4"> 
-             {/* Hiệu ứng Glow Xanh */}
-             <div className="absolute inset-0 bg-blue-600 rounded-2xl blur opacity-20 group-hover:opacity-40 transition-opacity"></div>
-             <PricingCard 
-              title={t.pricing.yearly.name} 
-              price={t.pricing.yearly.price} 
-              period={t.pricing.yearly.period}
-              btnText={t.pricing.yearly.btn}
-              features={t.pricing.yearly.features}
-              tag={t.pricing.yearly.tag}
-              isRecommended={true} 
-              icon={<Star className="w-6 h-6 text-blue-400 mb-2 fill-blue-400" />}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {plans.map((plan) => (
+            <PricingCard
+              key={plan.id}
+              id={plan.id} 
+              data={plan.data}
+              Icon={plan.icon}
+              isRecommended={plan.isRecommended}
+              isPopular={plan.isPopular}
             />
-          </div>
-          
-          {/* 3. LIFETIME ($699) - VIP */}
-          <div className="relative group">
-            <div className="absolute inset-0 bg-gradient-to-b from-purple-600 to-pink-600 rounded-2xl blur opacity-10 group-hover:opacity-30 transition-opacity"></div>
-            <PricingCard 
-              title={t.pricing.lifetime.name} 
-              price={t.pricing.lifetime.price} 
-              period={t.pricing.lifetime.period} 
-              btnText={t.pricing.lifetime.btn}
-              features={t.pricing.lifetime.features}
-              tag={t.pricing.lifetime.tag}
-              isPopular={true} 
-              icon={<Crown className="w-6 h-6 text-purple-400 mb-2" />}
-            />
-          </div>
-
+          ))}
         </div>
       </div>
     </section>
   );
 }
 
-// Component PricingCard (Giữ nguyên logic cũ)
-function PricingCard({ title, price, period, features, btnText, isPopular = false, isRecommended = false, tag, icon }: any) {
-  
-  const borderColor = isPopular ? 'border-purple-500' : isRecommended ? 'border-blue-500' : 'border-slate-800';
-  const shadowColor = isPopular ? 'shadow-purple-900/20' : isRecommended ? 'shadow-blue-900/20' : '';
-  // Gói Recommended (Yearly) sẽ có nền sáng hơn chút để nổi bật
-  const bgColor = isRecommended ? 'bg-slate-900' : 'bg-slate-950';
-  // Gói Recommended sẽ to hơn
-  const height = isRecommended ? 'min-h-[550px]' : 'min-h-[500px]';
-
+// --- COMPONENT CON: THẺ GIÁ ---
+const PricingCard = ({ id, data, Icon, isRecommended, isPopular }: any) => {
   return (
-    <div className={`relative p-8 border rounded-2xl flex flex-col transition-all duration-300 hover:-translate-y-1 ${bgColor} ${borderColor} ${shadowColor} ${isPopular || isRecommended ? 'shadow-xl' : ''} ${height}`}>
-      
-      {(isPopular || isRecommended) && tag && (
-        <span className={`absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 text-[11px] font-bold uppercase tracking-widest rounded-full whitespace-nowrap ${
-          isPopular ? 'bg-purple-600 text-white' : 'bg-blue-600 text-white'
-        }`}>
-          {tag}
-        </span>
+    <div className={`
+      relative p-8 rounded-[2.5rem] border transition-all duration-500 group hover:-translate-y-2 flex flex-col h-full
+      ${isPopular
+        ? "bg-slate-900/90 border-yellow-500/50 shadow-[0_0_40px_rgba(234,179,8,0.15)] hover:shadow-yellow-500/30"
+        : isRecommended
+          ? "bg-slate-900/90 border-green-500 shadow-[0_0_40px_rgba(34,197,94,0.15)] scale-105 z-10 hover:shadow-green-500/30"
+          : "bg-slate-950/50 border-slate-800 hover:border-slate-600"
+      }
+    `}>
+      {/* Badge Tags */}
+      {isRecommended && (
+        <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-green-500 text-black font-black text-xs px-4 py-1.5 rounded-full uppercase tracking-widest shadow-lg shadow-green-500/40">
+          {data.tag}
+        </div>
+      )}
+      {isPopular && (
+        <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-yellow-500 text-black font-black text-xs px-4 py-1.5 rounded-full uppercase tracking-widest shadow-lg shadow-yellow-500/40 flex items-center gap-1">
+          <Crown size={14} fill="black"/> {data.tag}
+        </div>
       )}
 
+      {/* Header */}
       <div className="mb-8 text-center md:text-left">
-        <div className="flex justify-center md:justify-start">{icon}</div>
-        <h4 className={`text-sm font-mono mb-2 uppercase tracking-wider ${isPopular ? 'text-purple-400' : isRecommended ? 'text-blue-400' : 'text-slate-400'}`}>
-          {title}
-        </h4>
-        <div className="flex items-baseline justify-center md:justify-start gap-1">
-          <span className={`text-5xl font-black ${isPopular ? 'text-purple-400' : isRecommended ? 'text-blue-400' : 'text-white'}`}>{price}</span>
-          <span className="text-slate-500 text-sm">{period}</span>
+        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 mx-auto md:mx-0 shadow-lg ${isPopular ? "bg-yellow-500 text-black shadow-yellow-500/20" : isRecommended ? "bg-green-500 text-black shadow-green-500/20" : "bg-slate-800 text-slate-400"}`}>
+          <Icon size={28} fill="currentColor" />
+        </div>
+        <h3 className={`text-lg font-bold uppercase tracking-widest mb-2 ${isPopular ? "text-yellow-500" : isRecommended ? "text-green-500" : "text-slate-400"}`}>{data.name}</h3>
+        <div className="flex items-baseline justify-center md:justify-start">
+          <span className={`text-4xl md:text-5xl font-black ${isPopular ? "text-white" : "text-white"}`}>{data.price}</span>
+          <span className="text-slate-500 font-bold ml-2 text-sm">{data.period}</span>
         </div>
       </div>
 
+      {/* Features List */}
       <ul className="space-y-4 mb-8 flex-1">
-        {features.map((feat: string, i: number) => {
-           const isReseller = feat.includes("Reseller") || feat.includes("Hoa hồng");
-           
-           return (
-            <li key={i} className="flex items-start gap-3 text-sm text-slate-300 leading-snug">
-                {isReseller ? (
-                   <Briefcase className="w-5 h-5 shrink-0 text-yellow-400 animate-pulse" />
-                ) : (
-                   <CheckCircle2 className={`w-5 h-5 shrink-0 ${isPopular ? 'text-purple-500' : isRecommended ? 'text-blue-500' : 'text-slate-600'}`} />
-                )}
-                
-                <span className={`${isReseller ? "text-yellow-400 font-bold" : ""}`}>
-                  {feat}
-                </span>
-            </li>
-           )
-        })}
+        {data.features.map((feature: string, idx: number) => (
+          <li key={idx} className="flex items-start gap-3 text-sm text-slate-300 group/item">
+            <div className={`mt-0.5 p-0.5 rounded-full ${isPopular ? "bg-yellow-500/20 text-yellow-500" : "bg-green-500/20 text-green-500"}`}>
+                <Check size={12} strokeWidth={4} />
+            </div>
+            <span className="group-hover/item:text-white transition-colors">{feature}</span>
+          </li>
+        ))}
       </ul>
 
-      <button
-      // Truyền plan: starter ($30), yearly ($299), hoặc lifetime ($699)
-        onClick={() => {
-          // Truyền plan: starter ($30), yearly ($299), hoặc lifetime ($699)
-          const planType = isPopular ? "lifetime" : isRecommended ? "yearly" : "starter";
-          window.location.href = `/dashboard?action=checkout&plan=${planType}`;
-          }}
-        className={`w-full py-4 rounded-xl text-sm font-bold transition-all ${
-        isPopular 
-          ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-500/20' 
-          : isRecommended
-            ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20'
-            : 'bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 hover:border-slate-600'
-      }`}>
-        {btnText}
-      </button>
+      {/* Button Action */}
+      <Link
+        // 👇 LOGIC ĐIỀU HƯỚNG QUAN TRỌNG:
+        // Chuyển hướng sang Dashboard kèm tham số ?action=checkout&plan=ID
+        href={`/dashboard?action=checkout&plan=${id}`}
+        className={`w-full py-4 rounded-xl font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95 hover:shadow-xl
+          ${isPopular
+            ? "bg-yellow-500 hover:bg-yellow-400 text-black shadow-yellow-500/20"
+            : isRecommended
+              ? "bg-green-500 hover:bg-green-400 text-black shadow-green-500/20"
+              : "bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 hover:border-slate-500"
+          }
+        `}
+      >
+        {isPopular ? <Crown size={18} fill="black" /> : <Zap size={18} fill="currentColor" />}
+        {data.btn}
+      </Link>
     </div>
   );
 }

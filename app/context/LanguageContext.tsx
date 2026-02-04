@@ -1,52 +1,46 @@
 "use client";
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { content } from '@/lib/content'; 
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { content } from '@/lib/content'; // 👈 IMPORT FILE VỪA TẠO
 
 type Language = 'vi' | 'en';
+type Translations = typeof content.vi; // Tự động lấy kiểu dữ liệu từ file content
 
+// Định nghĩa kiểu cho Context
 interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
-  t: any; 
+  t: Translations;
 }
 
-const LanguageContext = createContext<LanguageContextType>({
-  language: 'vi',
-  setLanguage: () => {}, 
-  t: content.vi,
-});
+const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'spartan_language'; // 🔑 Chìa khóa kho lưu trữ
-
-export const LanguageProvider = ({ children }: { children: React.ReactNode }) => {
-  // 1. Khởi tạo mặc định là 'vi' để tránh lỗi Hydration (Server khác Client)
+export const LanguageProvider = ({ children }: { children: ReactNode }) => {
+  // Lấy ngôn ngữ từ LocalStorage (để reload không bị mất)
   const [language, setLanguageState] = useState<Language>('vi');
 
-  // 2. useEffect: Chạy 1 lần duy nhất khi Web vừa tải xong
   useEffect(() => {
-    // Kiểm tra xem trong kho đã có ngôn ngữ lưu chưa
-    const savedLang = localStorage.getItem(STORAGE_KEY) as Language;
-    
-    // Nếu có (vi hoặc en) thì set lại ngay
-    if (savedLang === 'vi' || savedLang === 'en') {
+    const savedLang = localStorage.getItem('spartan_lang') as Language;
+    if (savedLang) {
       setLanguageState(savedLang);
     }
   }, []);
 
-  // 3. Hàm setLanguage mới: Vừa đổi State, vừa Lưu vào kho
   const setLanguage = (lang: Language) => {
-    setLanguageState(lang); // Đổi giao diện ngay lập tức
-    localStorage.setItem(STORAGE_KEY, lang); // 💾 Lưu vĩnh viễn vào trình duyệt
+    setLanguageState(lang);
+    localStorage.setItem('spartan_lang', lang);
   };
 
-  // Lấy từ điển
-  const t = content[language] || content.vi;
-
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t }}>
+    <LanguageContext.Provider value={{ language, setLanguage, t: content[language] }}>
       {children}
     </LanguageContext.Provider>
   );
 };
 
-export const useLanguage = () => useContext(LanguageContext);
+export const useLanguage = () => {
+  const context = useContext(LanguageContext);
+  if (!context) {
+    throw new Error('useLanguage must be used within a LanguageProvider');
+  }
+  return context;
+};

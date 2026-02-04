@@ -1,4 +1,4 @@
-// lib/content.ts
+// app/lib/content.ts
 
 export const content = {
   // ==============================
@@ -239,7 +239,6 @@ export const content = {
         refund_text: "Do tính chất là Sản phẩm số (Digital Product), chúng tôi KHÔNG HOÀN TIỀN sau khi Key đã được gửi đi và kích hoạt thành công. Vui lòng cân nhắc kỹ trước khi thanh toán."
       }
     },
-    // 👇 PAYMENT (ĐÃ BỔ SUNG CHO TIẾNG VIỆT)
     payment: {
       title: "LỰA CHỌN QUÂN HÀM",
       loading: "Đang tính toán tỷ giá...",
@@ -495,7 +494,6 @@ export const content = {
         refund_text: "Due to the nature of Digital Products, we DO NOT OFFER REFUNDS once the Key has been sent and activated. Please consider carefully before paying."
       }
     },
-    // 👇 PAYMENT (ĐÃ ĐƯA RA NGOÀI TERMS PAGE - ĐÚNG CẤU TRÚC)
     payment: {
       title: "CHOOSE YOUR RANK",
       loading: "Calculating rates...",

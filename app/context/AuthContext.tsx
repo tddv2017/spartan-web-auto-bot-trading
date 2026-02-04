@@ -1,10 +1,11 @@
 "use client";
 import { createContext, useContext, useEffect, useState } from "react";
-import { auth, db } from "@/lib/firebase";
+// ⚠️ ĐẠI TÁ KIỂM TRA LẠI ĐƯỜNG DẪN NÀY NHÉ
+import { auth, db } from "@/lib/firebase"; 
 import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
 
-// 👇 1. CẬP NHẬT INTERFACE (Thêm displayName và photoURL)
+// 1. ĐỊNH NGHĨA KIỂU DỮ LIỆU USER
 export interface UserProfile {
   id: string; 
   licenseKey: string;
@@ -14,8 +15,21 @@ export interface UserProfile {
   email: string;
   expiryDate?: any;
   createdAt?: any;
-  displayName?: string; // 👈 Thêm dòng này (Tên hiển thị)
-  photoURL?: string;    // 👈 Thêm dòng này (Avatar)
+  displayName?: string;
+  photoURL?: string;
+  wallet?: {
+    available: number;
+    pending: number;
+    total_paid: number;
+  };
+  // 👇 THÊM DÒNG NÀY:
+  referrals?: Array<{
+    user: string;
+    date: string;
+    package: string;
+    commission: number;
+    status: 'pending' | 'approved';
+  }>;
 }
 
 interface AuthContextType {
@@ -34,6 +48,7 @@ const ADMIN_EMAILS = [
   "tddv2017@gmail.com", 
   "itcrazy2021pro@gmail.com", 
   "tran.tuan.2821994@gmail.com",
+  "admin@gmail.com" 
 ];
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -55,12 +70,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           const userRef = doc(db, "users", currentUser.uid);
           const userSnap = await getDoc(userRef);
 
-          // 🚀 KHỞI TẠO HỒ SƠ CHO LÍNH MỚI
           if (!userSnap.exists()) {
-            console.log("🚀 Đang rèn License Key cho lính mới...");
+            console.log("🚀 Đang rèn License Key & Ví tiền cho lính mới...");
             await setDoc(userRef, {
               email: currentUser.email,
-              // 👇 2. LƯU THÔNG TIN TỪ GOOGLE VÀO FIRESTORE
               displayName: currentUser.displayName || "Chiến Binh Mới",
               photoURL: currentUser.photoURL || "",
               licenseKey: "SPARTAN-" + Math.random().toString(36).substring(2, 10).toUpperCase(),
@@ -68,11 +81,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               mt5Account2: "", 
               plan: "FREE",
               createdAt: new Date(),
-              expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) 
+              expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+              // 👇 ĐÃ BỔ SUNG VÍ TIỀN
+              wallet: {
+                available: 0,
+                pending: 0,
+                total_paid: 0
+              }
             });
           }
 
-          // 🛡️ LẮNG NGHE REALTIME
           const unsubProfile = onSnapshot(userRef, (docSnap) => {
             if (docSnap.exists()) {
               setProfile({
@@ -113,6 +131,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const logout = async () => {
     try {
       await signOut(auth);
+      localStorage.removeItem("spartan_license");
       window.location.href = "/"; 
     } catch (error) {
       console.error("Lỗi đăng xuất:", error);
