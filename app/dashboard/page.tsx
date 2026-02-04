@@ -18,7 +18,7 @@ const ResellerSection = ({ wallet, profile, onWithdraw }: { wallet: any, profile
   const [copiedAd, setCopiedAd] = useState(false);
 
   // Link giới thiệu
-  const refLink = `https://spartan-bot.com/?ref=${profile?.licenseKey}`;
+  const refLink = `https://spartan-web-auto-bot-trading.vercel.app/?ref=${profile?.licenseKey}`;
   
   // Mẫu quảng cáo
   const adText = `🔥 SPARTAN BOT V7.3 - CỖ MÁY IN TIỀN XAUUSD 🔥\n✅ Lợi nhuận 15-30%/tháng\n✅ Tự động 100%, Không gồng lỗ\n✅ Bảo hiểm vốn 100%\n👉 Nhận Bot miễn phí tại: ${refLink}`;
