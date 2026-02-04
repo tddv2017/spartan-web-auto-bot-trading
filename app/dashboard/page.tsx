@@ -8,20 +8,20 @@ import { useLanguage } from '../context/LanguageContext';
 import { 
   LogOut, Copy, Check, CreditCard, Activity, Clock, ShieldCheck, Zap, 
   Home, ChevronLeft, Terminal, PlayCircle, Users, TrendingUp, DollarSign,
-  LayoutDashboard, Menu, X, Lock, Wallet, CheckCircle, Share2, Globe, FileText // 👈 Đã thêm icon Marketing
+  LayoutDashboard, Menu, X, Lock, Wallet, CheckCircle, Share2, Globe, FileText
 } from 'lucide-react';
 import PaymentModal from '@/components/landing/PaymentModal';
 
-// --- 1. COMPONENT CON: KHU VỰC RESELLER (NÂNG CẤP AGENCY) ---
+// --- 1. COMPONENT CON: KHU VỰC RESELLER (FINAL VERSION) ---
 const ResellerSection = ({ wallet, profile, onWithdraw }: { wallet: any, profile: any, onWithdraw: () => void }) => {
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedAd, setCopiedAd] = useState(false);
 
-  // Link giới thiệu dựa trên LicenseKey
-  const refLink = `https://spartan-web-auto-bot-trading.vercel.app/?ref=${profile?.licenseKey}`;
+  // Link giới thiệu
+  const refLink = `https://spartan-bot.com/?ref=${profile?.licenseKey}`;
   
-  // Mẫu quảng cáo có sẵn
-  const adText = `🔥 SPARTAN BOT V7.3 - SÁT THỦ XAUUSD 🔥\n✅ Lợi nhuận 15-30%/tháng\n✅ Tự động 100%, Không gồng lỗ\n✅ Vốn nhỏ từ $100\n👉 Tải Bot & Dùng thử miễn phí tại: ${refLink}`;
+  // Mẫu quảng cáo
+  const adText = `🔥 SPARTAN BOT V7.3 - CỖ MÁY IN TIỀN XAUUSD 🔥\n✅ Lợi nhuận 15-30%/tháng\n✅ Tự động 100%, Không gồng lỗ\n✅ Bảo hiểm vốn 100%\n👉 Nhận Bot miễn phí tại: ${refLink}`;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(refLink);
@@ -35,10 +35,15 @@ const ResellerSection = ({ wallet, profile, onWithdraw }: { wallet: any, profile
     setTimeout(() => setCopiedAd(false), 2000);
   };
 
+  // Tính tổng hoa hồng đã nhận
+  const totalCommission = profile?.referrals?.reduce((sum: number, item: any) => {
+      return item.status === 'approved' ? sum + (item.commission || 0) : sum;
+  }, 0) || 0;
+
   return (
     <div className="space-y-8 animate-in slide-in-from-right duration-500 mt-6">
       
-      {/* HEADER: CHÀO MỪNG ĐỐI TÁC */}
+      {/* HEADER: AGENCY STATUS */}
       <div className="flex flex-col md:flex-row justify-between items-end gap-4 border-b border-slate-800 pb-6">
          <div>
             <h2 className="text-2xl font-black text-white flex items-center gap-2">
@@ -48,18 +53,19 @@ const ResellerSection = ({ wallet, profile, onWithdraw }: { wallet: any, profile
          </div>
          <div className="bg-slate-900 px-4 py-2 rounded-lg border border-slate-800 flex items-center gap-3">
             <Globe size={16} className="text-green-500"/>
-            <span className="text-xs text-slate-400">Ref Code:</span>
-            <span className="text-sm font-mono font-bold text-white">{profile?.licenseKey}</span>
+            <span className="text-xs text-slate-400">Mã giới thiệu:</span>
+            <span className="text-sm font-mono font-bold text-white select-all">{profile?.licenseKey}</span>
          </div>
       </div>
 
-      {/* 1. VÍ TIỀN (WALLET) */}
+      {/* 1. VÍ TIỀN (WALLET DASHBOARD) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Card 1: Tiền khả dụng */}
           <div className="bg-gradient-to-br from-green-900/40 to-slate-900 border border-green-500/50 p-6 rounded-[2rem] relative overflow-hidden group hover:border-green-400 transition-colors">
               <div className="absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
                   <Wallet size={100}/>
               </div>
-              <p className="text-[10px] text-green-400 font-black uppercase mb-2 flex items-center gap-2 tracking-widest"><CheckCircle size={12}/> Available Balance</p>
+              <p className="text-[10px] text-green-400 font-black uppercase mb-2 flex items-center gap-2 tracking-widest"><CheckCircle size={12}/> Số dư khả dụng</p>
               <h2 className="text-4xl font-black text-white font-chakra mb-6">${wallet.available.toFixed(2)}</h2>
               <button 
                   onClick={onWithdraw} 
@@ -68,72 +74,96 @@ const ResellerSection = ({ wallet, profile, onWithdraw }: { wallet: any, profile
                   RÚT TIỀN NGAY
               </button>
           </div>
+
+          {/* Card 2: Tiền chờ duyệt (Pending rút) */}
           <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem]">
-              <p className="text-[10px] text-yellow-500 font-black uppercase mb-2 flex items-center gap-2 tracking-widest"><Clock size={12}/> Pending</p>
+              <p className="text-[10px] text-yellow-500 font-black uppercase mb-2 flex items-center gap-2 tracking-widest"><Clock size={12}/> Đang chờ xử lý</p>
               <h2 className="text-4xl font-black text-slate-300 font-chakra mb-2">${wallet.pending.toFixed(2)}</h2>
-              <p className="text-[10px] text-slate-500 italic">*Duyệt sau 24h.</p>
+              <p className="text-[10px] text-slate-500 italic">*Lệnh rút tiền đang được kế toán kiểm tra.</p>
           </div>
+
+          {/* Card 3: Tổng quan Team */}
           <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem]">
-              <p className="text-[10px] text-slate-400 font-black uppercase mb-2 flex items-center gap-2 tracking-widest"><Users size={12}/> Total Ref</p>
-              <h2 className="text-4xl font-black text-slate-300 font-chakra mb-2">{profile?.referrals?.length || 0}</h2>
-              <div className="flex items-center gap-2 mt-2 text-xs font-bold text-slate-500"><TrendingUp size={12} className="text-green-500"/> Team Growth</div>
+              <p className="text-[10px] text-slate-400 font-black uppercase mb-2 flex items-center gap-2 tracking-widest"><Users size={12}/> Tổng thành viên</p>
+              <div className="flex items-baseline gap-2">
+                  <h2 className="text-4xl font-black text-slate-300 font-chakra mb-2">{profile?.referrals?.length || 0}</h2>
+                  <span className="text-xs text-slate-500">người</span>
+              </div>
+              <div className="mt-2 pt-2 border-t border-slate-800/50 flex justify-between items-center">
+                  <span className="text-[10px] text-slate-500">Tổng hoa hồng kiếm được:</span>
+                  <span className="text-sm font-bold text-green-500">+${totalCommission.toFixed(2)}</span>
+              </div>
           </div>
       </div>
 
-      {/* 2. MARKETING TOOLS (MỚI) */}
+      {/* 2. MARKETING TOOLS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
          {/* Link Giới thiệu */}
          <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem]">
             <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2 uppercase"><Share2 size={16} className="text-blue-500"/> Link Giới thiệu</h3>
             <div className="bg-black/50 p-3 rounded-xl border border-slate-700 flex items-center gap-2 mb-3">
-               <span className="text-xs text-slate-400 truncate flex-1 font-mono">{refLink}</span>
+               <span className="text-xs text-slate-400 truncate flex-1 font-mono select-all">{refLink}</span>
                <button onClick={handleCopyLink} className="p-2 bg-slate-800 hover:bg-slate-700 rounded text-white transition-colors">
                   {copiedLink ? <Check size={16} className="text-green-500"/> : <Copy size={16}/>}
                </button>
             </div>
-            <p className="text-[10px] text-slate-500">Khách hàng đăng ký qua link này sẽ tự động được gắn vào Team của Đại tá.</p>
+            <p className="text-[10px] text-slate-500">Gửi link này cho khách hàng. Hệ thống tự động ghi nhận hoa hồng khi khách thanh toán.</p>
          </div>
 
          {/* Mẫu Quảng Cáo */}
          <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem]">
-            <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2 uppercase"><FileText size={16} className="text-purple-500"/> Mẫu Quảng Cáo</h3>
+            <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2 uppercase"><FileText size={16} className="text-purple-500"/> Content Mẫu</h3>
             <div className="bg-black/50 p-3 rounded-xl border border-slate-700 relative group h-24 overflow-hidden">
                <p className="text-[10px] text-slate-300 whitespace-pre-line font-mono">{adText}</p>
-               <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex items-end justify-center pb-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={handleCopyAd} className="text-xs bg-purple-600 hover:bg-purple-500 text-white px-3 py-1 rounded font-bold">Copy Content</button>
+               <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent flex items-end justify-center pb-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={handleCopyAd} className="text-xs bg-purple-600 hover:bg-purple-500 text-white px-3 py-1 rounded font-bold shadow-lg">Sao chép bài đăng</button>
                </div>
             </div>
          </div>
       </div>
       
-      {/* 3. BẢNG HOA HỒNG */}
+      {/* 3. BẢNG LỊCH SỬ HOA HỒNG (CỐT LÕI) */}
       <div className="bg-slate-900/60 border border-slate-800 rounded-[2rem] p-8">
           <div className="flex justify-between items-center mb-6">
-             <h3 className="font-bold text-slate-300 flex items-center gap-2 uppercase text-sm tracking-wider"><CreditCard size={16} className="text-green-500"/> LỊCH SỬ HOA HỒNG</h3>
-             <button className="text-[10px] font-bold text-green-500 hover:underline">XEM TẤT CẢ</button>
+             <h3 className="font-bold text-slate-300 flex items-center gap-2 uppercase text-sm tracking-wider"><CreditCard size={16} className="text-green-500"/> LỊCH SỬ KHÁCH HÀNG & HOA HỒNG</h3>
           </div>
           <div className="overflow-x-auto">
              <table className="w-full text-xs text-left text-slate-400">
                 <thead className="text-slate-500 uppercase font-black border-b border-slate-800">
-                   <tr><th className="py-3">Thời gian</th><th className="py-3">Khách hàng</th><th className="py-3">Gói Mua</th><th className="py-3 text-right">Hoa hồng (40%)</th><th className="py-3 text-center">Trạng thái</th></tr>
+                   <tr>
+                       <th className="py-4 pl-4">Thời gian</th>
+                       <th className="py-4">Khách hàng</th>
+                       <th className="py-4">Gói Mua</th>
+                       <th className="py-4 text-right">Hoa hồng (40%)</th>
+                       <th className="py-4 text-center pr-4">Trạng thái</th>
+                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800">
-                   {/* Kiểm tra và hiển thị dữ liệu thật */}
                    {(!profile?.referrals || profile.referrals.length === 0) ? (
-                      <>
-                        <tr><td className="py-4 font-mono text-slate-600">--</td><td className="py-4 text-slate-600">Chưa có dữ liệu</td><td className="py-4">--</td><td className="py-4 text-right">--</td><td className="py-4 text-center">--</td></tr>
-                      </>
+                      <tr><td colSpan={5} className="py-8 text-center text-slate-600 italic">Chưa có dữ liệu. Hãy chia sẻ link ngay!</td></tr>
                    ) : (
-                      profile.referrals.map((ref: any, idx: number) => (
+                      // Đảo ngược mảng để cái mới nhất lên đầu
+                      [...profile.referrals].reverse().map((ref: any, idx: number) => (
                         <tr key={idx} className="hover:bg-slate-800/30 transition-colors">
-                           <td className="py-4 font-mono text-slate-300">{ref.date}</td>
+                           <td className="py-4 pl-4 font-mono text-slate-500">{ref.date}</td>
                            <td className="py-4 font-bold text-white">{ref.user}</td>
-                           <td className="py-4"><span className="bg-slate-800 px-2 py-1 rounded border border-slate-700 text-[10px]">{ref.package}</span></td>
-                           <td className="py-4 text-right font-bold text-green-400">+${ref.commission}</td>
-                           <td className="py-4 text-center">
+                           <td className="py-4">
+                               <span className={`px-2 py-1 rounded border text-[10px] font-bold ${
+                                   ref.package === 'LIFETIME' ? 'bg-purple-900/30 border-purple-500/50 text-purple-400' :
+                                   ref.package === 'YEARLY' ? 'bg-amber-900/30 border-amber-500/50 text-amber-400' :
+                                   ref.status === 'pending' ? 'bg-slate-800 border-slate-700 text-slate-400' : 
+                                   'bg-blue-900/30 border-blue-500/50 text-blue-400'
+                               }`}>
+                                   {ref.package}
+                               </span>
+                           </td>
+                           <td className="py-4 text-right font-bold text-green-400">
+                               {ref.commission > 0 ? `+$${ref.commission}` : '--'}
+                           </td>
+                           <td className="py-4 text-center pr-4">
                               {ref.status === 'approved' 
-                                ? <span className="bg-green-900/30 text-green-500 px-2 py-1 rounded font-bold border border-green-900/50 text-[10px]">ĐÃ DUYỆT</span>
-                                : <span className="bg-yellow-900/20 text-yellow-500 px-2 py-1 rounded font-bold border border-yellow-900/50 text-[10px]">CHỜ DUYỆT</span>
+                                ? <span className="bg-green-500/10 text-green-500 px-2 py-1 rounded font-bold border border-green-500/20 text-[10px]">ĐÃ NHẬN</span>
+                                : <span className="bg-yellow-500/10 text-yellow-500 px-2 py-1 rounded font-bold border border-yellow-500/20 text-[10px]">CHỜ THANH TOÁN</span>
                               }
                            </td>
                         </tr>
@@ -147,7 +177,7 @@ const ResellerSection = ({ wallet, profile, onWithdraw }: { wallet: any, profile
   );
 };
 
-// --- 2. NỘI DUNG CHÍNH ---
+// --- 2. NỘI DUNG CHÍNH (DASHBOARD CONTENT) ---
 function DashboardContent() {
   const { user, profile, logout } = useAuth();
   const { t } = useLanguage(); 
@@ -194,12 +224,16 @@ function DashboardContent() {
   };
 
   const handleWithdrawRequest = async () => {
-    const amountStr = prompt("Nhập số tiền muốn rút ($):"); 
+    const amountStr = prompt(`Nhập số tiền muốn rút (Tối đa: $${wallet.available}):`); 
     if (!amountStr) return;
     const amount = parseFloat(amountStr);
     
     if (isNaN(amount) || amount <= 0) {
         alert("Số tiền không hợp lệ");
+        return;
+    }
+    if (amount > wallet.available) {
+        alert("Số dư không đủ!");
         return;
     }
 
@@ -224,7 +258,7 @@ function DashboardContent() {
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-4 text-green-500">
         <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
         <p className="font-black tracking-[0.3em] uppercase animate-pulse text-sm">
-          {t.dashboard.loading || "INITIALIZING..."}
+          {t.dashboard.loading || "LOADING DATA..."}
         </p>
       </div>
     );
@@ -247,7 +281,7 @@ function DashboardContent() {
         </div>
 
         <div className="flex items-center gap-4">
-             {/* MENU SWITCHER (CHỈ HIỆN CHO LIFETIME - Viết hoa) */}
+             {/* MENU SWITCHER (CHỈ HIỆN CHO LIFETIME) */}
              {profile?.plan === 'LIFETIME' && (
                  <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
                      <button 
@@ -300,7 +334,7 @@ function DashboardContent() {
           </div>
         </div>
 
-        {/* --- NỘI DUNG THAY ĐỔI THEO TAB --- */}
+        {/* --- LOGIC HIỂN THỊ TAB --- */}
         {activeTab === 'overview' ? (
             <>
                 {/* 1. LICENSE CARD */}
@@ -370,7 +404,7 @@ function DashboardContent() {
                 </div>
             </>
         ) : (
-            // --- TAB RESELLER (Chỉ hiện khi LIFETIME) ---
+            // --- TAB RESELLER (CHỈ HIỆN KHI LIFETIME) ---
             <ResellerSection wallet={wallet} profile={profile} onWithdraw={handleWithdrawRequest} />
         )}
       </div>
