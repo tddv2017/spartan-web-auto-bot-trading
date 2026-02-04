@@ -167,11 +167,11 @@ function DashboardContent() {
               </div>
             </div>
             <a 
-              href="https://docs.google.com/uc?export=download&id=188effdjSpmDbMy3J3fBCY2tQTGU9RCoA" 
+              href="https://docs.google.com/uc?export=download&id=1BGtSMioGSIk-kkSrhmvipGW1gTg4LHTQ" // Link tải về bản cài đặt
               className="relative z-10 flex items-center gap-3 px-8 py-4 bg-green-500 hover:bg-green-400 text-black font-black rounded-xl transition-all hover:scale-105 shadow-lg active:scale-95 group w-full md:w-auto justify-center"
             >
               <Zap size={20} fill="currentColor" className="group-hover:animate-bounce" />
-              {t.dashboard.btn.download}
+              {t.dashboard.btn.download}  
             </a>
           </div>
         ) : (
