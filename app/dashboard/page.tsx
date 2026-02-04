@@ -35,7 +35,7 @@ const ResellerSection = ({ wallet, profile, onWithdraw }: { wallet: any, profile
     setTimeout(() => setCopiedAd(false), 2000);
   };
 
-  // Tính tổng hoa hồng đã nhận
+  // Tính tổng hoa hồng đã nhận (Chỉ tính trạng thái approved)
   const totalCommission = profile?.referrals?.reduce((sum: number, item: any) => {
       return item.status === 'approved' ? sum + (item.commission || 0) : sum;
   }, 0) || 0;
@@ -404,7 +404,7 @@ function DashboardContent() {
                 </div>
             </>
         ) : (
-            // --- TAB RESELLER (CHỈ HIỆN KHI LIFETIME) ---
+            // --- TAB RESELLER (Chỉ hiện khi LIFETIME) ---
             <ResellerSection wallet={wallet} profile={profile} onWithdraw={handleWithdrawRequest} />
         )}
       </div>
