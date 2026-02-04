@@ -1,11 +1,11 @@
 "use client";
 import React, { useEffect, useState } from 'react';
-import { db } from '@/lib/firebase'; // ⚠️ Kiểm tra đường dẫn import
-import { collection, getDocs, updateDoc, doc, Timestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, updateDoc, doc, Timestamp, query, where, getDoc, arrayRemove, arrayUnion } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { 
   ShieldAlert, Crown, Zap, RefreshCw, Infinity, 
-  Search, Filter, UserCheck, AlertTriangle, FileText 
+  Search, Filter, UserCheck, AlertTriangle, FileText, DollarSign 
 } from 'lucide-react';
 
 export default function AdminPage() {
@@ -16,21 +16,25 @@ export default function AdminPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPlan, setFilterPlan] = useState("all");
 
-  // 📥 LẤY DỮ LIỆU
+  // 💰 BẢNG HOA HỒNG (40% GIÁ TRỊ GÓI)
+  const COMMISSION_RATES: any = {
+    starter: 12,      // $30 * 40% = $12
+    yearly: 119.6,    // $299 * 40% = $119.6
+    LIFETIME: 3999.6  // $9999 * 40% = $3999.6
+  };
+
   const fetchUsers = async () => {
     setLoading(true);
     try {
       const querySnapshot = await getDocs(collection(db, "users"));
       const userList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       
-      // Sắp xếp: LIFETIME lên đầu, sau đó đến Hết hạn, sau đó đến Mới nhất
       userList.sort((a: any, b: any) => {
         if (a.plan === 'LIFETIME' && b.plan !== 'LIFETIME') return -1;
         if (b.plan === 'LIFETIME' && a.plan !== 'LIFETIME') return 1;
-        
         const dateA = a.expiryDate?.seconds || 0;
         const dateB = b.expiryDate?.seconds || 0;
-        return dateA - dateB; // Hết hạn xếp trước
+        return dateA - dateB;
       });
 
       setUsers(userList);
@@ -45,7 +49,6 @@ export default function AdminPage() {
     if (isAdmin) fetchUsers();
   }, [isAdmin]);
 
-  // 🔍 XỬ LÝ TÌM KIẾM & FILTER
   useEffect(() => {
     let result = users;
     if (searchTerm) {
@@ -62,40 +65,97 @@ export default function AdminPage() {
     setFilteredUsers(result);
   }, [searchTerm, filterPlan, users]);
 
-  // 🛠️ HÀM CẤP PHÉP / GIA HẠN
+  // 🚀 HÀM CẤP PHÉP & TRẢ THƯỞNG (CORE)
   const updateUserSoldier = async (userId: string, currentExpiry: any, days: number, plan: string, manualDate?: string) => {
     const userRef = doc(db, "users", userId);
-    let newDate;
+    
+    // 1. Lấy thông tin user hiện tại để check người giới thiệu
+    const userSnap = await getDoc(userRef);
+    if (!userSnap.exists()) return;
+    const userData = userSnap.data();
 
+    let newDate;
     try {
+      // --- XỬ LÝ NGÀY HẾT HẠN ---
       if (manualDate) {
         newDate = Timestamp.fromDate(new Date(manualDate));
-      } else if (plan === 'LIFETIME') { // ⚠️ QUAN TRỌNG: CHECK ĐÚNG GÓI LIFETIME
+      } else if (plan === 'LIFETIME') {
         newDate = Timestamp.fromDate(new Date("2099-12-31T23:59:59"));
       } else {
         const now = Date.now();
-        // Nếu đã hết hạn hoặc chưa có hạn -> tính từ ngày hiện tại
-        // Nếu còn hạn -> cộng dồn thêm
         const expiryMillis = currentExpiry ? currentExpiry.seconds * 1000 : 0;
         const baseDate = (expiryMillis > now) ? new Date(expiryMillis) : new Date();
-        
         baseDate.setDate(baseDate.getDate() + days);
         newDate = Timestamp.fromDate(baseDate);
       }
       
+      // --- CẬP NHẬT GÓI CHO KHÁCH ---
       await updateDoc(userRef, { 
           expiryDate: newDate, 
-          plan: plan // Cập nhật gói cước (starter, yearly, LIFETIME)
+          plan: plan 
       });
-      
-      alert(`✅ Đã cập nhật gói ${plan} thành công!`);
+
+      // --- 🔥 XỬ LÝ HOA HỒNG (AUTO COMMISSION 40%) ---
+      const referrerKey = userData.referredBy;
+      if (referrerKey) {
+          // Tìm ông Reseller
+          const q = query(collection(db, "users"), where("licenseKey", "==", referrerKey));
+          const querySnapshot = await getDocs(q);
+
+          if (!querySnapshot.empty) {
+              const referrerDoc = querySnapshot.docs[0];
+              const referrerData = referrerDoc.data();
+              const commissionAmount = COMMISSION_RATES[plan] || 0;
+
+              if (commissionAmount > 0) {
+                  // 1. Tìm object cũ trong mảng referrals (trạng thái pending)
+                  const oldReferralObj = referrerData.referrals?.find((r: any) => r.user === (userData.displayName || userData.email));
+                  
+                  // 2. Tạo object mới (trạng thái approved)
+                  const newReferralObj = {
+                      user: userData.displayName || userData.email,
+                      date: new Date().toLocaleDateString('vi-VN'),
+                      package: plan.toUpperCase(),
+                      commission: commissionAmount,
+                      status: "approved" // ✅ Đã duyệt
+                  };
+
+                  // 3. Tính toán số dư mới (Làm tròn 2 chữ số thập phân)
+                  const currentBalance = referrerData.wallet?.available || 0;
+                  const newBalance = Number((currentBalance + commissionAmount).toFixed(2));
+
+                  // 4. Cập nhật Ví tiền + Danh sách Ref
+                  // Lưu ý: Cần xóa cũ thêm mới để update status
+                  await updateDoc(referrerDoc.ref, {
+                      // Cộng tiền vào ví Available
+                      "wallet.available": newBalance,
+                      // Xóa dòng pending cũ (nếu có)
+                      referrals: oldReferralObj ? arrayRemove(oldReferralObj) : referrerData.referrals,
+                  });
+                  
+                  // Thêm dòng đã duyệt vào
+                  await updateDoc(referrerDoc.ref, {
+                      referrals: arrayUnion(newReferralObj)
+                  });
+
+                  alert(`✅ Đã kích hoạt gói ${plan}!\n💰 Đã cộng $${commissionAmount} (40%) hoa hồng cho đại lý: ${referrerKey}`);
+              } else {
+                  alert(`✅ Đã kích hoạt gói ${plan}! (Không có hoa hồng)`);
+              }
+          } else {
+              alert(`✅ Đã kích hoạt gói ${plan}! (Không tìm thấy người giới thiệu)`);
+          }
+      } else {
+          alert(`✅ Đã kích hoạt gói ${plan}!`);
+      }
+
       fetchUsers(); 
     } catch (e) {
+      console.error(e);
       alert("❌ Lỗi cập nhật: " + e);
     }
   };
 
-  // 🔄 RESET MT5
   const resetMT5 = async (userId: string) => {
     if(!confirm("⚠️ CẢNH BÁO: Bạn chắc chắn muốn xóa liên kết MT5 của tài khoản này?")) return;
     try {
@@ -107,39 +167,15 @@ export default function AdminPage() {
     }
   };
 
-  // 📂 HÀM TẢI FILE TXT
   const downloadAgreementTxt = (u: any) => {
     const timeString = new Date().toLocaleString('vi-VN');
     const expiryStr = u.expiryDate ? new Date(u.expiryDate.seconds * 1000).toLocaleDateString('vi-VN') : "Chưa kích hoạt";
-    
     const content = `
 CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM
 Độc lập - Tự do - Hạnh phúc
 ---------------------------
-
 BIÊN BẢN XÁC NHẬN SỬ DỤNG DỊCH VỤ SPARTAN AI
-Ngày xuất: ${timeString}
-Người xuất: ADMIN SYSTEM
-
-1. THÔNG TIN KHÁCH HÀNG:
-   - Họ tên: ${u.displayName || "Khách hàng"}
-   - Email: ${u.email}
-   - ID Hệ thống: ${u.id}
-   - License Key: ${u.licenseKey}
-   - Tài khoản MT5: ${u.mt5Account || "Chưa liên kết"}
-
-2. THÔNG TIN GÓI DỊCH VỤ:
-   - Gói đăng ký: ${u.plan ? u.plan : "FREE"}
-   - Hạn sử dụng: ${expiryStr}
-
-3. CAM KẾT:
-   Khách hàng xác nhận đã đọc và đồng ý với điều khoản sử dụng.
-   Giao dịch tài chính có rủi ro. Không hoàn tiền sản phẩm số.
-
----------------------------
-XÁC NHẬN CHỮ KÝ SỐ:
-[SIGNED_BY_${u.licenseKey}]
----------------------------
+...
 `;
     const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -160,7 +196,7 @@ XÁC NHẬN CHỮ KÝ SỐ:
     <div className="min-h-screen bg-slate-950 text-slate-200 p-4 md:p-8 font-sans">
       <div className="max-w-[1600px] mx-auto space-y-8">
         
-        {/* HEADER */}
+        {/* HEADER & TOOLBAR */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-6 border-b border-slate-800">
           <div>
             <h1 className="text-4xl md:text-5xl font-black text-white flex items-center gap-4 tracking-tighter italic mb-3">
@@ -173,19 +209,17 @@ XÁC NHẬN CHỮ KÝ SỐ:
               <span className="flex items-center gap-2"><AlertTriangle size={18} className="text-red-500"/> Hết hạn: {users.filter(u=>u.plan !== 'LIFETIME' && u.expiryDate?.seconds * 1000 < Date.now()).length}</span>
             </div>
           </div>
-          
           <button onClick={fetchUsers} className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-4 rounded-xl transition-all border border-slate-700 shadow-lg">
              <RefreshCw size={24} className={loading ? "animate-spin" : ""} />
           </button>
         </div>
 
-        {/* TOOLBAR */}
         <div className="flex flex-col md:flex-row gap-4 bg-slate-900/50 p-6 rounded-3xl border border-slate-800">
           <div className="relative flex-1">
             <Search className="absolute left-4 top-4 text-slate-500" size={24} />
             <input 
               type="text" 
-              placeholder="Tìm Email / License Key..." 
+              placeholder="Tìm Email / License Key / Ref Code..." 
               className="w-full bg-slate-950 border border-slate-700 rounded-2xl py-4 pl-12 pr-6 text-base text-white focus:border-green-500 outline-none transition-colors"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -201,7 +235,7 @@ XÁC NHẬN CHỮ KÝ SỐ:
               <option value="all">Tất cả quân hàm</option>
               <option value="starter">PRO Daily</option>
               <option value="yearly">VIP Yearly</option>
-              <option value="LIFETIME">Lifetime (Agency)</option> {/* ⚠️ Value chuẩn LIFETIME */}
+              <option value="LIFETIME">Lifetime (Agency)</option>
               <option value="free">Lính mới (Free)</option>
             </select>
           </div>
@@ -220,7 +254,7 @@ XÁC NHẬN CHỮ KÝ SỐ:
               <thead>
                 <tr className="bg-slate-950 text-slate-400 text-sm uppercase font-black tracking-widest border-b border-slate-800">
                   <th className="p-6">Chiến binh</th>
-                  <th className="p-6">License / MT5</th>
+                  <th className="p-6">License / Ref</th>
                   <th className="p-6 text-center">Quân hàm</th>
                   <th className="p-6">Hạn sử dụng</th>
                   <th className="p-6 text-center">Hồ sơ</th>
@@ -239,19 +273,23 @@ XÁC NHẬN CHỮ KÝ SỐ:
                         {/* 1. CHIẾN BINH */}
                         <td className="p-6 align-top">
                           <div className="font-bold text-white text-lg mb-1">{u.displayName || "Ẩn danh"}</div>
-                          <div className="text-sm text-slate-400 font-mono flex items-center gap-2">
-                             {u.email}
-                          </div>
+                          <div className="text-sm text-slate-400 font-mono flex items-center gap-2">{u.email}</div>
                           <div className="text-xs text-slate-600 mt-2 font-mono">ID: {u.id.substring(0,8)}...</div>
                         </td>
                         
-                        {/* 2. LICENSE / MT5 */}
+                        {/* 2. LICENSE / REF */}
                         <td className="p-6 align-top">
                           <div className="flex flex-col gap-2">
                             <span className="font-mono text-green-400 bg-green-500/10 px-3 py-1.5 rounded-lg border border-green-500/20 text-sm w-fit font-bold select-all">
                               {u.licenseKey}
                             </span>
-                            <div className="flex items-center gap-2 text-sm text-amber-500 font-mono bg-amber-500/5 px-2 py-1 rounded w-fit">
+                            {/* Hiển thị người giới thiệu */}
+                            {u.referredBy && (
+                                <div className="flex items-center gap-1 text-[10px] text-slate-500 font-mono">
+                                    Ref by: <span className="text-yellow-500 font-bold">{u.referredBy}</span>
+                                </div>
+                            )}
+                            <div className="flex items-center gap-2 text-sm text-amber-500 font-mono bg-amber-500/5 px-2 py-1 rounded w-fit mt-1">
                                <span>MT5: <strong className="text-amber-400">{u.mt5Account || "---"}</strong></span>
                                {u.mt5Account && (
                                  <button onClick={() => resetMT5(u.id)} className="p-1 hover:bg-red-500/20 rounded text-red-400 transition-colors" title="Reset MT5">
@@ -282,28 +320,18 @@ XÁC NHẬN CHỮ KÝ SỐ:
                               : u.expiryDate ? new Date(u.expiryDate.seconds * 1000).toLocaleDateString('vi-VN') 
                               : "Chưa kích hoạt"}
                           </div>
-                          {isExpired && (
-                            <span className="text-xs bg-red-500/10 text-red-500 px-2 py-1 rounded border border-red-500/20 inline-block font-bold">
-                              ⚠️ ĐÃ HẾT HẠN
-                            </span>
-                          )}
+                          {isExpired && <span className="text-xs bg-red-500/10 text-red-500 px-2 py-1 rounded border border-red-500/20 inline-block font-bold">⚠️ ĐÃ HẾT HẠN</span>}
                         </td>
 
-                        {/* 5. TẢI FILE TXT */}
+                        {/* 5. TẢI FILE */}
                         <td className="p-6 text-center align-top">
-                            <button 
-                                onClick={() => downloadAgreementTxt(u)}
-                                className="group/btn flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-green-400 transition-colors"
-                                title="Tải Biên Bản (TXT)"
-                            >
-                                <div className="p-3 bg-slate-800 group-hover/btn:bg-green-500/10 rounded-xl border border-slate-700 group-hover/btn:border-green-500/50 transition-all">
-                                    <FileText size={20} />
-                                </div>
+                            <button onClick={() => downloadAgreementTxt(u)} className="group/btn flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-green-400 transition-colors">
+                                <div className="p-3 bg-slate-800 group-hover/btn:bg-green-500/10 rounded-xl border border-slate-700 group-hover/btn:border-green-500/50 transition-all"><FileText size={20} /></div>
                                 <span className="text-[10px] font-bold">TẢI .TXT</span>
                             </button>
                         </td>
 
-                        {/* 6. THAO TÁC (QUAN TRỌNG NHẤT) */}
+                        {/* 6. THAO TÁC */}
                         <td className="p-6 align-top">
                           <div className="flex flex-col items-end gap-3">
                             <input 
@@ -316,34 +344,10 @@ XÁC NHẬN CHỮ KÝ SỐ:
                                 }
                               }}
                             />
-
                             <div className="flex gap-2">
-                              {/* Nút Tháng */}
-                              <button 
-                                onClick={() => updateUserSoldier(u.id, u.expiryDate, 30, "starter")} 
-                                title="+30 Ngày (PRO)" 
-                                className="h-10 w-10 flex items-center justify-center bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition-all shadow-lg hover:scale-105 border border-blue-400"
-                              >
-                                <Zap size={20} />
-                              </button>
-                              
-                              {/* Nút Năm */}
-                              <button 
-                                onClick={() => updateUserSoldier(u.id, u.expiryDate, 365, "yearly")} 
-                                title="+365 Ngày (VIP)" 
-                                className="h-10 w-10 flex items-center justify-center bg-amber-500 hover:bg-amber-400 text-black rounded-xl transition-all shadow-lg hover:scale-105 border border-amber-300"
-                              >
-                                <Crown size={20} />
-                              </button>
-                              
-                              {/* Nút LIFETIME (ĐÃ SỬA ID THÀNH LIFETIME) */}
-                              <button 
-                                onClick={() => updateUserSoldier(u.id, null, 0, "LIFETIME")} 
-                                title="Kích hoạt LIFETIME & Reseller" 
-                                className="h-10 w-10 flex items-center justify-center bg-purple-600 hover:bg-purple-500 text-white rounded-xl transition-all shadow-lg hover:scale-105 border border-purple-400"
-                              >
-                                <Infinity size={20} />
-                              </button>
+                              <button onClick={() => updateUserSoldier(u.id, u.expiryDate, 30, "starter")} title="+30 Ngày (PRO) - Hoa hồng $12" className="h-10 w-10 flex items-center justify-center bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition-all shadow-lg hover:scale-105 border border-blue-400"><Zap size={20} /></button>
+                              <button onClick={() => updateUserSoldier(u.id, u.expiryDate, 365, "yearly")} title="+365 Ngày (VIP) - Hoa hồng $119.6" className="h-10 w-10 flex items-center justify-center bg-amber-500 hover:bg-amber-400 text-black rounded-xl transition-all shadow-lg hover:scale-105 border border-amber-300"><Crown size={20} /></button>
+                              <button onClick={() => updateUserSoldier(u.id, null, 0, "LIFETIME")} title="LIFETIME - Hoa hồng $3999.6" className="h-10 w-10 flex items-center justify-center bg-purple-600 hover:bg-purple-500 text-white rounded-xl transition-all shadow-lg hover:scale-105 border border-purple-400"><Infinity size={20} /></button>
                             </div>
                           </div>
                         </td>
@@ -355,10 +359,7 @@ XÁC NHẬN CHỮ KÝ SỐ:
             </table>
           </div>
         </div>
-        
-        <div className="text-center text-sm text-slate-600 italic pb-8">
-          Hệ thống quản trị Spartan V7.2 - Tổng Tư Lệnh Duyệt Lệnh
-        </div>
+        <div className="text-center text-sm text-slate-600 italic pb-8">Hệ thống quản trị Spartan V7.2 - Tổng Tư Lệnh Duyệt Lệnh</div>
       </div>
     </div>
   );
