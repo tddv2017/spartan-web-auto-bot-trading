@@ -1,20 +1,16 @@
-import admin from "firebase-admin";
+import * as admin from "firebase-admin";
 
 if (!admin.apps.length) {
-  try {
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        // Kỹ thuật xử lý lỗi xuống dòng của Private Key trên Vercel
-        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-      }),
-    });
-    console.log("🛡️ Firebase Admin đã sẵn sàng tác chiến!");
-  } catch (error) {
-    console.error("❌ Lỗi khởi tạo Admin SDK:", error);
-  }
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      // 👇 QUAN TRỌNG: Fix lỗi xuống dòng (\n) khi deploy lên Vercel
+      privateKey: process.env.FIREBASE_PRIVATE_KEY
+        ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n")
+        : undefined,
+    }),
+  });
 }
 
-const adminDb = admin.firestore();
-export { adminDb }; 
+export const adminDb = admin.firestore();

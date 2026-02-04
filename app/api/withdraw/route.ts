@@ -1,58 +1,86 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, updateDoc, doc, getDoc } from 'firebase/firestore';
+// 👇 CHỈ ĐƯỢC IMPORT CÁI NÀY (Admin SDK)
+import { adminDb } from "@/lib/firebaseAdmin"; // ⚠️ Sửa đường dẫn nếu file nằm ở chỗ khác (vd: @/lib/firebaseAdmin)
+
+// Cấu hình Telegram
+const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_ADMIN_ID;
+
+export const dynamic = 'force-dynamic'; 
+
+async function sendTelegramAlert(msg: string) {
+    if (!TELEGRAM_TOKEN || !TELEGRAM_CHAT_ID) return;
+    try {
+        await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: msg, parse_mode: "HTML" }),
+        });
+    } catch (e) { console.error("Tele Error", e); }
+}
 
 export async function POST(req: Request) {
   try {
-    const { amount, email } = await req.json(); // Nhận Email và Số tiền từ Frontend
+    const body = await req.json();
+    const { amount, email } = body;
 
-    if (!email || !amount) {
-      return NextResponse.json({ success: false, message: "Thiếu thông tin!" }, { status: 400 });
+    // 1. Kiểm tra đầu vào
+    if (!email || !amount || isNaN(amount) || amount <= 0) {
+      return NextResponse.json({ success: false, message: "Dữ liệu không hợp lệ" }, { status: 400 });
     }
 
-    // 1. Tìm User trong collection 'users' (hoặc 'resellers' tùy đại tá đặt tên lúc trước)
-    // Vì AuthContext lưu theo UID hoặc Email, ta sẽ query để tìm doc
-    // Cách an toàn nhất: Frontend gửi email, ta tìm doc có email đó
-    
-    // Giả sử User ID chính là Email (theo logic AuthContext cũ)
-    // Nếu AuthContext lưu ID là UID, ta cần query. Ở đây tôi dùng query cho chắc ăn.
-    const usersRef = collection(db, "users");
-    const q = query(usersRef, where("email", "==", email));
-    const querySnapshot = await getDocs(q);
+    // 2. Tìm User bằng Admin SDK
+    const usersRef = adminDb.collection("users");
+    const snapshot = await usersRef.where("email", "==", email).limit(1).get();
 
-    if (querySnapshot.empty) {
-      return NextResponse.json({ success: false, message: "Không tìm thấy tài khoản!" }, { status: 404 });
+    if (snapshot.empty) {
+      return NextResponse.json({ success: false, message: "Không tìm thấy tài khoản" }, { status: 404 });
     }
 
-    const userDoc = querySnapshot.docs[0];
+    const userDoc = snapshot.docs[0];
     const userData = userDoc.data();
+    
+    // 3. Lấy ví (Xử lý trường hợp chưa có ví)
     const currentWallet = userData.wallet || { available: 0, pending: 0, total_paid: 0 };
 
-    // 2. Kiểm tra số dư
+    // 4. Kiểm tra số dư
     if (amount > currentWallet.available) {
-      return NextResponse.json({ success: false, message: "⚠️ Số dư không đủ để rút!" }, { status: 400 });
+      return NextResponse.json({ success: false, message: "⚠️ Số dư không đủ!" }, { status: 400 });
     }
 
-    // 3. Trừ tiền
+    // 5. Tính toán ví mới (Làm tròn 2 số lẻ để tránh lỗi float)
+    const newAvailable = Number((currentWallet.available - amount).toFixed(2));
+    const newPending = Number((currentWallet.pending + amount).toFixed(2));
+
     const newWallet = {
       ...currentWallet,
-      available: currentWallet.available - amount,
-      pending: currentWallet.pending + amount // Chuyển sang trạng thái chờ duyệt
+      available: newAvailable,
+      pending: newPending
     };
 
-    // 4. Cập nhật vào Firestore
-    await updateDoc(doc(db, "users", userDoc.id), {
-      wallet: newWallet
+    // 6. Cập nhật Firestore (Dùng cú pháp Admin: doc(id).update)
+    await usersRef.doc(userDoc.id).update({
+      wallet: newWallet,
+      lastWithdrawRequest: new Date()
     });
+
+    // 7. Gửi Telegram (Chạy ngầm, không await để phản hồi nhanh)
+    await sendTelegramAlert(
+        `💸 <b>CÓ LỆNH RÚT TIỀN MỚI!</b>\n\n` +
+        `👤 <b>User:</b> ${email}\n` +
+        `💰 <b>Rút:</b> $${amount}\n` +
+        `🏦 <b>Còn lại:</b> $${newWallet.available}\n` +
+        `⏳ <b>Trạng thái:</b> Chờ duyệt`
+    ).catch(console.error);
 
     return NextResponse.json({ 
       success: true, 
-      newBalance: newWallet.available,
-      message: `✅ Lệnh rút $${amount} đã được gửi lên hệ thống!` 
+      message: `✅ Lệnh rút $${amount} thành công! Vui lòng chờ duyệt.` 
     });
 
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ success: false, message: "Lỗi xử lý Server" }, { status: 500 });
+  } catch (error: any) {
+    console.error("🔥 WITHDRAW ERROR:", error);
+    // Trả về message lỗi cụ thể để debug
+    return NextResponse.json({ success: false, message: "Lỗi Server: " + error.message }, { status: 500 });
   }
 }
