@@ -122,7 +122,7 @@ export const content = {
       sub: "Lựa chọn gói phù hợp để tối ưu lợi nhuận của bạn.",
       starter: {
         name: "THUÊ THÁNG",
-        price: "$9",
+        price: "$30",
         period: "/tháng",
         btn: "Thuê Ngay",
         features: ["Full Tính năng V7.2", "Tự động vào lệnh 100%", "Chế độ Scalp + Swing", "Hỗ trợ 1 Tài khoản Live", "Support 24/7"]
@@ -377,7 +377,7 @@ export const content = {
       sub: "Choose the plan that fits your trading goals.",
       starter: {
         name: "MONTHLY",
-        price: "$9",
+        price: "$30",
         period: "/mo",
         btn: "Rent Now",
         features: ["Full Features V7.2", "100% Auto Execution", "Scalp + Swing Modes", "1 Live Account", "24/7 Support"]
