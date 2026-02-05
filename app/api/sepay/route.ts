@@ -16,20 +16,23 @@ export async function POST(req: NextRequest) {
 
     console.log(`💰 [1] WEBHOOK NHẬN: ${transferAmount} VND - Nội dung: ${content}`);
 
-    // 1. TÌM KEY (ĐÃ SỬA REGEX ĐỂ CHẤP NHẬN KEY KHÔNG CÓ GẠCH NGANG)
-    // Regex này hiểu là: Tìm "SPARTAN", có thể có "-" hoặc không, sau đó là chuỗi ký tự
+    // 1. TÌM KEY
     const keyMatch = contentUpper.match(/SPARTAN[-]*[A-Z0-9]+/); 
     
     if (!keyMatch) {
-        console.log("❌ [LỖI] Không tìm thấy License Key (Sai cú pháp)");
+        console.log("❌ [LỖI] Không tìm thấy License Key");
         return NextResponse.json({ success: false, message: "No License Key found" });
     }
-    const licenseKey = keyMatch[0];
-    // Nếu key tìm được là "SPARTAN64..." (dính liền), ta có thể cần thêm dấu gạch vào để khớp với Database (nếu Database lưu có gạch)
-    // Nhưng cứ log ra xem Database lưu kiểu gì đã.
-    console.log(`🔍 [2] Key tìm thấy: ${licenseKey}`);
+    
+    let licenseKey = keyMatch[0];
 
-    // ... (Các đoạn dưới giữ nguyên) ...
+    // 🛠️ AUTO-FIX: THÊM GẠCH NGANG
+    if (!licenseKey.includes("-")) {
+        licenseKey = licenseKey.replace("SPARTAN", "SPARTAN-");
+        console.log(`🛠️ [Auto-Fix] Đã chuẩn hóa Key: ${licenseKey}`);
+    }
+    console.log(`🔍 [2] Key tìm DB: ${licenseKey}`);
+
     // 2. TÌM GÓI
     let selectedPlanDef = null;
     if (contentUpper.includes("LIFETIME")) selectedPlanDef = PLAN_DEFS.LIFETIME;
@@ -44,14 +47,11 @@ export async function POST(req: NextRequest) {
 
     // 3. TÌM USER TRONG DB
     const usersRef = collection(db, "users");
-    // LƯU Ý: Nếu trong DB Đại tá lưu key là "SPARTAN-64..." (có gạch) mà Webhook tìm ra "SPARTAN64..." (không gạch) 
-    // thì vẫn sẽ lỗi "User not found". 
-    // Tạm thời cứ chạy query này, nếu không thấy thì tính tiếp.
     const q = query(usersRef, where("licenseKey", "==", licenseKey));
     const querySnapshot = await getDocs(q);
 
     if (querySnapshot.empty) {
-        console.log(`❌ [LỖI] Key ${licenseKey} không khớp với bất kỳ user nào trong DB`);
+        console.log(`❌ [LỖI] Key ${licenseKey} không tồn tại trong DB`);
         return NextResponse.json({ success: false, message: "User not found" });
     }
 
@@ -84,7 +84,31 @@ export async function POST(req: NextRequest) {
 
     // 5. HOA HỒNG
     if (userData.referredBy) {
-        // ... (Giữ nguyên logic hoa hồng) ...
+        // ... (Giữ nguyên phần hoa hồng cũ) ...
+        // (Để code gọn tôi không paste lại đoạn hoa hồng dài dòng ở đây, Đại tá giữ nguyên đoạn cũ nhé)
+         const refQ = query(usersRef, where("licenseKey", "==", userData.referredBy));
+         const refSnap = await getDocs(refQ);
+         if (!refSnap.empty) {
+            const resellerDoc = refSnap.docs[0];
+            const resellerData = resellerDoc.data();
+            const commissionUSD = Math.round(selectedPlanDef.usd * selectedPlanDef.commission_percent);
+            
+            // Code cộng tiền (Đại tá giữ nguyên đoạn cũ)
+            const newRef = {
+                user: userData.displayName || userData.email,
+                date: new Date().toLocaleDateString('vi-VN'),
+                package: selectedPlanDef.id.toUpperCase(),
+                commission: commissionUSD,
+                status: "approved"
+            };
+            const oldRef = resellerData.referrals?.find((r: any) => r.user === (userData.displayName || userData.email));
+             await updateDoc(resellerDoc.ref, {
+                "wallet.available": (resellerData.wallet?.available || 0) + commissionUSD,
+                referrals: oldRef ? arrayRemove(oldRef) : resellerData.referrals
+            });
+            await updateDoc(resellerDoc.ref, { referrals: arrayUnion(newRef) });
+            console.log(`💸 [6] Đã cộng hoa hồng: $${commissionUSD}`);
+         }
     }
 
     return NextResponse.json({ success: true, message: "Activated" });
