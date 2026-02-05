@@ -377,7 +377,7 @@ export const content = {
       sub: "Choose the plan that fits your trading goals.",
       starter: {
         name: "MONTHLY",
-        price: "$30",
+        price: "$9",
         period: "/mo",
         btn: "Rent Now",
         features: ["Full Features V7.2", "100% Auto Execution", "Scalp + Swing Modes", "1 Live Account", "24/7 Support"]
