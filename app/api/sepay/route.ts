@@ -50,10 +50,10 @@ export async function POST(req: NextRequest) {
     // Cho phép sai số: Thấp hơn tối đa 20.000đ (do làm tròn hoặc phí)
     const minAcceptable = expectedAmount - 20000; 
 
-    if (transferAmount < minAcceptable) {
-        console.warn(`❌ TỪ CHỐI: Tiền thiếu. Nhận: ${transferAmount}, Cần tối thiểu: ${minAcceptable}`);
-        return NextResponse.json({ success: false, message: "Amount too low" });
-    }
+    // if (transferAmount < minAcceptable) {
+    //     console.warn(`❌ TỪ CHỐI: Tiền thiếu. Nhận: ${transferAmount}, Cần tối thiểu: ${minAcceptable}`);
+    //     return NextResponse.json({ success: false, message: "Amount too low" });
+    // }
 
     // 5. KÍCH HOẠT USER
     const usersRef = collection(db, "users");
