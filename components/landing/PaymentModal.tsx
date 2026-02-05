@@ -139,7 +139,7 @@ export default function PaymentModal({ isOpen, onClose, plan: initialPlan }: { i
               <img 
                 src={language === 'vi' ? qrUrlVN : qrUrlCrypto} 
                 alt="QR Payment" 
-                className="w-48 h-48 object-contain" 
+                className="w-100 h-100 object-contain" 
               />
             )}
           </div>
