@@ -10,16 +10,30 @@ import { useLanguage } from '../context/LanguageContext';
 import { db } from '@/lib/firebase'; 
 import { doc, getDoc, updateDoc } from 'firebase/firestore'; 
 
-// 👇 2. IMPORT ICON (THÊM BITCOIN, REFRESH)
+// 👇 2. IMPORT ICON
 import { 
   LogOut, Copy, Check, CreditCard, Activity, Clock, ShieldCheck, Zap, 
   Home, ChevronLeft, Terminal, PlayCircle, Users, TrendingUp, DollarSign,
   LayoutDashboard, Menu, X, Lock, Wallet, CheckCircle, Share2, Globe, FileText, 
-  Settings, Save, Bitcoin, RefreshCw 
+  Settings, Save, Bitcoin, RefreshCw, ChevronDown
 } from 'lucide-react';
 import PaymentModal from '@/components/landing/PaymentModal';
 
-// --- 1. COMPONENT CON: KHU VỰC RESELLER (CÓ CRYPTO) ---
+// 🏦 DANH SÁCH NGÂN HÀNG VIỆT NAM (CHUẨN VIETQR)
+const VN_BANKS = [
+    "Vietcombank (VCB)", "MBBank (Quân Đội)", "Techcombank (TCB)", "ACB (Á Châu)",
+    "VietinBank (CTG)", "BIDV (Đầu tư & PT)", "VPBank (Việt Nam Thịnh Vượng)", 
+    "TPBank (Tiên Phong)", "Sacombank (STB)", "VIB (Quốc Tế)", "HDBank (HDB)",
+    "MSB (Hàng Hải)", "OCB (Phương Đông)", "SHB (Sài Gòn - Hà Nội)", 
+    "Eximbank (EIB)", "SeABank (Đông Nam Á)", "ABBank (An Bình)", 
+    "Nam A Bank (NAB)", "VietBank", "VietCapital Bank (Bản Việt)",
+    "Bac A Bank (Bắc Á)", "PVcomBank", "Shinhan Bank", "UOB", 
+    "Standard Chartered", "Public Bank", "Woori Bank", "HSBC",
+    "Agribank (Nông Nghiệp)", "LienVietPostBank (LPBank)", "KienLongBank",
+    "BaoViet Bank", "SaigonBank", "OceanBank", "GPBank", "CBBank"
+];
+
+// --- 1. COMPONENT CON: KHU VỰC RESELLER ---
 const ResellerSection = ({ wallet, profile, onWithdraw, user }: { wallet: any, profile: any, onWithdraw: () => void, user: any }) => {
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedAd, setCopiedAd] = useState(false);
@@ -30,7 +44,7 @@ const ResellerSection = ({ wallet, profile, onWithdraw, user }: { wallet: any, p
 
   // State dữ liệu thanh toán
   const [bankInfo, setBankInfo] = useState({
-    bankName: "",
+    bankName: "", // Mặc định rỗng
     accountNumber: "",
     accountHolder: ""
   });
@@ -54,7 +68,6 @@ const ResellerSection = ({ wallet, profile, onWithdraw, user }: { wallet: any, p
           if (data.bankInfo) setBankInfo(data.bankInfo);
           if (data.cryptoInfo) {
               setCryptoInfo(data.cryptoInfo);
-              // Nếu có crypto mà chưa có bank -> tự switch sang tab crypto
               if (!data.bankInfo?.accountNumber && data.cryptoInfo?.walletAddress) {
                   setActiveTab('crypto');
               }
@@ -65,7 +78,7 @@ const ResellerSection = ({ wallet, profile, onWithdraw, user }: { wallet: any, p
     fetchData();
   }, [user]);
 
-  // 👇 Hàm lưu thông tin (Xử lý theo Tab đang mở)
+  // 👇 Hàm lưu thông tin
   const savePaymentInfo = async () => {
     if (!user) return;
     
@@ -74,7 +87,7 @@ const ResellerSection = ({ wallet, profile, onWithdraw, user }: { wallet: any, p
         
         if (activeTab === 'bank') {
             if (!bankInfo.bankName || !bankInfo.accountNumber || !bankInfo.accountHolder) {
-                alert("⚠️ Vui lòng điền đủ thông tin Ngân hàng!");
+                alert("⚠️ Vui lòng chọn Ngân hàng và điền đủ thông tin!");
                 return;
             }
             await updateDoc(userRef, { bankInfo: bankInfo });
@@ -129,7 +142,7 @@ const ResellerSection = ({ wallet, profile, onWithdraw, user }: { wallet: any, p
 
               <h2 className="text-4xl font-black text-white font-chakra mb-2 relative z-10">${wallet.available.toFixed(2)}</h2>
               
-              {/* HIỂN THỊ THÔNG TIN NHẬN TIỀN (ƯU TIÊN CRYPTO NẾU CÓ) */}
+              {/* HIỂN THỊ THÔNG TIN NHẬN TIỀN */}
               <div className="relative z-10 min-h-[20px] mb-4">
                   {cryptoInfo.walletAddress ? (
                       <p className="text-[10px] text-green-400 font-mono truncate flex items-center gap-1">
@@ -137,7 +150,7 @@ const ResellerSection = ({ wallet, profile, onWithdraw, user }: { wallet: any, p
                       </p>
                   ) : bankInfo.accountNumber ? (
                       <p className="text-[10px] text-slate-400 font-mono truncate flex items-center gap-1">
-                          <CreditCard size={12} /> {bankInfo.bankName} • {bankInfo.accountNumber}
+                          <CreditCard size={12} /> {bankInfo.bankName.split('(')[0]} • {bankInfo.accountNumber}
                       </p>
                   ) : (
                       <p className="text-[10px] text-slate-500 italic">Chưa cài đặt ví nhận tiền</p>
@@ -168,7 +181,7 @@ const ResellerSection = ({ wallet, profile, onWithdraw, user }: { wallet: any, p
           </div>
       </div>
 
-      {/* 2. MARKETING TOOLS (Giữ nguyên) */}
+      {/* 2. MARKETING TOOLS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
          <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem]">
             <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2 uppercase"><Share2 size={16} className="text-blue-500"/> Link Giới thiệu</h3>
@@ -180,19 +193,18 @@ const ResellerSection = ({ wallet, profile, onWithdraw, user }: { wallet: any, p
             </div>
             <p className="text-[10px] text-slate-500">Gửi link này cho khách. Hệ thống tự động ghi nhận hoa hồng.</p>
          </div>
-
          <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem]">
             <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2 uppercase"><FileText size={16} className="text-purple-500"/> Content Mẫu</h3>
             <div className="bg-black/50 p-3 rounded-xl border border-slate-700 relative group h-24 overflow-hidden">
                <p className="text-[10px] text-slate-300 whitespace-pre-line font-mono">{adText}</p>
                <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent flex items-end justify-center pb-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={handleCopyAd} className="text-xs bg-purple-600 hover:bg-purple-500 text-white px-3 py-1 rounded font-bold shadow-lg">Sao chép bài đăng</button>
+                  <button onClick={handleCopyAd} className="text-xs bg-purple-600 hover:bg-purple-500 text-white px-3 py-1 rounded font-bold shadow-lg">Sao chép</button>
                </div>
             </div>
          </div>
       </div>
       
-      {/* 3. LỊCH SỬ HOA HỒNG (Giữ nguyên) */}
+      {/* 3. LỊCH SỬ HOA HỒNG */}
       <div className="bg-slate-900/60 border border-slate-800 rounded-[2rem] p-8">
          <div className="flex justify-between items-center mb-6">
              <h3 className="font-bold text-slate-300 flex items-center gap-2 uppercase text-sm tracking-wider"><CreditCard size={16} className="text-green-500"/> LỊCH SỬ KHÁCH HÀNG & HOA HỒNG</h3>
@@ -229,7 +241,7 @@ const ResellerSection = ({ wallet, profile, onWithdraw, user }: { wallet: any, p
          </div>
       </div>
 
-      {/* 👇 MODAL CÀI ĐẶT THANH TOÁN (ĐA NĂNG: BANK & CRYPTO) */}
+      {/* 👇 MODAL CÀI ĐẶT THANH TOÁN */}
       {showSettingsModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-md p-6 shadow-2xl relative animate-in zoom-in duration-200">
@@ -258,13 +270,25 @@ const ResellerSection = ({ wallet, profile, onWithdraw, user }: { wallet: any, p
             </div>
 
             {/* FORM BODY */}
-            <div className="space-y-4 min-h-[200px]">
+            <div className="space-y-4 min-h-[220px]">
                 {activeTab === 'bank' ? (
-                    // --- FORM NGÂN HÀNG ---
+                    // --- FORM NGÂN HÀNG (DROPDOWN) ---
                     <div className="animate-in fade-in slide-in-from-left-4 duration-300 space-y-4">
                         <div>
-                            <label className="block text-slate-400 text-xs font-bold uppercase mb-2">Tên Ngân Hàng</label>
-                            <input type="text" value={bankInfo.bankName} onChange={(e) => setBankInfo({...bankInfo, bankName: e.target.value})} placeholder="VD: MB Bank, Vietcombank..." className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white focus:border-blue-500 outline-none placeholder:text-slate-700" />
+                            <label className="block text-slate-400 text-xs font-bold uppercase mb-2">Ngân Hàng</label>
+                            <div className="relative">
+                                <select 
+                                    value={bankInfo.bankName} 
+                                    onChange={(e) => setBankInfo({...bankInfo, bankName: e.target.value})} 
+                                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white focus:border-blue-500 outline-none appearance-none cursor-pointer"
+                                >
+                                    <option value="" disabled>-- Chọn ngân hàng --</option>
+                                    {VN_BANKS.map((bank, idx) => (
+                                        <option key={idx} value={bank}>{bank}</option>
+                                    ))}
+                                </select>
+                                <ChevronDown className="absolute right-3 top-3 text-slate-500 pointer-events-none" size={16} />
+                            </div>
                         </div>
                         <div>
                             <label className="block text-slate-400 text-xs font-bold uppercase mb-2">Số Tài Khoản</label>
@@ -280,15 +304,18 @@ const ResellerSection = ({ wallet, profile, onWithdraw, user }: { wallet: any, p
                     <div className="animate-in fade-in slide-in-from-right-4 duration-300 space-y-4">
                          <div>
                             <label className="block text-slate-400 text-xs font-bold uppercase mb-2">Mạng lưới (Network)</label>
-                            <select 
-                                value={cryptoInfo.network} 
-                                onChange={(e) => setCryptoInfo({...cryptoInfo, network: e.target.value})}
-                                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white focus:border-green-500 outline-none cursor-pointer"
-                            >
-                                <option value="USDT (TRC20)">USDT (TRC20) - Khuyên dùng</option>
-                                <option value="USDT (BEP20)">USDT (BEP20) - BNB Chain</option>
-                                <option value="USDT (ERC20)">USDT (ERC20) - Ethereum</option>
-                            </select>
+                            <div className="relative">
+                                <select 
+                                    value={cryptoInfo.network} 
+                                    onChange={(e) => setCryptoInfo({...cryptoInfo, network: e.target.value})}
+                                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white focus:border-green-500 outline-none cursor-pointer appearance-none"
+                                >
+                                    <option value="USDT (TRC20)">USDT (TRC20) - Khuyên dùng</option>
+                                    <option value="USDT (BEP20)">USDT (BEP20) - BNB Chain</option>
+                                    <option value="USDT (ERC20)">USDT (ERC20) - Ethereum</option>
+                                </select>
+                                <ChevronDown className="absolute right-3 top-3 text-slate-500 pointer-events-none" size={16} />
+                            </div>
                         </div>
                         <div>
                             <label className="block text-slate-400 text-xs font-bold uppercase mb-2">Địa chỉ ví (Wallet Address)</label>
