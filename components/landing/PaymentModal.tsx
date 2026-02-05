@@ -11,7 +11,7 @@ const MY_USDT_WALLET = "TXWxf32YxYWZ99J7ZrvD3zBF8NPkPobKGG";
 const BANK_INFO = {
   BANK_ID: "ACB",        // Mã ngân hàng (MB, VCB, TCB, ACB...)
   ACCOUNT_NO: "189362839", // Số tài khoản của Đại tá
-  TEMPLATE: "compact2",  // Mẫu QR
+  TEMPLATE: "PRINT",  // Mẫu QR
   ACCOUNT_NAME: "LE QUOC DUNG" // Tên chủ tài khoản
 };
 
@@ -29,7 +29,8 @@ export default function PaymentModal({ isOpen, onClose, plan: initialPlan }: { i
   const [isProcessing, setIsProcessing] = useState(false);
   const [copiedWallet, setCopiedWallet] = useState(false);
   const [copiedContent, setCopiedContent] = useState(false);
-
+  const [copiedAccount, setCopiedAccount] = useState(false);
+  
   // Danh mục trang bị
   const plans = [
     { id: "starter", name: "PRO DAILY", price: 9, icon: <Shield size={16}/>, color: "border-blue-500 text-blue-400" },
@@ -103,6 +104,12 @@ export default function PaymentModal({ isOpen, onClose, plan: initialPlan }: { i
     }, 1500);
   };
 
+  const handleCopyAccount = () => {
+    navigator.clipboard.writeText(BANK_INFO.ACCOUNT_NO);
+    setCopiedAccount(true);
+    setTimeout(() => setCopiedAccount(false), 2000);
+  }
+
   return (
     <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-[100] p-4 backdrop-blur-xl animate-in fade-in duration-300">
       <div className="bg-slate-900 border border-slate-800 p-6 md:p-8 rounded-[2.5rem] max-w-lg w-full relative shadow-2xl overflow-y-auto max-h-[90vh]">
@@ -150,7 +157,7 @@ export default function PaymentModal({ isOpen, onClose, plan: initialPlan }: { i
               <img 
                 src={language === 'vi' ? qrUrlVN : qrUrlCrypto} 
                 alt="QR Payment" 
-                className="w-80 h-80 object-contain" 
+                className="w-48 h-48 object-contain" 
               />
             )}
           </div>
@@ -158,6 +165,18 @@ export default function PaymentModal({ isOpen, onClose, plan: initialPlan }: { i
           {/* 🔥 QUAN TRỌNG: HIỂN THỊ NỘI DUNG CHUYỂN KHOẢN CHO KHÁCH VIỆT */}
           {language === 'vi' ? (
              <div className="w-full space-y-3 mb-6">
+              {/* STK & TÊN CHỦ TK TO RÕ */}
+                <div className="text-center bg-slate-800/50 p-3 rounded-xl border border-slate-700">
+                    <p className="text-[10px] text-slate-500 uppercase">Chủ tài khoản</p>
+                    <p className="text-xl font-black text-blue-400 uppercase tracking-wide mb-1">{BANK_INFO.ACCOUNT_NAME}</p>
+                    
+                    <div className="flex items-center justify-center gap-2 cursor-pointer hover:text-white text-slate-300" onClick={handleCopyAccount}>
+                        <span className="font-mono font-bold text-lg">{BANK_INFO.ACCOUNT_NO}</span>
+                        <span className="text-xs bg-slate-700 px-1.5 py-0.5 rounded">{BANK_INFO.BANK_ID}</span>
+                        {copiedAccount ? <Check size={14} className="text-green-500"/> : <Copy size={14}/>}
+                    </div>
+                </div>
+
                 <div className="bg-slate-950 p-4 rounded-xl border border-slate-700">
                     <p className="text-[10px] text-slate-500 uppercase font-bold mb-1">Nội dung chuyển khoản (Bắt buộc):</p>
                     <div className="flex items-center justify-between gap-2 group cursor-pointer" onClick={handleCopyContent}>
