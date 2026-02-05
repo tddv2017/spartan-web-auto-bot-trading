@@ -11,7 +11,8 @@ const MY_USDT_WALLET = "TXWxf32YxYWZ99J7ZrvD3zBF8NPkPobKGG";
 const BANK_INFO = {
   BANK_ID: "ACB",        // Mã ngân hàng (MB, VCB, TCB, ACB...)
   ACCOUNT_NO: "189362839", // Số tài khoản của Đại tá
-  TEMPLATE: "compact2"  // Mẫu QR
+  TEMPLATE: "compact2",  // Mẫu QR
+  ACCOUNT_NAME: "LE QUOC DUNG" // Tên chủ tài khoản
 };
 
 export default function PaymentModal({ isOpen, onClose, plan: initialPlan }: { isOpen: boolean; onClose: () => void; plan: string }) {
