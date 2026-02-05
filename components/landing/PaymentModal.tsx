@@ -54,7 +54,7 @@ export default function PaymentModal({ isOpen, onClose, plan: initialPlan }: { i
   const amountVND = Math.ceil((selectedData.price * exchangeRate) / 1000) * 1000;
   
   // URL VietQR (Chỉ dùng cho VN)
-  const qrUrlVN = `https://img.vietqr.io/image/ICB-0931497764-compact2.png?amount=${amountVND}&addInfo=${encodeURIComponent(`GIA HAN ${profile.licenseKey}`)}&accountName=${encodeURIComponent("LE QUOC DUNG")}`;
+  const qrUrlVN = `https://img.vietqr.io/image/ACB-189362839-compact2.png?amount=${amountVND}&addInfo=${encodeURIComponent(`GIA HAN ${profile.licenseKey}`)}&accountName=${encodeURIComponent("LE QUOC DUNG")}`;
   
   // URL QR Crypto (Dùng cho Quốc tế) - Tạo mã QR chứa địa chỉ ví
   const qrUrlCrypto = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${MY_USDT_WALLET}`;
