@@ -5,50 +5,106 @@ import Link from 'next/link';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+
+// 👇 1. IMPORT FIREBASE
+import { db } from '@/lib/firebase'; 
+import { doc, getDoc, updateDoc } from 'firebase/firestore'; 
+
+// 👇 2. IMPORT ICON (THÊM BITCOIN, REFRESH)
 import { 
   LogOut, Copy, Check, CreditCard, Activity, Clock, ShieldCheck, Zap, 
   Home, ChevronLeft, Terminal, PlayCircle, Users, TrendingUp, DollarSign,
-  LayoutDashboard, Menu, X, Lock, Wallet, CheckCircle, Share2, Globe, FileText
+  LayoutDashboard, Menu, X, Lock, Wallet, CheckCircle, Share2, Globe, FileText, 
+  Settings, Save, Bitcoin, RefreshCw 
 } from 'lucide-react';
 import PaymentModal from '@/components/landing/PaymentModal';
 
-// --- 1. COMPONENT CON: KHU VỰC RESELLER (FINAL VERSION) ---
-const ResellerSection = ({ wallet, profile, onWithdraw }: { wallet: any, profile: any, onWithdraw: () => void }) => {
+// --- 1. COMPONENT CON: KHU VỰC RESELLER (CÓ CRYPTO) ---
+const ResellerSection = ({ wallet, profile, onWithdraw, user }: { wallet: any, profile: any, onWithdraw: () => void, user: any }) => {
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedAd, setCopiedAd] = useState(false);
-
-  // Link giới thiệu
-  const refLink = `https://spartan-web-auto-bot-trading.vercel.app/?ref=${profile?.licenseKey}`;
   
-  // Mẫu quảng cáo
+  // State quản lý Modal & Tabs
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'bank' | 'crypto'>('bank');
+
+  // State dữ liệu thanh toán
+  const [bankInfo, setBankInfo] = useState({
+    bankName: "",
+    accountNumber: "",
+    accountHolder: ""
+  });
+  const [cryptoInfo, setCryptoInfo] = useState({
+    network: "USDT (TRC20)",
+    walletAddress: ""
+  });
+
+  const refLink = `https://spartan-web-auto-bot-trading.vercel.app/?ref=${profile?.licenseKey}`;
   const adText = `🔥 SPARTAN BOT V7.3 - CỖ MÁY IN TIỀN XAUUSD 🔥\n✅ Lợi nhuận 15-30%/tháng\n✅ Tự động 100%, Không gồng lỗ\n✅ Bảo hiểm vốn 100%\n👉 Nhận Bot miễn phí tại: ${refLink}`;
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(refLink);
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2000);
+  // 👇 Lấy dữ liệu từ Firestore
+  useEffect(() => {
+    if (!user) return;
+    const fetchData = async () => {
+      try {
+        const docRef = doc(db, "users", user.uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.bankInfo) setBankInfo(data.bankInfo);
+          if (data.cryptoInfo) {
+              setCryptoInfo(data.cryptoInfo);
+              // Nếu có crypto mà chưa có bank -> tự switch sang tab crypto
+              if (!data.bankInfo?.accountNumber && data.cryptoInfo?.walletAddress) {
+                  setActiveTab('crypto');
+              }
+          }
+        }
+      } catch (error) { console.error(error); }
+    };
+    fetchData();
+  }, [user]);
+
+  // 👇 Hàm lưu thông tin (Xử lý theo Tab đang mở)
+  const savePaymentInfo = async () => {
+    if (!user) return;
+    
+    try {
+        const userRef = doc(db, "users", user.uid);
+        
+        if (activeTab === 'bank') {
+            if (!bankInfo.bankName || !bankInfo.accountNumber || !bankInfo.accountHolder) {
+                alert("⚠️ Vui lòng điền đủ thông tin Ngân hàng!");
+                return;
+            }
+            await updateDoc(userRef, { bankInfo: bankInfo });
+            alert("✅ Đã lưu thông tin Ngân hàng!");
+        } else {
+            if (!cryptoInfo.walletAddress) {
+                alert("⚠️ Vui lòng nhập địa chỉ ví Crypto!");
+                return;
+            }
+            await updateDoc(userRef, { cryptoInfo: cryptoInfo });
+            alert("✅ Đã lưu thông tin ví Crypto!");
+        }
+        setShowSettingsModal(false);
+    } catch (error) {
+      console.error("Lỗi lưu:", error);
+      alert("❌ Lỗi hệ thống, thử lại sau.");
+    }
   };
 
-  const handleCopyAd = () => {
-    navigator.clipboard.writeText(adText);
-    setCopiedAd(true);
-    setTimeout(() => setCopiedAd(false), 2000);
-  };
-
-  // Tính tổng hoa hồng đã nhận (Chỉ tính trạng thái approved)
-  const totalCommission = profile?.referrals?.reduce((sum: number, item: any) => {
-      return item.status === 'approved' ? sum + (item.commission || 0) : sum;
-  }, 0) || 0;
+  const handleCopyLink = () => { navigator.clipboard.writeText(refLink); setCopiedLink(true); setTimeout(() => setCopiedLink(false), 2000); };
+  const handleCopyAd = () => { navigator.clipboard.writeText(adText); setCopiedAd(true); setTimeout(() => setCopiedAd(false), 2000); };
+  const totalCommission = profile?.referrals?.reduce((sum: number, item: any) => item.status === 'approved' ? sum + (item.commission || 0) : sum, 0) || 0;
 
   return (
     <div className="space-y-8 animate-in slide-in-from-right duration-500 mt-6">
       
-      {/* HEADER: AGENCY STATUS */}
+      {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-end gap-4 border-b border-slate-800 pb-6">
          <div>
-            <h2 className="text-2xl font-black text-white flex items-center gap-2">
-               <ShieldCheck className="text-yellow-500" /> SPARTAN AGENCY
-            </h2>
+            <h2 className="text-2xl font-black text-white flex items-center gap-2"><ShieldCheck className="text-yellow-500" /> SPARTAN AGENCY</h2>
             <p className="text-sm text-slate-400 mt-1">Cấp bậc: <span className="text-yellow-500 font-bold">COMMANDER (40% Hoa hồng)</span></p>
          </div>
          <div className="bg-slate-900 px-4 py-2 rounded-lg border border-slate-800 flex items-center gap-3">
@@ -62,27 +118,43 @@ const ResellerSection = ({ wallet, profile, onWithdraw }: { wallet: any, profile
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Card 1: Tiền khả dụng */}
           <div className="bg-gradient-to-br from-green-900/40 to-slate-900 border border-green-500/50 p-6 rounded-[2rem] relative overflow-hidden group hover:border-green-400 transition-colors">
-              <div className="absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                  <Wallet size={100}/>
+              <div className="absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity"><Wallet size={100}/></div>
+              
+              <div className="flex justify-between items-start mb-2 relative z-10">
+                  <p className="text-[10px] text-green-400 font-black uppercase flex items-center gap-2 tracking-widest"><CheckCircle size={12}/> Số dư khả dụng</p>
+                  <button onClick={() => setShowSettingsModal(true)} className="text-slate-400 hover:text-white transition-colors p-2 bg-slate-800/50 rounded-lg hover:bg-slate-800" title="Cài đặt thanh toán">
+                      <Settings size={16} />
+                  </button>
               </div>
-              <p className="text-[10px] text-green-400 font-black uppercase mb-2 flex items-center gap-2 tracking-widest"><CheckCircle size={12}/> Số dư khả dụng</p>
-              <h2 className="text-4xl font-black text-white font-chakra mb-6">${wallet.available.toFixed(2)}</h2>
-              <button 
-                  onClick={onWithdraw} 
-                  className="w-full py-3 bg-green-600 hover:bg-green-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-green-900/50 active:scale-95 transition-all"
-              >
+
+              <h2 className="text-4xl font-black text-white font-chakra mb-2 relative z-10">${wallet.available.toFixed(2)}</h2>
+              
+              {/* HIỂN THỊ THÔNG TIN NHẬN TIỀN (ƯU TIÊN CRYPTO NẾU CÓ) */}
+              <div className="relative z-10 min-h-[20px] mb-4">
+                  {cryptoInfo.walletAddress ? (
+                      <p className="text-[10px] text-green-400 font-mono truncate flex items-center gap-1">
+                          <Bitcoin size={12} /> {cryptoInfo.network}: {cryptoInfo.walletAddress.substring(0, 6)}...{cryptoInfo.walletAddress.slice(-4)}
+                      </p>
+                  ) : bankInfo.accountNumber ? (
+                      <p className="text-[10px] text-slate-400 font-mono truncate flex items-center gap-1">
+                          <CreditCard size={12} /> {bankInfo.bankName} • {bankInfo.accountNumber}
+                      </p>
+                  ) : (
+                      <p className="text-[10px] text-slate-500 italic">Chưa cài đặt ví nhận tiền</p>
+                  )}
+              </div>
+
+              <button onClick={onWithdraw} className="w-full py-3 bg-green-600 hover:bg-green-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-green-900/50 active:scale-95 transition-all mt-auto relative z-10">
                   RÚT TIỀN NGAY
               </button>
           </div>
 
-          {/* Card 2: Tiền chờ duyệt (Pending rút) */}
+          {/* Card 2 & 3: Giữ nguyên */}
           <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem]">
               <p className="text-[10px] text-yellow-500 font-black uppercase mb-2 flex items-center gap-2 tracking-widest"><Clock size={12}/> Đang chờ xử lý</p>
               <h2 className="text-4xl font-black text-slate-300 font-chakra mb-2">${wallet.pending.toFixed(2)}</h2>
-              <p className="text-[10px] text-slate-500 italic">*Lệnh rút tiền đang được kế toán kiểm tra.</p>
+              <p className="text-[10px] text-slate-500 italic">*Lệnh rút tiền đang được kiểm tra.</p>
           </div>
-
-          {/* Card 3: Tổng quan Team */}
           <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem]">
               <p className="text-[10px] text-slate-400 font-black uppercase mb-2 flex items-center gap-2 tracking-widest"><Users size={12}/> Tổng thành viên</p>
               <div className="flex items-baseline gap-2">
@@ -90,15 +162,14 @@ const ResellerSection = ({ wallet, profile, onWithdraw }: { wallet: any, profile
                   <span className="text-xs text-slate-500">người</span>
               </div>
               <div className="mt-2 pt-2 border-t border-slate-800/50 flex justify-between items-center">
-                  <span className="text-[10px] text-slate-500">Tổng hoa hồng kiếm được:</span>
+                  <span className="text-[10px] text-slate-500">Tổng hoa hồng:</span>
                   <span className="text-sm font-bold text-green-500">+${totalCommission.toFixed(2)}</span>
               </div>
           </div>
       </div>
 
-      {/* 2. MARKETING TOOLS */}
+      {/* 2. MARKETING TOOLS (Giữ nguyên) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-         {/* Link Giới thiệu */}
          <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem]">
             <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2 uppercase"><Share2 size={16} className="text-blue-500"/> Link Giới thiệu</h3>
             <div className="bg-black/50 p-3 rounded-xl border border-slate-700 flex items-center gap-2 mb-3">
@@ -107,10 +178,9 @@ const ResellerSection = ({ wallet, profile, onWithdraw }: { wallet: any, profile
                   {copiedLink ? <Check size={16} className="text-green-500"/> : <Copy size={16}/>}
                </button>
             </div>
-            <p className="text-[10px] text-slate-500">Gửi link này cho khách hàng. Hệ thống tự động ghi nhận hoa hồng khi khách thanh toán.</p>
+            <p className="text-[10px] text-slate-500">Gửi link này cho khách. Hệ thống tự động ghi nhận hoa hồng.</p>
          </div>
 
-         {/* Mẫu Quảng Cáo */}
          <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem]">
             <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2 uppercase"><FileText size={16} className="text-purple-500"/> Content Mẫu</h3>
             <div className="bg-black/50 p-3 rounded-xl border border-slate-700 relative group h-24 overflow-hidden">
@@ -122,12 +192,12 @@ const ResellerSection = ({ wallet, profile, onWithdraw }: { wallet: any, profile
          </div>
       </div>
       
-      {/* 3. BẢNG LỊCH SỬ HOA HỒNG (CỐT LÕI) */}
+      {/* 3. LỊCH SỬ HOA HỒNG (Giữ nguyên) */}
       <div className="bg-slate-900/60 border border-slate-800 rounded-[2rem] p-8">
-          <div className="flex justify-between items-center mb-6">
+         <div className="flex justify-between items-center mb-6">
              <h3 className="font-bold text-slate-300 flex items-center gap-2 uppercase text-sm tracking-wider"><CreditCard size={16} className="text-green-500"/> LỊCH SỬ KHÁCH HÀNG & HOA HỒNG</h3>
-          </div>
-          <div className="overflow-x-auto">
+         </div>
+         <div className="overflow-x-auto">
              <table className="w-full text-xs text-left text-slate-400">
                 <thead className="text-slate-500 uppercase font-black border-b border-slate-800">
                    <tr>
@@ -140,39 +210,114 @@ const ResellerSection = ({ wallet, profile, onWithdraw }: { wallet: any, profile
                 </thead>
                 <tbody className="divide-y divide-slate-800">
                    {(!profile?.referrals || profile.referrals.length === 0) ? (
-                      <tr><td colSpan={5} className="py-8 text-center text-slate-600 italic">Chưa có dữ liệu. Hãy chia sẻ link ngay!</td></tr>
+                     <tr><td colSpan={5} className="py-8 text-center text-slate-600 italic">Chưa có dữ liệu. Hãy chia sẻ link ngay!</td></tr>
                    ) : (
-                      // Đảo ngược mảng để cái mới nhất lên đầu
-                      [...profile.referrals].reverse().map((ref: any, idx: number) => (
-                        <tr key={idx} className="hover:bg-slate-800/30 transition-colors">
-                           <td className="py-4 pl-4 font-mono text-slate-500">{ref.date}</td>
-                           <td className="py-4 font-bold text-white">{ref.user}</td>
-                           <td className="py-4">
-                               <span className={`px-2 py-1 rounded border text-[10px] font-bold ${
-                                   ref.package === 'LIFETIME' ? 'bg-purple-900/30 border-purple-500/50 text-purple-400' :
-                                   ref.package === 'YEARLY' ? 'bg-amber-900/30 border-amber-500/50 text-amber-400' :
-                                   ref.status === 'pending' ? 'bg-slate-800 border-slate-700 text-slate-400' : 
-                                   'bg-blue-900/30 border-blue-500/50 text-blue-400'
-                               }`}>
-                                   {ref.package}
-                               </span>
-                           </td>
-                           <td className="py-4 text-right font-bold text-green-400">
-                               {ref.commission > 0 ? `+$${ref.commission}` : '--'}
-                           </td>
-                           <td className="py-4 text-center pr-4">
-                              {ref.status === 'approved' 
-                                ? <span className="bg-green-500/10 text-green-500 px-2 py-1 rounded font-bold border border-green-500/20 text-[10px]">ĐÃ NHẬN</span>
-                                : <span className="bg-yellow-500/10 text-yellow-500 px-2 py-1 rounded font-bold border border-yellow-500/20 text-[10px]">CHỜ THANH TOÁN</span>
-                              }
-                           </td>
-                        </tr>
-                      ))
+                     [...profile.referrals].reverse().map((ref: any, idx: number) => (
+                       <tr key={idx} className="hover:bg-slate-800/30 transition-colors">
+                          <td className="py-4 pl-4 font-mono text-slate-500">{ref.date}</td>
+                          <td className="py-4 font-bold text-white">{ref.user}</td>
+                          <td className="py-4"><span className={`px-2 py-1 rounded border text-[10px] font-bold ${ref.package === 'LIFETIME' ? 'bg-purple-900/30 border-purple-500/50 text-purple-400' : ref.package === 'YEARLY' ? 'bg-amber-900/30 border-amber-500/50 text-amber-400' : ref.status === 'pending' ? 'bg-slate-800 border-slate-700 text-slate-400' : 'bg-blue-900/30 border-blue-500/50 text-blue-400'}`}>{ref.package}</span></td>
+                          <td className="py-4 text-right font-bold text-green-400">{ref.commission > 0 ? `+$${ref.commission}` : '--'}</td>
+                          <td className="py-4 text-center pr-4">
+                             {ref.status === 'approved' ? <span className="bg-green-500/10 text-green-500 px-2 py-1 rounded font-bold border border-green-500/20 text-[10px]">ĐÃ NHẬN</span> : <span className="bg-yellow-500/10 text-yellow-500 px-2 py-1 rounded font-bold border border-yellow-500/20 text-[10px]">CHỜ THANH TOÁN</span>}
+                          </td>
+                       </tr>
+                     ))
                    )}
                 </tbody>
              </table>
-          </div>
+         </div>
       </div>
+
+      {/* 👇 MODAL CÀI ĐẶT THANH TOÁN (ĐA NĂNG: BANK & CRYPTO) */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-md p-6 shadow-2xl relative animate-in zoom-in duration-200">
+            
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-black text-white flex items-center gap-2">
+                <Settings className="text-green-500" /> CÀI ĐẶT VÍ
+              </h3>
+              <button onClick={() => setShowSettingsModal(false)} className="text-slate-500 hover:text-white"><X size={24} /></button>
+            </div>
+
+            {/* TABS SWITCHER */}
+            <div className="flex bg-slate-950 p-1 rounded-xl mb-6 border border-slate-800">
+                <button 
+                    onClick={() => setActiveTab('bank')}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase flex items-center justify-center gap-2 transition-all ${activeTab === 'bank' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
+                >
+                    <CreditCard size={14} /> Ngân hàng
+                </button>
+                <button 
+                    onClick={() => setActiveTab('crypto')}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase flex items-center justify-center gap-2 transition-all ${activeTab === 'crypto' ? 'bg-green-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
+                >
+                    <Bitcoin size={14} /> Crypto (USDT)
+                </button>
+            </div>
+
+            {/* FORM BODY */}
+            <div className="space-y-4 min-h-[200px]">
+                {activeTab === 'bank' ? (
+                    // --- FORM NGÂN HÀNG ---
+                    <div className="animate-in fade-in slide-in-from-left-4 duration-300 space-y-4">
+                        <div>
+                            <label className="block text-slate-400 text-xs font-bold uppercase mb-2">Tên Ngân Hàng</label>
+                            <input type="text" value={bankInfo.bankName} onChange={(e) => setBankInfo({...bankInfo, bankName: e.target.value})} placeholder="VD: MB Bank, Vietcombank..." className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white focus:border-blue-500 outline-none placeholder:text-slate-700" />
+                        </div>
+                        <div>
+                            <label className="block text-slate-400 text-xs font-bold uppercase mb-2">Số Tài Khoản</label>
+                            <input type="text" value={bankInfo.accountNumber} onChange={(e) => setBankInfo({...bankInfo, accountNumber: e.target.value})} placeholder="VD: 0987654321" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white focus:border-blue-500 outline-none font-mono placeholder:text-slate-700" />
+                        </div>
+                        <div>
+                            <label className="block text-slate-400 text-xs font-bold uppercase mb-2">Chủ Tài Khoản</label>
+                            <input type="text" value={bankInfo.accountHolder} onChange={(e) => setBankInfo({...bankInfo, accountHolder: e.target.value.toUpperCase()})} placeholder="VD: NGUYEN VAN A" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white focus:border-blue-500 outline-none placeholder:text-slate-700 uppercase" />
+                        </div>
+                    </div>
+                ) : (
+                    // --- FORM CRYPTO ---
+                    <div className="animate-in fade-in slide-in-from-right-4 duration-300 space-y-4">
+                         <div>
+                            <label className="block text-slate-400 text-xs font-bold uppercase mb-2">Mạng lưới (Network)</label>
+                            <select 
+                                value={cryptoInfo.network} 
+                                onChange={(e) => setCryptoInfo({...cryptoInfo, network: e.target.value})}
+                                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white focus:border-green-500 outline-none cursor-pointer"
+                            >
+                                <option value="USDT (TRC20)">USDT (TRC20) - Khuyên dùng</option>
+                                <option value="USDT (BEP20)">USDT (BEP20) - BNB Chain</option>
+                                <option value="USDT (ERC20)">USDT (ERC20) - Ethereum</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-slate-400 text-xs font-bold uppercase mb-2">Địa chỉ ví (Wallet Address)</label>
+                            <input 
+                                type="text" 
+                                value={cryptoInfo.walletAddress} 
+                                onChange={(e) => setCryptoInfo({...cryptoInfo, walletAddress: e.target.value})} 
+                                placeholder="VD: T9yXz..." 
+                                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white focus:border-green-500 outline-none font-mono placeholder:text-slate-700 text-xs" 
+                            />
+                            <p className="text-[10px] text-yellow-500 mt-2 italic flex items-center gap-1">
+                                <ShieldCheck size={10} /> Vui lòng kiểm tra kỹ địa chỉ ví. Chuyển sai sẽ mất tiền vĩnh viễn.
+                            </p>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* FOOTER */}
+            <div className="mt-8 flex gap-3">
+              <button onClick={() => setShowSettingsModal(false)} className="flex-1 py-3 rounded-xl font-bold text-slate-400 hover:bg-slate-800 transition-colors">Hủy</button>
+              <button onClick={savePaymentInfo} className={`flex-1 text-white py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 ${activeTab === 'bank' ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/20' : 'bg-green-600 hover:bg-green-500 shadow-green-900/20'}`}>
+                <Save size={18} /> LƯU {activeTab === 'bank' ? 'BANK' : 'VÍ'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
@@ -188,7 +333,6 @@ function DashboardContent() {
   const [selectedPlan, setSelectedPlan] = useState("yearly");
   const [activeTab, setActiveTab] = useState("overview"); 
   
-  // Wallet lấy từ profile
   const wallet = profile?.wallet || { available: 0, pending: 0, total_paid: 0 };
 
   const isExpired = useMemo(() => {
@@ -228,38 +372,25 @@ function DashboardContent() {
     if (!amountStr) return;
     const amount = parseFloat(amountStr);
     
-    if (isNaN(amount) || amount <= 0) {
-        alert("Số tiền không hợp lệ");
-        return;
-    }
-    if (amount > wallet.available) {
-        alert("Số dư không đủ!");
-        return;
-    }
+    if (isNaN(amount) || amount <= 0) { alert("Số tiền không hợp lệ"); return; }
+    if (amount > wallet.available) { alert("Số dư không đủ!"); return; }
 
     try {
         const res = await fetch('/api/withdraw', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                email: user.email, 
-                amount: amount 
-            })
+            body: JSON.stringify({ email: user.email, amount: amount })
         });
         const data = await res.json();
         alert(data.message);
-    } catch (e) {
-        alert("Lỗi kết nối Server!");
-    }
+    } catch (e) { alert("Lỗi kết nối Server!"); }
   };
 
   if (!profile && user) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-4 text-green-500">
         <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
-        <p className="font-black tracking-[0.3em] uppercase animate-pulse text-sm">
-          {t.dashboard.loading || "LOADING DATA..."}
-        </p>
+        <p className="font-black tracking-[0.3em] uppercase animate-pulse text-sm">{t.dashboard.loading || "LOADING DATA..."}</p>
       </div>
     );
   }
@@ -281,24 +412,16 @@ function DashboardContent() {
         </div>
 
         <div className="flex items-center gap-4">
-             {/* MENU SWITCHER (CHỈ HIỆN CHO LIFETIME) */}
-             {profile?.plan === 'LIFETIME' && (
-                 <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
-                     <button 
-                        onClick={() => setActiveTab('overview')}
-                        className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase transition-all flex items-center gap-2 ${activeTab === 'overview' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-white'}`}
-                     >
-                        <LayoutDashboard size={14}/> <span className="hidden sm:inline">Tổng quan</span>
-                     </button>
-                     <button 
-                        onClick={() => setActiveTab('reseller')}
-                        className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase transition-all flex items-center gap-2 ${activeTab === 'reseller' ? 'bg-green-600 text-black shadow' : 'text-slate-500 hover:text-white'}`}
-                     >
-                        <DollarSign size={14}/> <span className="hidden sm:inline">Đối tác</span>
-                     </button>
-                 </div>
-             )}
-
+              {profile?.plan === 'LIFETIME' && (
+                  <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
+                      <button onClick={() => setActiveTab('overview')} className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase transition-all flex items-center gap-2 ${activeTab === 'overview' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-white'}`}>
+                         <LayoutDashboard size={14}/> <span className="hidden sm:inline">Tổng quan</span>
+                      </button>
+                      <button onClick={() => setActiveTab('reseller')} className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase transition-all flex items-center gap-2 ${activeTab === 'reseller' ? 'bg-green-600 text-black shadow' : 'text-slate-500 hover:text-white'}`}>
+                         <DollarSign size={14}/> <span className="hidden sm:inline">Đối tác</span>
+                      </button>
+                  </div>
+              )}
             <button onClick={() => logout()} className="flex items-center gap-2 text-slate-400 hover:text-red-500 transition-all font-bold text-xs bg-slate-800/50 px-4 py-2 rounded-lg border border-slate-700 hover:border-red-500/30">
               <LogOut size={16} /> <span className="hidden sm:inline">{t.dashboard.logout}</span>
             </button>
@@ -404,8 +527,8 @@ function DashboardContent() {
                 </div>
             </>
         ) : (
-            // --- TAB RESELLER (Chỉ hiện khi LIFETIME) ---
-            <ResellerSection wallet={wallet} profile={profile} onWithdraw={handleWithdrawRequest} />
+            // --- TAB RESELLER ---
+            <ResellerSection wallet={wallet} profile={profile} onWithdraw={handleWithdrawRequest} user={user} />
         )}
       </div>
 
