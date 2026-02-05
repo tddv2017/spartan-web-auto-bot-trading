@@ -1,19 +1,18 @@
 "use client";
 import React, { useEffect, useState } from 'react';
-import { db } from '@/lib/firebase';
+import { db } from '@/lib/firebase'; // ⚠️ Kiểm tra lại đường dẫn
 import { collection, getDocs, updateDoc, doc, Timestamp, query, where, getDoc, arrayRemove, arrayUnion } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { 
   ShieldAlert, Crown, Zap, RefreshCw, Infinity, 
-  Search, Filter, UserCheck, AlertTriangle, FileText, DollarSign,
-  Wallet, CheckCircle, XCircle, ArrowRight
+  Search, Wallet, CheckCircle, XCircle, CreditCard, Bitcoin, Copy, ExternalLink
 } from 'lucide-react';
 
 export default function AdminPage() {
   const { isAdmin } = useAuth();
   const [users, setUsers] = useState<any[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<any[]>([]);
-  const [withdrawRequests, setWithdrawRequests] = useState<any[]>([]); // Danh sách người rút tiền
+  const [withdrawRequests, setWithdrawRequests] = useState<any[]>([]); 
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPlan, setFilterPlan] = useState("all");
@@ -31,7 +30,6 @@ export default function AdminPage() {
       const querySnapshot = await getDocs(collection(db, "users"));
       const userList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       
-      // Sắp xếp
       userList.sort((a: any, b: any) => {
         if (a.plan === 'LIFETIME' && b.plan !== 'LIFETIME') return -1;
         if (b.plan === 'LIFETIME' && a.plan !== 'LIFETIME') return 1;
@@ -72,7 +70,6 @@ export default function AdminPage() {
     setFilteredUsers(result);
   }, [searchTerm, filterPlan, users]);
 
-  // 💸 1. DUYỆT RÚT TIỀN (CHUYỂN KHOẢN XONG -> BẤM NÚT NÀY)
   const approveWithdraw = async (user: any) => {
     const amount = user.wallet.pending;
     if(!confirm(`XÁC NHẬN ĐÃ CHUYỂN KHOẢN?\n\nKhách: ${user.email}\nSố tiền: $${amount}\n\nHành động: Trừ Pending -> Cộng Total Paid`)) return;
@@ -81,8 +78,8 @@ export default function AdminPage() {
         const userRef = doc(db, "users", user.id);
         const newWallet = {
             ...user.wallet,
-            pending: 0, // Xóa pending
-            total_paid: Number((user.wallet.total_paid + amount).toFixed(2)) // Cộng vào đã trả
+            pending: 0, 
+            total_paid: Number((user.wallet.total_paid + amount).toFixed(2)) 
         };
 
         await updateDoc(userRef, { wallet: newWallet });
@@ -93,7 +90,6 @@ export default function AdminPage() {
     }
   };
 
-  // 💸 2. TỪ CHỐI RÚT TIỀN (HOÀN LẠI VÍ)
   const rejectWithdraw = async (user: any) => {
     const amount = user.wallet.pending;
     if(!confirm(`TỪ CHỐI YÊU CẦU NÀY?\n\nKhách: ${user.email}\nSố tiền: $${amount}\n\nHành động: Trừ Pending -> Hoàn lại Available`)) return;
@@ -103,7 +99,7 @@ export default function AdminPage() {
         const newWallet = {
             ...user.wallet,
             pending: 0,
-            available: Number((user.wallet.available + amount).toFixed(2)) // Hoàn tiền lại ví chính
+            available: Number((user.wallet.available + amount).toFixed(2)) 
         };
 
         await updateDoc(userRef, { wallet: newWallet });
@@ -114,7 +110,79 @@ export default function AdminPage() {
     }
   };
 
-  // ... (Giữ nguyên các hàm updateUserSoldier, resetMT5, downloadAgreementTxt cũ) ...
+  // --- HÀM HELPER: RENDER THÔNG TIN THANH TOÁN KÈM QR ---
+  const renderPaymentInfo = (user: any) => {
+      // 1. Ưu tiên Crypto nếu có
+      if (user.cryptoInfo?.walletAddress) {
+          const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${user.cryptoInfo.walletAddress}`;
+          return (
+              <div className="bg-slate-900 p-3 rounded-xl border border-green-900/50 mt-2">
+                  <div className="flex justify-between items-start gap-3">
+                      <div className="flex-1 overflow-hidden">
+                          <div className="text-[10px] text-green-500 font-bold uppercase flex items-center gap-1 mb-1">
+                              <Bitcoin size={12}/> {user.cryptoInfo.network}
+                          </div>
+                          <div className="bg-black/40 p-2 rounded border border-slate-700 font-mono text-xs text-slate-300 break-all select-all">
+                              {user.cryptoInfo.walletAddress}
+                          </div>
+                          <button 
+                             onClick={() => navigator.clipboard.writeText(user.cryptoInfo.walletAddress)}
+                             className="mt-2 text-[10px] bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded text-white flex items-center gap-1 w-fit"
+                          >
+                             <Copy size={10}/> Copy Ví
+                          </button>
+                      </div>
+                      {/* QR Code */}
+                      <div className="bg-white p-1 rounded-lg shrink-0">
+                          <img src={qrUrl} alt="QR Crypto" className="w-20 h-20 object-contain" />
+                      </div>
+                  </div>
+              </div>
+          );
+      } 
+      // 2. Nếu là Bank
+      else if (user.bankInfo?.accountNumber) {
+          // Tạo link VietQR (Thử nghiệm - Nếu tên bank chuẩn nó sẽ ra QR xịn, nếu không thì ra text)
+          // Cấu trúc QuickLink VietQR: https://img.vietqr.io/image/[BANK_ID]-[ACC_NO]-[TEMPLATE].png
+          // Do ta lưu tên bank là text tự do, nên ta sẽ dùng QR Text đơn giản chứa STK để copy cho nhanh
+          const qrText = user.bankInfo.accountNumber;
+          const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${qrText}`;
+
+          return (
+              <div className="bg-slate-900 p-3 rounded-xl border border-blue-900/50 mt-2">
+                  <div className="flex justify-between items-start gap-3">
+                      <div className="flex-1">
+                          <div className="text-[10px] text-blue-400 font-bold uppercase flex items-center gap-1 mb-1">
+                              <CreditCard size={12}/> Chuyển khoản Bank
+                          </div>
+                          <div className="space-y-1">
+                              <p className="text-xs font-bold text-white">{user.bankInfo.bankName}</p>
+                              <div className="flex items-center gap-2">
+                                  <p className="text-lg font-mono font-black text-yellow-500 select-all">{user.bankInfo.accountNumber}</p>
+                                  <button onClick={() => navigator.clipboard.writeText(user.bankInfo.accountNumber)} className="text-slate-500 hover:text-white"><Copy size={12}/></button>
+                              </div>
+                              <p className="text-xs text-slate-400 uppercase">{user.bankInfo.accountHolder}</p>
+                          </div>
+                      </div>
+                      {/* QR Code (Scan để copy số tài khoản) */}
+                      <div className="bg-white p-1 rounded-lg shrink-0 flex flex-col items-center">
+                          <img src={qrUrl} alt="QR Bank" className="w-16 h-16 object-contain" />
+                          <span className="text-[8px] text-black font-bold mt-1">Scan Copy</span>
+                      </div>
+                  </div>
+              </div>
+          );
+      }
+      // 3. Chưa cài đặt gì cả
+      return (
+          <div className="bg-red-900/20 p-3 rounded-xl border border-red-900/50 mt-2 text-center">
+              <p className="text-xs text-red-500 font-bold italic">⚠️ User chưa cài đặt thông tin rút tiền!</p>
+              <p className="text-[10px] text-slate-400">Vui lòng liên hệ Email/Tele để lấy thông tin.</p>
+          </div>
+      );
+  };
+
+  // ... (Giữ nguyên các hàm updateUserSoldier, resetMT5 cũ) ...
   const updateUserSoldier = async (userId: string, currentExpiry: any, days: number, plan: string, manualDate?: string) => {
     const userRef = doc(db, "users", userId);
     const userSnap = await getDoc(userRef);
@@ -177,8 +245,6 @@ export default function AdminPage() {
     try { await updateDoc(doc(db, "users", userId), { mt5Account: "" }); fetchUsers(); } catch (e) { alert(e); }
   };
 
-  const downloadAgreementTxt = (u: any) => { /* Code cũ giữ nguyên */ };
-
   if (!isAdmin) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-red-500 font-black">🚫 ADMIN ONLY</div>;
 
   return (
@@ -198,7 +264,7 @@ export default function AdminPage() {
           </button>
         </div>
 
-        {/* 🔥 NEW: KHU VỰC KẾ TOÁN (CHỈ HIỆN NẾU CÓ YÊU CẦU RÚT TIỀN) */}
+        {/* 🔥 KHU VỰC KẾ TOÁN (HIỂN THỊ INFO + QR) */}
         {withdrawRequests.length > 0 && (
             <div className="bg-gradient-to-r from-yellow-900/20 to-slate-900 border border-yellow-500/30 rounded-3xl p-6 animate-in slide-in-from-top duration-500">
                 <h3 className="text-yellow-500 font-black text-xl mb-4 flex items-center gap-2 uppercase">
@@ -206,27 +272,28 @@ export default function AdminPage() {
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {withdrawRequests.map((req) => (
-                        <div key={req.id} className="bg-slate-950 border border-slate-700 p-4 rounded-2xl flex flex-col gap-3 shadow-xl">
-                            <div className="flex justify-between items-start">
+                        <div key={req.id} className="bg-slate-950 border border-slate-700 p-4 rounded-2xl flex flex-col gap-3 shadow-xl relative overflow-hidden">
+                            {/* Nền hiệu ứng */}
+                            <div className="absolute top-0 right-0 w-20 h-20 bg-yellow-500/5 rounded-full blur-2xl"></div>
+
+                            <div className="flex justify-between items-start z-10">
                                 <div>
-                                    <div className="font-bold text-white text-lg">{req.displayName}</div>
+                                    <div className="font-bold text-white text-lg truncate w-40">{req.displayName}</div>
                                     <div className="text-xs text-slate-400 font-mono">{req.email}</div>
                                 </div>
                                 <div className="text-right">
-                                    <div className="text-xs text-slate-500 uppercase font-bold">Rút tiền</div>
+                                    <div className="text-[10px] text-slate-500 uppercase font-bold">Rút tiền</div>
                                     <div className="text-2xl font-black text-green-400">${req.wallet.pending}</div>
                                 </div>
                             </div>
                             
-                            {/* Thông tin Bank (Nếu có lưu trong DB thì hiện, ko thì hiện Email để contact) */}
-                            <div className="bg-slate-900 p-2 rounded text-xs text-slate-300 border border-slate-800">
-                                ⚠️ Vui lòng liên hệ Email/Tele để lấy STK Ngân hàng.
-                            </div>
+                            {/* 👇 PHẦN QUAN TRỌNG: RENDER QR & INFO */}
+                            {renderPaymentInfo(req)}
 
-                            <div className="flex gap-2 mt-auto">
+                            <div className="flex gap-2 mt-auto pt-4">
                                 <button 
                                     onClick={() => rejectWithdraw(req)}
-                                    className="flex-1 bg-red-900/30 hover:bg-red-900/50 text-red-500 py-2 rounded-lg font-bold text-xs border border-red-900/50 flex items-center justify-center gap-1 transition-colors"
+                                    className="flex-1 bg-red-900/20 hover:bg-red-900/40 text-red-500 py-2 rounded-lg font-bold text-xs border border-red-900/30 flex items-center justify-center gap-1 transition-colors"
                                 >
                                     <XCircle size={14}/> TỪ CHỐI
                                 </button>
@@ -257,7 +324,7 @@ export default function AdminPage() {
           </select>
         </div>
 
-        {/* TABLE (GIỮ NGUYÊN) */}
+        {/* TABLE */}
         <div className="bg-slate-900 border border-slate-800 rounded-[2rem] overflow-hidden shadow-2xl relative min-h-[500px]">
           {loading && <div className="absolute inset-0 bg-slate-900/90 z-50 flex items-center justify-center"><RefreshCw className="animate-spin text-green-500" size={60} /></div>}
           <div className="overflow-x-auto">
