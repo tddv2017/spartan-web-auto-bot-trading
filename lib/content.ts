@@ -122,7 +122,7 @@ export const content = {
       sub: "Lựa chọn gói phù hợp để tối ưu lợi nhuận của bạn.",
       starter: {
         name: "THUÊ THÁNG",
-        price: "$30",
+        price: "$9",
         period: "/tháng",
         btn: "Thuê Ngay",
         features: ["Full Tính năng V7.2", "Tự động vào lệnh 100%", "Chế độ Scalp + Swing", "Hỗ trợ 1 Tài khoản Live", "Support 24/7"]
