@@ -520,7 +520,8 @@ function DashboardContent() {
                         <p className="text-green-400 text-xs font-bold uppercase tracking-widest mt-1">{t.dashboard.download.unlocked}</p>
                       </div>
                     </div>
-                    <a href="https://docs.google.com/uc?export=download&id=1BGtSMioGSIk-kkSrhmvipGW1gTg4LHTQ" className="relative z-10 flex items-center gap-3 px-8 py-4 bg-green-500 hover:bg-green-400 text-black font-black rounded-xl transition-all hover:scale-105 shadow-lg active:scale-95 group w-full md:w-auto justify-center">
+                    {/*========================== DOWNLOAD BUTTON======================== */}
+                    <a href="https://docs.google.com/uc?export=download&id=1vrLPw7TNe7gDzcNiO2l4Pti0XXWouqqU" className="relative z-10 flex items-center gap-3 px-8 py-4 bg-green-500 hover:bg-green-400 text-black font-black rounded-xl transition-all hover:scale-105 shadow-lg active:scale-95 group w-full md:w-auto justify-center">
                       <Zap size={20} fill="currentColor" className="group-hover:animate-bounce" /> {t.dashboard.btn.download}  
                     </a>
                   </div>
