@@ -4,7 +4,7 @@ import { collection, query, where, getDocs, updateDoc, doc, Timestamp, arrayUnio
 
 // CẤU HÌNH GÓI CƠ BẢN (Giá USD)
 const PLAN_DEFS: any = {
-  'STARTER':  { id: 'starter',  usd: 30,   days: 30,    commission_percent: 0.15 }, 
+  'STARTER':  { id: 'starter',  usd: 9,   days: 30,    commission_percent: 0.15 }, 
   'YEARLY':   { id: 'yearly',   usd: 299,  days: 365,   commission_percent: 0.40 }, 
   'LIFETIME': { id: 'LIFETIME', usd: 9999, days: 99999, commission_percent: 0.40 }
 };

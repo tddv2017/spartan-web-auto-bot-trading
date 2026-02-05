@@ -1,0 +1,23 @@
+// 👇 SỬA MÃ LICENSE CỦA ĐẠI TÁ VÀO ĐÂY (VÍ DỤ: SPARTAN-ABCD123)
+const MY_LICENSE_KEY = "SPARTAN-XH821"; 
+
+fetch('/api/sepay', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    gateway: "MBBank",
+    transactionDate: "2023-10-25 10:00:00",
+    accountNumber: "03456789",
+    subAccount: null,
+    // 👇 GIẢ LẬP NỘI DUNG CHUYỂN KHOẢN ĐÚNG CÚ PHÁP
+    content: `${MY_LICENSE_KEY} YEARLY`, 
+    transferType: "in",
+    transferAmount: 7600000, // Số tiền giả lập (Gói VIP)
+    accumulated: 7600000,
+    referenceCode: "TEST_GIAO_DICH_01",
+    description: "Test Webhook"
+  })
+})
+.then(res => res.json())
+.then(data => console.log("🟢 KẾT QUẢ:", data))
+.catch(err => console.error("🔴 LỖI:", err));
