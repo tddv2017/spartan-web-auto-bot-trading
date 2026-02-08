@@ -32,7 +32,6 @@ const VerificationLock = ({ user, profile }: { user: any, profile: any }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState<'new' | 'pending' | 'rejected'>('new');
 
-  // Xác định trạng thái dựa trên profile
   useEffect(() => {
     if (profile?.accountStatus) {
       setStatus(profile.accountStatus);
@@ -423,35 +422,31 @@ function DashboardContent() {
           <Link href="/" className="flex items-center gap-2 text-slate-400 hover:text-green-400 transition-colors text-xs font-bold uppercase tracking-widest group"><Home size={14} /> <span className="hidden sm:inline">{t.dashboard.home}</span></Link>
         </div>
         <div className="flex items-center gap-4">
-              {profile?.plan === 'LIFETIME' && isAccountActive && ( 
-                  <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
-                      <button onClick={() => setActiveTab('overview')} className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase transition-all flex items-center gap-2 ${activeTab === 'overview' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-white'}`}><LayoutDashboard size={14}/> <span className="hidden sm:inline">Tổng quan</span></button>
-                      <button onClick={() => setActiveTab('reseller')} className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase transition-all flex items-center gap-2 ${activeTab === 'reseller' ? 'bg-green-600 text-black shadow' : 'text-slate-500 hover:text-white'}`}><DollarSign size={14}/> <span className="hidden sm:inline">Đối tác</span></button>
-                  </div>
-              )}
+            {profile?.plan === 'LIFETIME' && isAccountActive && ( 
+                <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
+                    <button onClick={() => setActiveTab('overview')} className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase transition-all flex items-center gap-2 ${activeTab === 'overview' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-white'}`}><LayoutDashboard size={14}/> <span className="hidden sm:inline">Tổng quan</span></button>
+                    <button onClick={() => setActiveTab('reseller')} className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase transition-all flex items-center gap-2 ${activeTab === 'reseller' ? 'bg-green-600 text-black shadow' : 'text-slate-500 hover:text-white'}`}><DollarSign size={14}/> <span className="hidden sm:inline">Đối tác</span></button>
+                </div>
+            )}
             <button onClick={() => logout()} className="flex items-center gap-2 text-slate-400 hover:text-red-500 transition-all font-bold text-xs bg-slate-800/50 px-4 py-2 rounded-lg border border-slate-700"><LogOut size={16} /> <span className="hidden sm:inline">{t.dashboard.logout}</span></button>
         </div>
       </nav>
 
       <div className="max-w-6xl mx-auto p-4 md:p-8 space-y-8 animate-in fade-in duration-500">
-        
-        {/* 🔥🔥🔥 LOGIC ĐIỀU HƯỚNG MÀN HÌNH 🔥🔥🔥 */}
-        {/* Nếu chưa ACTIVE -> Hiện màn hình xác minh */}
         {!isAccountActive ? (
             <VerificationLock user={user} profile={profile} />
         ) : (
             <>
-                {/* HEADER (ĐÃ THÊM LẠI NÚT THANH TOÁN Ở ĐÂY) */}
+                {/* HEADER */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
                     <div>
                         <h1 className="text-3xl md:text-5xl font-black mb-3 leading-none tracking-tight">{t.dashboard.welcome}, <br/><span className="text-green-500 uppercase">{user?.displayName?.split(' ')[0] || "SPARTAN"}</span></h1>
                         <div className="flex items-center gap-2"><div className={`w-2 h-2 ${isExpired ? 'bg-red-500' : 'bg-green-500'} rounded-full animate-pulse`}></div><span className={`text-[10px] font-black tracking-widest uppercase ${isExpired ? 'text-red-500' : 'text-slate-400'}`}>{isExpired ? t.dashboard.status.expired : t.dashboard.status.active}</span></div>
                     </div>
-
-                    {/* 👇 NÚT THANH TOÁN / GIA HẠN / NÂNG CẤP 👇 */}
+                    {/* NÚT GIA HẠN */}
                     <div className="flex flex-wrap gap-3">
-                        {profile?.plan && profile?.plan !== "free" && (
-                            <button onClick={() => { setSelectedPlan(profile?.plan || "monthly"); setIsPayOpen(true); }} className="flex items-center gap-2 px-5 py-3 bg-slate-800 text-white font-bold text-sm rounded-xl hover:bg-slate-700 transition-all border border-slate-700 active:scale-95 group">
+                        {profile?.plan && (
+                            <button onClick={() => { setSelectedPlan("yearly"); setIsPayOpen(true); }} className="flex items-center gap-2 px-5 py-3 bg-slate-800 text-white font-bold text-sm rounded-xl hover:bg-slate-700 transition-all border border-slate-700 active:scale-95 group">
                                 <CreditCard size={16} /> {t.dashboard.btn.renew}
                             </button>
                         )}
@@ -461,7 +456,6 @@ function DashboardContent() {
                     </div>
                 </div>
 
-                {/* NỘI DUNG CHÍNH (TABS) */}
                 {activeTab === 'overview' ? (
                     <>
                         {/* REAL-TIME MONITOR */}
@@ -511,22 +505,25 @@ function DashboardContent() {
                             </div>
                         </div>
 
-                        {/* DOWNLOAD SECTION (CHỈ HIỆN KHI ĐÃ ACTIVE) */}
-                        {profile?.plan && profile?.plan !== "free" ? (
-                            <div className="bg-gradient-to-r from-green-900/20 to-slate-900 border border-green-500/30 p-8 rounded-[2rem] flex flex-col md:flex-row items-center justify-between gap-6 shadow-[0_0_30px_rgba(34,197,94,0.05)] relative mt-8">
-                                <div className="flex items-center gap-5 relative z-10">
-                                    <div className="bg-green-500 p-4 rounded-2xl shadow-[0_0_20px_rgba(34,197,94,0.4)]"><ShieldCheck size={32} className="text-black" /></div>
-                                    <div><h3 className="text-xl font-black text-white uppercase tracking-tighter">{t.dashboard.download.title}</h3><p className="text-green-400 text-xs font-bold uppercase tracking-widest mt-1">{t.dashboard.download.unlocked}</p></div>
+                        {/* 👇 DOWNLOAD SECTION (ĐÃ MỞ KHÓA CHO GÓI FREE/TRIAL) 👇 */}
+                        <div className="bg-gradient-to-r from-green-900/20 to-slate-900 border border-green-500/30 p-8 rounded-[2rem] flex flex-col md:flex-row items-center justify-between gap-6 shadow-[0_0_30px_rgba(34,197,94,0.05)] relative mt-8">
+                            <div className="flex items-center gap-5 relative z-10">
+                                <div className="bg-green-500 p-4 rounded-2xl shadow-[0_0_20px_rgba(34,197,94,0.4)]"><ShieldCheck size={32} className="text-black" /></div>
+                                <div>
+                                    <h3 className="text-xl font-black text-white uppercase tracking-tighter">{t.dashboard.download.title}</h3>
+                                    <p className="text-green-400 text-xs font-bold uppercase tracking-widest mt-1">
+                                        {profile?.plan === 'free' ? 'GÓI DÙNG THỬ (7 NGÀY)' : t.dashboard.download.unlocked}
+                                    </p>
                                 </div>
-                                <a href="https://docs.google.com/uc?export=download&id=1BGtSMioGSIk-kkSrhmvipGW1gTg4LHTQ" className="relative z-10 flex items-center gap-3 px-8 py-4 bg-green-500 hover:bg-green-400 text-black font-black rounded-xl transition-all hover:scale-105 shadow-lg active:scale-95 group w-full md:w-auto justify-center"><Download size={20} fill="currentColor" className="group-hover:animate-bounce" /> {t.dashboard.btn.download}</a>
                             </div>
-                        ) : null}
+                            <a href="https://docs.google.com/uc?export=download&id=1BGtSMioGSIk-kkSrhmvipGW1gTg4LHTQ" className="relative z-10 flex items-center gap-3 px-8 py-4 bg-green-500 hover:bg-green-400 text-black font-black rounded-xl transition-all hover:scale-105 shadow-lg active:scale-95 group w-full md:w-auto justify-center"><Download size={20} fill="currentColor" className="group-hover:animate-bounce" /> {t.dashboard.btn.download}</a>
+                        </div>
 
                         {/* STATS & GUIDE */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
                             <StatBox label={t.dashboard.stats.account} value={profile?.mt5Account || t.dashboard.status.unconnected} icon={<Activity size={18}/>} />
                             <StatBox label={t.dashboard.stats.expiry} value={formatExpiryDate()} icon={<Clock size={18}/>} color={isExpired ? "text-red-500 animate-pulse font-black" : "text-blue-400"} />
-                            <StatBox label={t.dashboard.stats.rank} value={profile?.plan === "starter" ? "PRO" : profile?.plan === "yearly" ? "VIP YEARLY" : profile?.plan === "LIFETIME" ? "VIP LIFETIME" : "FREE"} icon={<ShieldCheck size={18}/>} color={profile?.plan === "starter" ? "text-green-400" : "text-amber-400"} />
+                            <StatBox label={t.dashboard.stats.rank} value={profile?.plan === "starter" ? "PRO" : profile?.plan === "yearly" ? "VIP YEARLY" : profile?.plan === "LIFETIME" ? "VIP LIFETIME" : "FREE TRIAL"} icon={<ShieldCheck size={18}/>} color={profile?.plan === "starter" ? "text-green-400" : "text-amber-400"} />
                         </div>
                     </>
                 ) : (
@@ -543,32 +540,32 @@ function DashboardContent() {
 
 // Helper Components
 function StatBox({ label, value, icon, color = "text-white" }: any) {
-  return (
-    <div className="bg-slate-900/40 border border-slate-800 p-6 rounded-3xl backdrop-blur-sm hover:border-slate-700 transition-all group">
-      <div className="text-slate-500 text-[10px] font-black mb-3 uppercase tracking-[0.2em] flex items-center gap-2 group-hover:text-slate-300">{icon} {label}</div>
-      <div className={`text-xl font-black tracking-tight truncate ${color}`}>{value}</div>
-    </div>
-  );
+  return (
+    <div className="bg-slate-900/40 border border-slate-800 p-6 rounded-3xl backdrop-blur-sm hover:border-slate-700 transition-all group">
+      <div className="text-slate-500 text-[10px] font-black mb-3 uppercase tracking-[0.2em] flex items-center gap-2 group-hover:text-slate-300">{icon} {label}</div>
+      <div className={`text-xl font-black tracking-tight truncate ${color}`}>{value}</div>
+    </div>
+  );
 }
 function Step({ num, title, desc, code }: { num: string, title: string, desc: string, code?: string }) {
-  return (
-    <div className="flex gap-4">
-      <div className="font-black text-2xl text-slate-800">{num}</div>
-      <div>
-        <h4 className="font-bold text-white text-base mb-1">{title}</h4>
-        <p className="text-slate-400 text-sm leading-relaxed mb-2">{desc}</p>
-        {code && <div className="bg-black/50 p-2 rounded border border-slate-700 font-mono text-green-400 text-xs inline-block break-all select-all">{code}</div>}
-      </div>
-    </div>
-  );
+  return (
+    <div className="flex gap-4">
+      <div className="font-black text-2xl text-slate-800">{num}</div>
+      <div>
+        <h4 className="font-bold text-white text-base mb-1">{title}</h4>
+        <p className="text-slate-400 text-sm leading-relaxed mb-2">{desc}</p>
+        {code && <div className="bg-black/50 p-2 rounded border border-slate-700 font-mono text-green-400 text-xs inline-block break-all select-all">{code}</div>}
+      </div>
+    </div>
+  );
 }
 
 export default function DashboardPage() {
-  return (
-    <ProtectedRoute>
-      <Suspense fallback={<div className="min-h-screen bg-slate-950 flex items-center justify-center text-green-500 font-black italic">INITIALIZING...</div>}>
-        <DashboardContent />
-      </Suspense>
-    </ProtectedRoute>
-  );
+  return (
+    <ProtectedRoute>
+      <Suspense fallback={<div className="min-h-screen bg-slate-950 flex items-center justify-center text-green-500 font-black italic">INITIALIZING...</div>}>
+        <DashboardContent />
+      </Suspense>
+    </ProtectedRoute>
+  );
 }
