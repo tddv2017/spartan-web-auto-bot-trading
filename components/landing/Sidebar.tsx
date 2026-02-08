@@ -7,7 +7,7 @@ import {
   LayoutDashboard, 
   ShieldAlert, 
   LogOut, 
-  History,
+  House,
   UserCircle,
   CreditCard,
   ChevronRight,
@@ -22,16 +22,16 @@ export default function Sidebar() {
     // 👇 CHỈ GIỮ LẠI DASHBOARD (Các tính năng kia tạm ẩn)
     { name: 'DASHBOARD', icon: <LayoutDashboard size={22} />, path: '/dashboard' },
     
-    //{ name: 'BATTLEFIED LIVE', icon: <History size={22} />, path: '/battlefield' },
+    { name: 'TỔNG HÀNH DINH', icon: <House size={22} />, path: '/admin' },
     // { name: 'HỒ SƠ TÀI KHOẢN', icon: <UserCircle size={22} />, path: '/dashboard/profile' },
     // { name: 'NẠP QUÂN LƯƠNG', icon: <CreditCard size={22} />, path: '/dashboard/billing' },
   ];
 
   if (isAdmin) {
     menuItems.push({ 
-      name: 'TỔNG HÀNH DINH', 
+      name: 'BATTLEFIED LIVE', 
       icon: <ShieldAlert size={22} />, 
-      path: '/admin' 
+      path: '/battlefield' 
     });
   }
 
