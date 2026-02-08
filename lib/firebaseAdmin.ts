@@ -13,4 +13,5 @@ if (!admin.apps.length) {
   });
 }
 
-export const adminDb = admin.firestore();
+const adminDb = admin.firestore(); // Đổi tên biến thành adminDb cho đồng bộ
+export { adminDb };                // Xuất ra đúng tên adminDb

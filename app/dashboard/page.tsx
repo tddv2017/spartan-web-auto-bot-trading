@@ -6,20 +6,20 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 
-// 👇 1. IMPORT FIREBASE
+// 👇 1. IMPORT FIREBASE (Giữ nguyên)
 import { db } from '@/lib/firebase'; 
-import { doc, getDoc, updateDoc } from 'firebase/firestore'; 
+import { doc, getDoc, updateDoc, onSnapshot, collection, query, orderBy, limit } from 'firebase/firestore'; 
 
-// 👇 2. IMPORT ICON
+// 👇 2. IMPORT ICON (Giữ nguyên)
 import { 
   LogOut, Copy, Check, CreditCard, Activity, Clock, ShieldCheck, Zap, 
   Home, ChevronLeft, Terminal, PlayCircle, Users, TrendingUp, DollarSign,
   LayoutDashboard, Menu, X, Lock, Wallet, CheckCircle, Share2, Globe, FileText, 
-  Settings, Save, Bitcoin, RefreshCw, ChevronDown
+  Settings, Save, Bitcoin, RefreshCw, ChevronDown, List
 } from 'lucide-react';
 import PaymentModal from '@/components/landing/PaymentModal';
 
-// 🏦 DANH SÁCH NGÂN HÀNG VIỆT NAM (CHUẨN VIETQR)
+// 🏦 DANH SÁCH NGÂN HÀNG (FORM CŨ CỦA ĐẠI TÁ)
 const VN_BANKS = [
     "Vietcombank (VCB)", "MBBank (Quân Đội)", "Techcombank (TCB)", "ACB (Á Châu)",
     "VietinBank (CTG)", "BIDV (Đầu tư & PT)", "VPBank (Việt Nam Thịnh Vượng)", 
@@ -33,7 +33,7 @@ const VN_BANKS = [
     "BaoViet Bank", "SaigonBank", "OceanBank", "GPBank", "CBBank"
 ];
 
-// --- 1. COMPONENT CON: KHU VỰC RESELLER ---
+// --- 1. COMPONENT CON: KHU VỰC RESELLER (GIỮ NGUYÊN 100% GIAO DIỆN CŨ) ---
 const ResellerSection = ({ wallet, profile, onWithdraw, user }: { wallet: any, profile: any, onWithdraw: () => void, user: any }) => {
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedAd, setCopiedAd] = useState(false);
@@ -44,7 +44,7 @@ const ResellerSection = ({ wallet, profile, onWithdraw, user }: { wallet: any, p
 
   // State dữ liệu thanh toán
   const [bankInfo, setBankInfo] = useState({
-    bankName: "", // Mặc định rỗng
+    bankName: "", 
     accountNumber: "",
     accountHolder: ""
   });
@@ -81,10 +81,8 @@ const ResellerSection = ({ wallet, profile, onWithdraw, user }: { wallet: any, p
   // 👇 Hàm lưu thông tin
   const savePaymentInfo = async () => {
     if (!user) return;
-    
     try {
         const userRef = doc(db, "users", user.uid);
-        
         if (activeTab === 'bank') {
             if (!bankInfo.bankName || !bankInfo.accountNumber || !bankInfo.accountHolder) {
                 alert("⚠️ Vui lòng chọn Ngân hàng và điền đủ thông tin!");
@@ -113,7 +111,6 @@ const ResellerSection = ({ wallet, profile, onWithdraw, user }: { wallet: any, p
 
   return (
     <div className="space-y-8 animate-in slide-in-from-right duration-500 mt-6">
-      
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-end gap-4 border-b border-slate-800 pb-6">
          <div>
@@ -142,7 +139,6 @@ const ResellerSection = ({ wallet, profile, onWithdraw, user }: { wallet: any, p
 
               <h2 className="text-4xl font-black text-white font-chakra mb-2 relative z-10">${wallet.available.toFixed(2)}</h2>
               
-              {/* HIỂN THỊ THÔNG TIN NHẬN TIỀN */}
               <div className="relative z-10 min-h-[20px] mb-4">
                   {cryptoInfo.walletAddress ? (
                       <p className="text-[10px] text-green-400 font-mono truncate flex items-center gap-1">
@@ -162,7 +158,6 @@ const ResellerSection = ({ wallet, profile, onWithdraw, user }: { wallet: any, p
               </button>
           </div>
 
-          {/* Card 2 & 3: Giữ nguyên */}
           <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem]">
               <p className="text-[10px] text-yellow-500 font-black uppercase mb-2 flex items-center gap-2 tracking-widest"><Clock size={12}/> Đang chờ xử lý</p>
               <h2 className="text-4xl font-black text-slate-300 font-chakra mb-2">${wallet.pending.toFixed(2)}</h2>
@@ -241,11 +236,10 @@ const ResellerSection = ({ wallet, profile, onWithdraw, user }: { wallet: any, p
          </div>
       </div>
 
-      {/* 👇 MODAL CÀI ĐẶT THANH TOÁN */}
+      {/* 👇 MODAL CÀI ĐẶT THANH TOÁN (GIỮ NGUYÊN FORM CŨ CỦA ĐẠI TÁ) */}
       {showSettingsModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-md p-6 shadow-2xl relative animate-in zoom-in duration-200">
-            
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-black text-white flex items-center gap-2">
                 <Settings className="text-green-500" /> CÀI ĐẶT VÍ
@@ -272,7 +266,6 @@ const ResellerSection = ({ wallet, profile, onWithdraw, user }: { wallet: any, p
             {/* FORM BODY */}
             <div className="space-y-4 min-h-[220px]">
                 {activeTab === 'bank' ? (
-                    // --- FORM NGÂN HÀNG (DROPDOWN) ---
                     <div className="animate-in fade-in slide-in-from-left-4 duration-300 space-y-4">
                         <div>
                             <label className="block text-slate-400 text-xs font-bold uppercase mb-2">Ngân Hàng</label>
@@ -300,9 +293,8 @@ const ResellerSection = ({ wallet, profile, onWithdraw, user }: { wallet: any, p
                         </div>
                     </div>
                 ) : (
-                    // --- FORM CRYPTO ---
                     <div className="animate-in fade-in slide-in-from-right-4 duration-300 space-y-4">
-                         <div>
+                          <div>
                             <label className="block text-slate-400 text-xs font-bold uppercase mb-2">Mạng lưới (Network)</label>
                             <div className="relative">
                                 <select 
@@ -360,7 +352,43 @@ function DashboardContent() {
   const [selectedPlan, setSelectedPlan] = useState("yearly");
   const [activeTab, setActiveTab] = useState("overview"); 
   
+  // 🔥 STATE QUAN TRỌNG: LẮNG NGHE BOT & LỊCH SỬ LỆNH
+  const [botData, setBotData] = useState<any>(null); 
+  const [trades, setTrades] = useState<any[]>([]);
+
   const wallet = profile?.wallet || { available: 0, pending: 0, total_paid: 0 };
+
+  // 🎧 LẮNG NGHE BOT REAL-TIME (Balance/Equity)
+  useEffect(() => {
+    if (!profile?.mt5Account) return; 
+    const unsub = onSnapshot(doc(db, "bots", profile.mt5Account.toString()), (doc) => {
+      if (doc.exists()) { setBotData(doc.data()); }
+    });
+    return () => unsub(); 
+  }, [profile?.mt5Account]);
+
+  // 🎧 LẮNG NGHE LỊCH SỬ GIAO DỊCH (TRADE HISTORY)
+  useEffect(() => {
+    if (!profile?.mt5Account) return;
+    const q = query(
+      collection(db, "bots", profile.mt5Account.toString(), "trades"),
+      orderBy("timestamp", "desc"),
+      limit(10)
+    );
+    const unsub = onSnapshot(q, (snapshot) => {
+      const tradeList = snapshot.docs.map(doc => doc.data());
+      setTrades(tradeList);
+    });
+    return () => unsub();
+  }, [profile?.mt5Account]);
+
+  // ✅ HÀM FIX LỖI "formatExpiryDate is not defined" (Đã thêm vào đây)
+  const formatExpiryDate = () => {
+    if (!profile?.expiryDate) return t.dashboard.status.lifetime;
+    const seconds = profile.expiryDate.seconds || profile.expiryDate._seconds;
+    if (!seconds) return t.dashboard.status.updating;
+    return new Date(seconds * 1000).toLocaleDateString('vi-VN');
+  };
 
   const isExpired = useMemo(() => {
     if (!profile?.expiryDate) return false;
@@ -385,13 +413,6 @@ function DashboardContent() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
-  };
-
-  const formatExpiryDate = () => {
-    if (!profile?.expiryDate) return t.dashboard.status.lifetime;
-    const seconds = profile.expiryDate.seconds || profile.expiryDate._seconds;
-    if (!seconds) return t.dashboard.status.updating;
-    return new Date(seconds * 1000).toLocaleDateString('vi-VN');
   };
 
   const handleWithdrawRequest = async () => {
@@ -433,7 +454,6 @@ function DashboardContent() {
           </div>
 
           <Link href="/" className="flex items-center gap-2 text-slate-400 hover:text-green-400 transition-colors text-xs font-bold uppercase tracking-widest group">
-            <div className="p-1 rounded-full border border-slate-700 group-hover:border-green-500 transition-colors"><ChevronLeft size={12} /></div>
             <Home size={14} /> <span className="hidden sm:inline">{t.dashboard.home}</span>
           </Link>
         </div>
@@ -449,7 +469,7 @@ function DashboardContent() {
                       </button>
                   </div>
               )}
-            <button onClick={() => logout()} className="flex items-center gap-2 text-slate-400 hover:text-red-500 transition-all font-bold text-xs bg-slate-800/50 px-4 py-2 rounded-lg border border-slate-700 hover:border-red-500/30">
+            <button onClick={() => logout()} className="flex items-center gap-2 text-slate-400 hover:text-red-500 transition-all font-bold text-xs bg-slate-800/50 px-4 py-2 rounded-lg border border-slate-700">
               <LogOut size={16} /> <span className="hidden sm:inline">{t.dashboard.logout}</span>
             </button>
         </div>
@@ -475,7 +495,7 @@ function DashboardContent() {
           <div className="flex flex-wrap gap-3">
             {profile?.plan !== "free" && (
               <button onClick={() => { setSelectedPlan(profile?.plan || "monthly"); setIsPayOpen(true); }} className="flex items-center gap-2 px-5 py-3 bg-slate-800 text-white font-bold text-sm rounded-xl hover:bg-slate-700 transition-all border border-slate-700 active:scale-95 group">
-                <CreditCard size={16} className="group-hover:rotate-12 transition-transform" /> {t.dashboard.btn.renew}
+                <CreditCard size={16} /> {t.dashboard.btn.renew}
               </button>
             )}
             <button onClick={() => { setSelectedPlan("starter"); setIsPayOpen(true); }} className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-amber-600 to-amber-400 text-black font-black text-sm rounded-xl hover:scale-105 transition-all shadow-[0_0_20px_rgba(245,158,11,0.3)] animate-pulse">
@@ -487,6 +507,71 @@ function DashboardContent() {
         {/* --- LOGIC HIỂN THỊ TAB --- */}
         {activeTab === 'overview' ? (
             <>
+                {/* --- KHU VỰC REAL-TIME MONITOR (CỦA BOT) --- */}
+                {profile?.mt5Account && botData ? (
+                  <div className="mb-8 grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <StatBox 
+                      label="STATUS" icon={<Activity size={14} />} 
+                      value={(new Date().getTime() - new Date(botData.lastHeartbeat).getTime()) < 120000 ? "ONLINE 🟢" : "OFFLINE 🔴"}
+                      color={(new Date().getTime() - new Date(botData.lastHeartbeat).getTime()) < 120000 ? "text-green-400" : "text-red-500"}
+                    />
+                    <StatBox label="BALANCE" icon={<Wallet size={14} />} value={`$${botData.balance?.toFixed(2)}`} color="text-yellow-400" />
+                    <StatBox label="EQUITY" icon={<TrendingUp size={14} />} value={`$${botData.equity?.toFixed(2)}`} color="text-blue-400" />
+                    <StatBox 
+                      label="FLOATING" icon={<Zap size={14} />} 
+                      value={`${botData.floatingProfit > 0 ? "+" : ""}${botData.floatingProfit?.toFixed(2)}`}
+                      color={botData.floatingProfit >= 0 ? "text-green-500" : "text-red-500"}
+                    />
+                  </div>
+                ) : (
+                  <div className="mb-8 p-6 bg-slate-900/50 border border-slate-800 rounded-2xl text-center">
+                    <p className="text-slate-400 text-sm">📡 Đang chờ tín hiệu từ Bot MT5...</p>
+                    <p className="text-xs text-slate-600 mt-1">Bot chưa kết nối hoặc chưa nhập Key.</p>
+                  </div>
+                )}
+                
+                {/* 🔥 BẢNG LỊCH SỬ GIAO DỊCH (ĐÃ CHÈN THÊM VÀO ĐÂY) */}
+                {trades.length > 0 && (
+                   <div className="bg-slate-900/60 border border-slate-800 rounded-[2rem] p-6 md:p-8 mb-8">
+                      <div className="flex justify-between items-center mb-6">
+                          <h3 className="font-bold text-slate-300 flex items-center gap-2 uppercase text-sm tracking-wider">
+                            <List size={16} className="text-blue-500"/> Lịch sử giao dịch (Real-time)
+                          </h3>
+                          <span className="text-[10px] text-slate-500 bg-slate-800 px-2 py-1 rounded">10 lệnh gần nhất</span>
+                      </div>
+                      <div className="overflow-x-auto">
+                          <table className="w-full text-xs text-left text-slate-400">
+                            <thead className="text-slate-500 uppercase font-black border-b border-slate-800">
+                                <tr>
+                                  <th className="py-3 pl-4">Ticket</th>
+                                  <th className="py-3">Symbol</th>
+                                  <th className="py-3">Type</th>
+                                  <th className="py-3">Time</th>
+                                  <th className="py-3 text-right pr-4">Profit</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-800">
+                                {trades.map((trade, idx) => (
+                                    <tr key={idx} className="hover:bg-slate-800/30 transition-colors animate-in fade-in slide-in-from-bottom-2">
+                                      <td className="py-3 pl-4 font-mono">#{trade.ticket}</td>
+                                      <td className="py-3 font-bold text-white">{trade.symbol}</td>
+                                      <td className="py-3">
+                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${trade.type === 'BUY' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
+                                          {trade.type}
+                                        </span>
+                                      </td>
+                                      <td className="py-3 text-slate-500">{new Date(trade.time).toLocaleTimeString('vi-VN')}</td>
+                                      <td className={`py-3 text-right pr-4 font-bold font-mono ${trade.profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                        {trade.profit > 0 ? '+' : ''}{trade.profit.toFixed(2)}
+                                      </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                          </table>
+                      </div>
+                   </div>
+                )}
+
                 {/* 1. LICENSE CARD */}
                 <div className="bg-slate-900 border border-slate-800 p-6 md:p-8 rounded-[2rem] shadow-2xl relative overflow-hidden group hover:border-green-500/30 transition-colors">
                   <div className="relative z-10">
@@ -502,15 +587,12 @@ function DashboardContent() {
                         {copied ? t.dashboard.btn.copied : t.dashboard.btn.copy}
                       </button>
                     </div>
-                    <p className="text-slate-500 text-xs italic mt-4">{t.dashboard.license.note}</p>
                   </div>
-                  <div className="absolute -right-20 -top-20 w-80 h-80 bg-green-500/5 blur-[100px] group-hover:bg-green-500/10 transition-all duration-700"></div>
                 </div>
 
                 {/* 2. DOWNLOAD SECTION */}
                 {profile?.plan && profile?.plan !== "free" ? (
                   <div className="bg-gradient-to-r from-green-900/20 to-slate-900 border border-green-500/30 p-8 rounded-[2rem] flex flex-col md:flex-row items-center justify-between gap-6 shadow-[0_0_30px_rgba(34,197,94,0.05)] relative overflow-hidden">
-                    <div className="absolute inset-0 bg-green-500/5 animate-pulse"></div>
                     <div className="flex items-center gap-5 relative z-10">
                       <div className="bg-green-500 p-4 rounded-2xl shadow-[0_0_20px_rgba(34,197,94,0.4)]">
                         <ShieldCheck size={32} className="text-black" />
@@ -555,7 +637,7 @@ function DashboardContent() {
                 </div>
             </>
         ) : (
-            // --- TAB RESELLER ---
+            // --- TAB RESELLER (ĐÃ TRẢ VỀ FORM GỐC) ---
             <ResellerSection wallet={wallet} profile={profile} onWithdraw={handleWithdrawRequest} user={user} />
         )}
       </div>
