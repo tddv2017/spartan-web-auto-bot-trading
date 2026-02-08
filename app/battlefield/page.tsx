@@ -48,7 +48,7 @@ export default function BattlefieldDashboard() {
     let totalFloating = 0;
     let onlineCount = 0;
     let offlineCount = 0;
-    let potentialCommission = 0; // 20% chiến lợi phẩm
+    let potentialCommission = 0; // 30% chiến lợi phẩm
 
     const processedBots = bots.map(bot => {
       // 120s không báo cáo = Tử trận (Offline)
@@ -61,8 +61,8 @@ export default function BattlefieldDashboard() {
       totalEquity += bot.equity || 0;
       totalFloating += bot.floatingProfit || 0;
 
-      // Tính 20% phí chỉ huy trên các lệnh xanh
-      const comm = (bot.floatingProfit > 0) ? bot.floatingProfit * 0.2 : 0;
+      // Tính 30% phí chỉ huy trên các lệnh xanh
+      const comm = (bot.floatingProfit > 0) ? bot.floatingProfit * 0.3 : 0;
       potentialCommission += comm;
 
       return { ...bot, isOnline, commission: comm };
@@ -159,12 +159,12 @@ export default function BattlefieldDashboard() {
             </h3>
         </div>
 
-        {/* Card 4: THE TRIBUTE (HOA HỒNG 20%) */}
+        {/* Card 4: THE TRIBUTE (HOA HỒNG 30%) */}
         <div className="bg-green-900/20 border border-green-500/50 p-4 relative overflow-hidden group">
              <div className="absolute inset-0 bg-green-500/10 translate-y-full group-hover:translate-y-0 transition-transform duration-500"></div>
              <div className="flex justify-between items-start mb-2 relative z-10">
                 <p className="text-green-400 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
-                    <Sword size={12}/> COMMANDER CUT (20%)
+                    <Sword size={12}/> COMMANDER CUT (30%)
                 </p>
             </div>
             <h3 className="text-4xl font-black text-white relative z-10">
