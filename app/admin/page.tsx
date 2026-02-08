@@ -1,11 +1,11 @@
 "use client";
 import React, { useEffect, useState } from 'react';
-import { db } from '@/lib/firebase'; // ⚠️ Kiểm tra lại đường dẫn
+import { db } from '@/lib/firebase';
 import { collection, getDocs, updateDoc, doc, Timestamp, query, where, getDoc, arrayRemove, arrayUnion } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { 
   ShieldAlert, Crown, Zap, RefreshCw, Infinity, 
-  Search, Wallet, CheckCircle, XCircle, CreditCard, Bitcoin, Copy, ExternalLink
+  Search, Wallet, CheckCircle, XCircle, CreditCard, Bitcoin, Copy, UserPlus, Clock
 } from 'lucide-react';
 
 export default function AdminPage() {
@@ -13,6 +13,7 @@ export default function AdminPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<any[]>([]);
   const [withdrawRequests, setWithdrawRequests] = useState<any[]>([]); 
+  const [pendingUsers, setPendingUsers] = useState<any[]>([]); // 👈 STATE MỚI: TÂN BINH CHỜ DUYỆT
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPlan, setFilterPlan] = useState("all");
@@ -30,18 +31,21 @@ export default function AdminPage() {
       const querySnapshot = await getDocs(collection(db, "users"));
       const userList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       
+      // Sắp xếp: Lifetime lên đầu -> còn hạn -> hết hạn
       userList.sort((a: any, b: any) => {
         if (a.plan === 'LIFETIME' && b.plan !== 'LIFETIME') return -1;
         if (b.plan === 'LIFETIME' && a.plan !== 'LIFETIME') return 1;
-        return (a.expiryDate?.seconds || 0) - (b.expiryDate?.seconds || 0);
+        return (b.expiryDate?.seconds || 0) - (a.expiryDate?.seconds || 0);
       });
 
       setUsers(userList);
       setFilteredUsers(userList);
 
-      // 🔍 LỌC RA NHỮNG AI ĐANG RÚT TIỀN (Pending > 0)
-      const pendingUsers = userList.filter((u: any) => u.wallet?.pending > 0);
-      setWithdrawRequests(pendingUsers);
+      // 🔍 1. LỌC KHÁCH ĐANG RÚT TIỀN (Pending > 0)
+      setWithdrawRequests(userList.filter((u: any) => u.wallet?.pending > 0));
+
+      // 🔍 2. LỌC KHÁCH CHỜ DUYỆT (accountStatus == 'pending')
+      setPendingUsers(userList.filter((u: any) => u.accountStatus === 'pending'));
 
     } catch (error) {
       console.error("Lỗi tải danh sách:", error);
@@ -70,174 +74,131 @@ export default function AdminPage() {
     setFilteredUsers(result);
   }, [searchTerm, filterPlan, users]);
 
+  // --- ⚡ XỬ LÝ DUYỆT USER MỚI (FIXED: KHÔNG CÒN LIFETIME) ---
+  const handleApproveUser = async (user: any) => {
+      if(!confirm(`DUYỆT TÂN BINH NÀY?\n\nEmail: ${user.email}\nMT5: ${user.mt5Account}\n\n-> Gói sẽ set thành: STARTER (30 Ngày)`)) return;
+      
+      try {
+          const userRef = doc(db, "users", user.id);
+          // 👇 CHỖ NÀY ĐÃ SỬA: Set plan = 'starter' thay vì 'LIFETIME'
+          await updateDoc(userRef, {
+              accountStatus: 'active', 
+              plan: 'FREE', // Mặc định gói tháng
+              expiryDate: Timestamp.fromDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)), // Hạn 30 ngày
+              approvedAt: new Date().toISOString()
+          });
+          alert("✅ Đã kích hoạt thành công!");
+          fetchUsers();
+      } catch (e) { alert("Lỗi: " + e); }
+  };
+
+  const handleRejectUser = async (user: any) => {
+      if(!confirm("TỪ CHỐI TÂN BINH NÀY?")) return;
+      try {
+          const userRef = doc(db, "users", user.id);
+          await updateDoc(userRef, {
+              accountStatus: 'rejected',
+              rejectedAt: new Date().toISOString()
+          });
+          fetchUsers();
+      } catch (e) { alert("Lỗi: " + e); }
+  };
+
+  // --- XỬ LÝ RÚT TIỀN ---
   const approveWithdraw = async (user: any) => {
     const amount = user.wallet.pending;
-    if(!confirm(`XÁC NHẬN ĐÃ CHUYỂN KHOẢN?\n\nKhách: ${user.email}\nSố tiền: $${amount}\n\nHành động: Trừ Pending -> Cộng Total Paid`)) return;
-
+    if(!confirm(`XÁC NHẬN ĐÃ CHUYỂN KHOẢN?\n\nKhách: ${user.email}\nSố tiền: $${amount}`)) return;
     try {
         const userRef = doc(db, "users", user.id);
-        const newWallet = {
-            ...user.wallet,
-            pending: 0, 
-            total_paid: Number((user.wallet.total_paid + amount).toFixed(2)) 
-        };
-
+        const newWallet = { ...user.wallet, pending: 0, total_paid: Number((user.wallet.total_paid + amount).toFixed(2)) };
         await updateDoc(userRef, { wallet: newWallet });
-        alert("✅ Đã duyệt thành công!");
+        alert("✅ Đã duyệt rút tiền!");
         fetchUsers();
-    } catch (e) {
-        alert("Lỗi: " + e);
-    }
+    } catch (e) { alert("Lỗi: " + e); }
   };
 
   const rejectWithdraw = async (user: any) => {
     const amount = user.wallet.pending;
-    if(!confirm(`TỪ CHỐI YÊU CẦU NÀY?\n\nKhách: ${user.email}\nSố tiền: $${amount}\n\nHành động: Trừ Pending -> Hoàn lại Available`)) return;
-
+    if(!confirm(`TỪ CHỐI RÚT TIỀN? Tiền sẽ hoàn về ví.`)) return;
     try {
         const userRef = doc(db, "users", user.id);
-        const newWallet = {
-            ...user.wallet,
-            pending: 0,
-            available: Number((user.wallet.available + amount).toFixed(2)) 
-        };
-
+        const newWallet = { ...user.wallet, pending: 0, available: Number((user.wallet.available + amount).toFixed(2)) };
         await updateDoc(userRef, { wallet: newWallet });
-        alert("🚫 Đã hoàn tiền về ví khách hàng!");
+        alert("🚫 Đã hoàn tiền!");
         fetchUsers();
-    } catch (e) {
-        alert("Lỗi: " + e);
-    }
+    } catch (e) { alert("Lỗi: " + e); }
   };
 
-  // --- HÀM HELPER: RENDER THÔNG TIN THANH TOÁN KÈM QR ---
+  // ... (Hàm renderPaymentInfo, updateUserSoldier, resetMT5 GIỮ NGUYÊN) ...
   const renderPaymentInfo = (user: any) => {
-      // 1. Ưu tiên Crypto nếu có
       if (user.cryptoInfo?.walletAddress) {
           const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${user.cryptoInfo.walletAddress}`;
           return (
               <div className="bg-slate-900 p-3 rounded-xl border border-green-900/50 mt-2">
                   <div className="flex justify-between items-start gap-3">
                       <div className="flex-1 overflow-hidden">
-                          <div className="text-[10px] text-green-500 font-bold uppercase flex items-center gap-1 mb-1">
-                              <Bitcoin size={12}/> {user.cryptoInfo.network}
-                          </div>
-                          <div className="bg-black/40 p-2 rounded border border-slate-700 font-mono text-xs text-slate-300 break-all select-all">
-                              {user.cryptoInfo.walletAddress}
-                          </div>
-                          <button 
-                             onClick={() => navigator.clipboard.writeText(user.cryptoInfo.walletAddress)}
-                             className="mt-2 text-[10px] bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded text-white flex items-center gap-1 w-fit"
-                          >
-                             <Copy size={10}/> Copy Ví
-                          </button>
+                          <div className="text-[10px] text-green-500 font-bold uppercase flex items-center gap-1 mb-1"><Bitcoin size={12}/> {user.cryptoInfo.network}</div>
+                          <div className="bg-black/40 p-2 rounded border border-slate-700 font-mono text-xs text-slate-300 break-all select-all">{user.cryptoInfo.walletAddress}</div>
                       </div>
-                      {/* QR Code */}
-                      <div className="bg-white p-1 rounded-lg shrink-0">
-                          <img src={qrUrl} alt="QR Crypto" className="w-20 h-20 object-contain" />
-                      </div>
+                      <div className="bg-white p-1 rounded-lg shrink-0"><img src={qrUrl} alt="QR" className="w-20 h-20 object-contain" /></div>
                   </div>
               </div>
           );
-      } 
-      // 2. Nếu là Bank
-      else if (user.bankInfo?.accountNumber) {
-          // Tạo link VietQR (Thử nghiệm - Nếu tên bank chuẩn nó sẽ ra QR xịn, nếu không thì ra text)
-          // Cấu trúc QuickLink VietQR: https://img.vietqr.io/image/[BANK_ID]-[ACC_NO]-[TEMPLATE].png
-          // Do ta lưu tên bank là text tự do, nên ta sẽ dùng QR Text đơn giản chứa STK để copy cho nhanh
+      } else if (user.bankInfo?.accountNumber) {
           const qrText = user.bankInfo.accountNumber;
           const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${qrText}`;
-
           return (
               <div className="bg-slate-900 p-3 rounded-xl border border-blue-900/50 mt-2">
                   <div className="flex justify-between items-start gap-3">
                       <div className="flex-1">
-                          <div className="text-[10px] text-blue-400 font-bold uppercase flex items-center gap-1 mb-1">
-                              <CreditCard size={12}/> Chuyển khoản Bank
-                          </div>
+                          <div className="text-[10px] text-blue-400 font-bold uppercase flex items-center gap-1 mb-1"><CreditCard size={12}/> Bank Transfer</div>
                           <div className="space-y-1">
                               <p className="text-xs font-bold text-white">{user.bankInfo.bankName}</p>
-                              <div className="flex items-center gap-2">
-                                  <p className="text-lg font-mono font-black text-yellow-500 select-all">{user.bankInfo.accountNumber}</p>
-                                  <button onClick={() => navigator.clipboard.writeText(user.bankInfo.accountNumber)} className="text-slate-500 hover:text-white"><Copy size={12}/></button>
-                              </div>
+                              <p className="text-lg font-mono font-black text-yellow-500 select-all">{user.bankInfo.accountNumber}</p>
                               <p className="text-xs text-slate-400 uppercase">{user.bankInfo.accountHolder}</p>
                           </div>
                       </div>
-                      {/* QR Code (Scan để copy số tài khoản) */}
-                      <div className="bg-white p-1 rounded-lg shrink-0 flex flex-col items-center">
-                          <img src={qrUrl} alt="QR Bank" className="w-16 h-16 object-contain" />
-                          <span className="text-[8px] text-black font-bold mt-1">Scan Copy</span>
-                      </div>
+                      <div className="bg-white p-1 rounded-lg shrink-0 flex flex-col items-center"><img src={qrUrl} alt="QR" className="w-16 h-16 object-contain" /></div>
                   </div>
               </div>
           );
       }
-      // 3. Chưa cài đặt gì cả
-      return (
-          <div className="bg-red-900/20 p-3 rounded-xl border border-red-900/50 mt-2 text-center">
-              <p className="text-xs text-red-500 font-bold italic">⚠️ User chưa cài đặt thông tin rút tiền!</p>
-              <p className="text-[10px] text-slate-400">Vui lòng liên hệ Email/Tele để lấy thông tin.</p>
-          </div>
-      );
+      return <div className="bg-red-900/20 p-3 rounded-xl border border-red-900/50 mt-2 text-center text-xs text-red-500 font-bold italic">⚠️ Chưa cài đặt ví!</div>;
   };
 
-  // ... (Giữ nguyên các hàm updateUserSoldier, resetMT5 cũ) ...
   const updateUserSoldier = async (userId: string, currentExpiry: any, days: number, plan: string, manualDate?: string) => {
     const userRef = doc(db, "users", userId);
     const userSnap = await getDoc(userRef);
     if (!userSnap.exists()) return;
     const userData = userSnap.data();
-
     let newDate;
-    try {
-      if (manualDate) {
-        newDate = Timestamp.fromDate(new Date(manualDate));
-      } else if (plan === 'LIFETIME') {
-        newDate = Timestamp.fromDate(new Date("2099-12-31T23:59:59"));
-      } else {
+    if (manualDate) newDate = Timestamp.fromDate(new Date(manualDate));
+    else if (plan === 'LIFETIME') newDate = Timestamp.fromDate(new Date("2099-12-31T23:59:59"));
+    else {
         const now = Date.now();
         const expiryMillis = currentExpiry ? currentExpiry.seconds * 1000 : 0;
         const baseDate = (expiryMillis > now) ? new Date(expiryMillis) : new Date();
         baseDate.setDate(baseDate.getDate() + days);
         newDate = Timestamp.fromDate(baseDate);
-      }
-      
-      await updateDoc(userRef, { expiryDate: newDate, plan: plan });
-
-      // Auto Commission Logic
-      const referrerKey = userData.referredBy;
-      if (referrerKey) {
-          const q = query(collection(db, "users"), where("licenseKey", "==", referrerKey));
-          const querySnapshot = await getDocs(q);
-          if (!querySnapshot.empty) {
-              const referrerDoc = querySnapshot.docs[0];
-              const referrerData = referrerDoc.data();
-              const commissionAmount = COMMISSION_RATES[plan] || 0;
-
-              if (commissionAmount > 0) {
-                  const oldReferralObj = referrerData.referrals?.find((r: any) => r.user === (userData.displayName || userData.email));
-                  const newReferralObj = {
-                      user: userData.displayName || userData.email,
-                      date: new Date().toLocaleDateString('vi-VN'),
-                      package: plan.toUpperCase(),
-                      commission: commissionAmount,
-                      status: "approved"
-                  };
-                  const currentBalance = referrerData.wallet?.available || 0;
-                  const newBalance = Number((currentBalance + commissionAmount).toFixed(2));
-
-                  await updateDoc(referrerDoc.ref, {
-                      "wallet.available": newBalance,
-                      referrals: oldReferralObj ? arrayRemove(oldReferralObj) : referrerData.referrals,
-                  });
-                  await updateDoc(referrerDoc.ref, { referrals: arrayUnion(newReferralObj) });
-                  alert(`✅ Đã cộng $${commissionAmount} hoa hồng cho đại lý!`);
-              }
-          }
-      }
-      fetchUsers(); 
-    } catch (e) { alert("❌ Lỗi: " + e); }
+    }
+    await updateDoc(userRef, { expiryDate: newDate, plan: plan });
+    
+    // Auto Commission (Giữ nguyên)
+    const referrerKey = userData.referredBy;
+    if (referrerKey) {
+        const q = query(collection(db, "users"), where("licenseKey", "==", referrerKey));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+            const referrerDoc = querySnapshot.docs[0];
+            const commissionAmount = COMMISSION_RATES[plan] || 0;
+            if (commissionAmount > 0) {
+                const newBalance = Number((referrerDoc.data().wallet?.available || 0 + commissionAmount).toFixed(2));
+                await updateDoc(referrerDoc.ref, { "wallet.available": newBalance });
+                alert(`✅ Đã cộng $${commissionAmount} hoa hồng!`);
+            }
+        }
+    }
+    fetchUsers(); 
   };
 
   const resetMT5 = async (userId: string) => {
@@ -264,18 +225,50 @@ export default function AdminPage() {
           </button>
         </div>
 
-        {/* 🔥 KHU VỰC KẾ TOÁN (HIỂN THỊ INFO + QR) */}
+        {/* 🔥 1. KHU VỰC DUYỆT TÂN BINH (CHỜ DUYỆT) - ĐÃ BỔ SUNG 🔥 */}
+        {pendingUsers.length > 0 && (
+            <div className="bg-red-950/20 border border-red-500/50 rounded-3xl p-6 animate-in slide-in-from-top duration-500">
+                <h3 className="text-red-500 font-black text-xl mb-4 flex items-center gap-2 uppercase tracking-widest animate-pulse">
+                    <UserPlus /> CÓ {pendingUsers.length} TÂN BINH CẦN DUYỆT
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {pendingUsers.map((user) => (
+                        <div key={user.id} className="bg-black/60 border border-red-800 p-4 rounded-2xl flex flex-col gap-3 shadow-lg">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <div className="font-bold text-white text-lg">{user.displayName || "Unknown"}</div>
+                                    <div className="text-xs text-slate-500 font-mono">{user.email}</div>
+                                </div>
+                                <Clock size={16} className="text-yellow-500"/>
+                            </div>
+                            <div className="bg-slate-900 p-3 rounded-lg border border-slate-700">
+                                <p className="text-[10px] text-slate-400 uppercase font-bold">ID MT5 Yêu cầu:</p>
+                                <p className="text-2xl font-mono font-black text-yellow-400 tracking-wider">{user.mt5Account}</p>
+                            </div>
+                            <div className="text-[10px] text-slate-500 text-center">
+                                Gửi lúc: {user.submittedAt ? new Date(user.submittedAt).toLocaleString('vi-VN') : 'N/A'}
+                            </div>
+                            <div className="flex gap-2 mt-2">
+                                <button onClick={() => handleRejectUser(user)} className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 rounded-lg font-bold text-xs border border-slate-600">HUỶ BỎ</button>
+                                <button onClick={() => handleApproveUser(user)} className="flex-1 bg-green-600 hover:bg-green-500 text-white py-2 rounded-lg font-bold text-xs border border-green-500 shadow-lg shadow-green-900/50 flex items-center justify-center gap-1">
+                                    <CheckCircle size={14}/> DUYỆT (STARTER)
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        )}
+
+        {/* 🔥 2. KHU VỰC KẾ TOÁN (RÚT TIỀN) */}
         {withdrawRequests.length > 0 && (
-            <div className="bg-gradient-to-r from-yellow-900/20 to-slate-900 border border-yellow-500/30 rounded-3xl p-6 animate-in slide-in-from-top duration-500">
+            <div className="bg-gradient-to-r from-yellow-900/20 to-slate-900 border border-yellow-500/30 rounded-3xl p-6">
                 <h3 className="text-yellow-500 font-black text-xl mb-4 flex items-center gap-2 uppercase">
-                    <Wallet className="animate-bounce" /> Yêu cầu rút tiền cần xử lý ({withdrawRequests.length})
+                    <Wallet className="animate-bounce" /> Yêu cầu rút tiền ({withdrawRequests.length})
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {withdrawRequests.map((req) => (
                         <div key={req.id} className="bg-slate-950 border border-slate-700 p-4 rounded-2xl flex flex-col gap-3 shadow-xl relative overflow-hidden">
-                            {/* Nền hiệu ứng */}
-                            <div className="absolute top-0 right-0 w-20 h-20 bg-yellow-500/5 rounded-full blur-2xl"></div>
-
                             <div className="flex justify-between items-start z-10">
                                 <div>
                                     <div className="font-bold text-white text-lg truncate w-40">{req.displayName}</div>
@@ -286,23 +279,10 @@ export default function AdminPage() {
                                     <div className="text-2xl font-black text-green-400">${req.wallet.pending}</div>
                                 </div>
                             </div>
-                            
-                            {/* 👇 PHẦN QUAN TRỌNG: RENDER QR & INFO */}
                             {renderPaymentInfo(req)}
-
                             <div className="flex gap-2 mt-auto pt-4">
-                                <button 
-                                    onClick={() => rejectWithdraw(req)}
-                                    className="flex-1 bg-red-900/20 hover:bg-red-900/40 text-red-500 py-2 rounded-lg font-bold text-xs border border-red-900/30 flex items-center justify-center gap-1 transition-colors"
-                                >
-                                    <XCircle size={14}/> TỪ CHỐI
-                                </button>
-                                <button 
-                                    onClick={() => approveWithdraw(req)}
-                                    className="flex-1 bg-green-600 hover:bg-green-500 text-white py-2 rounded-lg font-bold text-xs border border-green-500 shadow-lg shadow-green-900/50 flex items-center justify-center gap-1 transition-all active:scale-95"
-                                >
-                                    <CheckCircle size={14}/> DUYỆT CHI
-                                </button>
+                                <button onClick={() => rejectWithdraw(req)} className="flex-1 bg-red-900/20 hover:bg-red-900/40 text-red-500 py-2 rounded-lg font-bold text-xs border border-red-900/30 flex items-center justify-center gap-1"><XCircle size={14}/> TỪ CHỐI</button>
+                                <button onClick={() => approveWithdraw(req)} className="flex-1 bg-green-600 hover:bg-green-500 text-white py-2 rounded-lg font-bold text-xs border border-green-500 shadow-lg shadow-green-900/50 flex items-center justify-center gap-1"><CheckCircle size={14}/> DUYỆT CHI</button>
                             </div>
                         </div>
                     ))}

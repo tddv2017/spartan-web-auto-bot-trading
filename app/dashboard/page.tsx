@@ -37,7 +37,6 @@ const VerificationLock = ({ user, profile }: { user: any, profile: any }) => {
     if (profile?.accountStatus) {
       setStatus(profile.accountStatus);
     } else if (profile?.mt5Account) {
-      // Nếu có MT5 mà không có status -> Coi như đang chờ (để tương thích dữ liệu cũ)
       setStatus('pending');
     }
   }, [profile]);
@@ -51,8 +50,8 @@ const VerificationLock = ({ user, profile }: { user: any, profile: any }) => {
     try {
       const userRef = doc(db, "users", user.uid);
       await updateDoc(userRef, {
-        mt5Account: parseInt(mt5Input), // Lưu số tài khoản
-        accountStatus: 'pending',       // Đặt trạng thái chờ duyệt
+        mt5Account: parseInt(mt5Input),
+        accountStatus: 'pending',
         submittedAt: new Date().toISOString()
       });
       setStatus('pending');
@@ -64,9 +63,8 @@ const VerificationLock = ({ user, profile }: { user: any, profile: any }) => {
     }
   };
 
-  // LINK ĐĂNG KÝ CỦA ĐẠI TÁ (THAY LINK CỦA ĐẠI TÁ VÀO ĐÂY)
   const REG_LINK = "https://one.exnessonelink.com/a/t7uxs4x192/?campaign=38979"; 
-  const TELEGRAM_ADMIN = "https://t.me/MyGold_M15_Bot"; // Link Telegram của Đại tá
+  const TELEGRAM_ADMIN = "https://t.me/MyGold_M15_Bot"; 
 
   // GIAO DIỆN CHỜ DUYỆT (PENDING)
   if (status === 'pending') {
@@ -132,8 +130,7 @@ const VerificationLock = ({ user, profile }: { user: any, profile: any }) => {
             Bắt buộc đăng ký tài khoản Exness qua link hoặc code mã đối tác 
             <a href={REG_LINK} target="_blank" className="text-green-400 font-bold mx-1 hover:underline">
             <span className="text-yellow-400 font-bold">t7uxs4x192</span>
-            </a>để hệ thống tự động nhận diện và kích hoạt Bot. Đây là quy định
-             độc quyền để được kích hoạt Bot.
+            </a>để hệ thống tự động nhận diện và kích hoạt Bot.
           </p>
           <ul className="text-xs text-slate-300 space-y-2 mb-6">
              <li className="flex items-center gap-2"><CheckCircle size={12} className="text-green-500"/> Backcom <span className="text-yellow-400 font-bold">90%</span> trọn đời.</li>
@@ -176,7 +173,7 @@ const VerificationLock = ({ user, profile }: { user: any, profile: any }) => {
   );
 };
 
-// --- COMPONENT CON: KHU VỰC RESELLER (GIỮ NGUYÊN) ---
+// --- COMPONENT CON: KHU VỰC RESELLER ---
 const ResellerSection = ({ wallet, profile, onWithdraw, user }: { wallet: any, profile: any, onWithdraw: () => void, user: any }) => {
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedAd, setCopiedAd] = useState(false);
@@ -241,7 +238,7 @@ const ResellerSection = ({ wallet, profile, onWithdraw, user }: { wallet: any, p
             <span className="text-sm font-mono font-bold text-white select-all">{profile?.licenseKey}</span>
          </div>
       </div>
-      {/* VÍ TIỀN & FORM SETTINGS (GIỮ NGUYÊN CODE CŨ) */}
+      {/* VÍ TIỀN & FORM SETTINGS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-gradient-to-br from-green-900/40 to-slate-900 border border-green-500/50 p-6 rounded-[2rem] relative overflow-hidden group hover:border-green-400 transition-colors">
               <div className="absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity"><Wallet size={100}/></div>
@@ -259,10 +256,25 @@ const ResellerSection = ({ wallet, profile, onWithdraw, user }: { wallet: any, p
               </div>
               <button onClick={onWithdraw} className="w-full py-3 bg-green-600 hover:bg-green-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-green-900/50 active:scale-95 transition-all mt-auto relative z-10">RÚT TIỀN NGAY</button>
           </div>
-          {/* ... Các card khác (pending, members) giữ nguyên ... */}
+          <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem]">
+              <p className="text-[10px] text-yellow-500 font-black uppercase mb-2 flex items-center gap-2 tracking-widest"><Clock size={12}/> Đang chờ xử lý</p>
+              <h2 className="text-4xl font-black text-slate-300 font-chakra mb-2">${wallet.pending.toFixed(2)}</h2>
+              <p className="text-[10px] text-slate-500 italic">*Lệnh rút tiền đang được kiểm tra.</p>
+          </div>
+          <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem]">
+              <p className="text-[10px] text-slate-400 font-black uppercase mb-2 flex items-center gap-2 tracking-widest"><Users size={12}/> Tổng thành viên</p>
+              <div className="flex items-baseline gap-2">
+                  <h2 className="text-4xl font-black text-slate-300 font-chakra mb-2">{profile?.referrals?.length || 0}</h2>
+                  <span className="text-xs text-slate-500">người</span>
+              </div>
+              <div className="mt-2 pt-2 border-t border-slate-800/50 flex justify-between items-center">
+                  <span className="text-[10px] text-slate-500">Tổng hoa hồng:</span>
+                  <span className="text-sm font-bold text-green-500">+${(profile?.referrals?.reduce((sum: number, item: any) => item.status === 'approved' ? sum + (item.commission || 0) : sum, 0) || 0).toFixed(2)}</span>
+              </div>
+          </div>
       </div>
 
-      {/* MARKETING TOOLS (GIỮ NGUYÊN) */}
+      {/* MARKETING TOOLS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
          <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem]">
             <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2 uppercase"><Share2 size={16} className="text-blue-500"/> Link Giới thiệu</h3>
@@ -282,7 +294,7 @@ const ResellerSection = ({ wallet, profile, onWithdraw, user }: { wallet: any, p
          </div>
       </div>
       
-      {/* MODAL SETTINGS (GIỮ NGUYÊN) */}
+      {/* MODAL SETTINGS */}
       {showSettingsModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-md p-6 shadow-2xl relative">
@@ -326,15 +338,12 @@ function DashboardContent() {
   
   const [copied, setCopied] = useState(false);
   const [isPayOpen, setIsPayOpen] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState("yearly");
+  const [selectedPlan, setSelectedPlan] = useState("LIFETIME"); 
   const [activeTab, setActiveTab] = useState("overview"); 
   const [botData, setBotData] = useState<any>(null); 
   const [trades, setTrades] = useState<any[]>([]);
 
   const wallet = profile?.wallet || { available: 0, pending: 0, total_paid: 0 };
-
-  // 🛡️ LOGIC KIỂM TRA TRẠNG THÁI TÀI KHOẢN (ĐÃ DUYỆT HAY CHƯA)
-  // Nếu chưa được duyệt -> Hiện màn hình khóa (VerificationLock)
   const isAccountActive = profile?.accountStatus === 'active'; 
 
   // 🎧 LẮNG NGHE BOT (Chỉ chạy khi đã Active)
@@ -414,7 +423,7 @@ function DashboardContent() {
           <Link href="/" className="flex items-center gap-2 text-slate-400 hover:text-green-400 transition-colors text-xs font-bold uppercase tracking-widest group"><Home size={14} /> <span className="hidden sm:inline">{t.dashboard.home}</span></Link>
         </div>
         <div className="flex items-center gap-4">
-              {profile?.plan === 'LIFETIME' && isAccountActive && ( // Chỉ hiện Menu khi đã Active
+              {profile?.plan === 'LIFETIME' && isAccountActive && ( 
                   <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
                       <button onClick={() => setActiveTab('overview')} className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase transition-all flex items-center gap-2 ${activeTab === 'overview' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-white'}`}><LayoutDashboard size={14}/> <span className="hidden sm:inline">Tổng quan</span></button>
                       <button onClick={() => setActiveTab('reseller')} className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase transition-all flex items-center gap-2 ${activeTab === 'reseller' ? 'bg-green-600 text-black shadow' : 'text-slate-500 hover:text-white'}`}><DollarSign size={14}/> <span className="hidden sm:inline">Đối tác</span></button>
@@ -432,11 +441,23 @@ function DashboardContent() {
             <VerificationLock user={user} profile={profile} />
         ) : (
             <>
-                {/* HEADER (Chỉ hiện khi đã Active) */}
+                {/* HEADER (ĐÃ THÊM LẠI NÚT THANH TOÁN Ở ĐÂY) */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
                     <div>
                         <h1 className="text-3xl md:text-5xl font-black mb-3 leading-none tracking-tight">{t.dashboard.welcome}, <br/><span className="text-green-500 uppercase">{user?.displayName?.split(' ')[0] || "SPARTAN"}</span></h1>
                         <div className="flex items-center gap-2"><div className={`w-2 h-2 ${isExpired ? 'bg-red-500' : 'bg-green-500'} rounded-full animate-pulse`}></div><span className={`text-[10px] font-black tracking-widest uppercase ${isExpired ? 'text-red-500' : 'text-slate-400'}`}>{isExpired ? t.dashboard.status.expired : t.dashboard.status.active}</span></div>
+                    </div>
+
+                    {/* 👇 NÚT THANH TOÁN / GIA HẠN / NÂNG CẤP 👇 */}
+                    <div className="flex flex-wrap gap-3">
+                        {profile?.plan && profile?.plan !== "free" && (
+                            <button onClick={() => { setSelectedPlan(profile?.plan || "monthly"); setIsPayOpen(true); }} className="flex items-center gap-2 px-5 py-3 bg-slate-800 text-white font-bold text-sm rounded-xl hover:bg-slate-700 transition-all border border-slate-700 active:scale-95 group">
+                                <CreditCard size={16} /> {t.dashboard.btn.renew}
+                            </button>
+                        )}
+                        <button onClick={() => { setSelectedPlan("LIFETIME"); setIsPayOpen(true); }} className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-amber-600 to-amber-400 text-black font-black text-sm rounded-xl hover:scale-105 transition-all shadow-[0_0_20px_rgba(245,158,11,0.3)] animate-pulse">
+                            <Zap size={18} fill="currentColor" /> {t.dashboard.btn.upgrade}
+                        </button>
                     </div>
                 </div>
 
