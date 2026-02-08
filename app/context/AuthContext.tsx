@@ -49,8 +49,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const ADMIN_EMAILS = [
   "tddv2017@gmail.com", 
   "itcrazy2021pro@gmail.com", 
-  "tran.tuan.2821994@gmail.com",
-  "admin@gmail.com" 
 ];
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -91,7 +89,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               licenseKey: "SPARTAN-" + Math.random().toString(36).substring(2, 10).toUpperCase(),
               mt5Account: "",
               mt5Account2: "", 
-              plan: "FREE",
+              plan: "free",
               createdAt: new Date(),
               expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 ngày dùng thử
               wallet: {
