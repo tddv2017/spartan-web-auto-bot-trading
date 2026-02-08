@@ -74,23 +74,26 @@ export default function AdminPage() {
     setFilteredUsers(result);
   }, [searchTerm, filterPlan, users]);
 
-  // --- ⚡ XỬ LÝ DUYỆT USER MỚI (FIXED: KHÔNG CÒN LIFETIME) ---
   const handleApproveUser = async (user: any) => {
-      if(!confirm(`DUYỆT TÂN BINH NÀY?\n\nEmail: ${user.email}\nMT5: ${user.mt5Account}\n\n-> Gói sẽ set thành: STARTER (30 Ngày)`)) return;
-      
-      try {
-          const userRef = doc(db, "users", user.id);
-          // 👇 CHỖ NÀY ĐÃ SỬA: Set plan = 'starter' thay vì 'LIFETIME'
-          await updateDoc(userRef, {
-              accountStatus: 'active', 
-              plan: 'FREE', // Mặc định gói tháng
-              expiryDate: Timestamp.fromDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)), // Hạn 30 ngày
-              approvedAt: new Date().toISOString()
-          });
-          alert("✅ Đã kích hoạt thành công!");
-          fetchUsers();
-      } catch (e) { alert("Lỗi: " + e); }
-  };
+      // 👇 1. Sửa nội dung thông báo cho đúng
+     if(!confirm(`DUYỆT TÂN BINH NÀY?\n\nEmail: ${user.email}\nMT5: ${user.mt5Account}\n\n-> Gói sẽ set thành: FREE (7 Ngày)`)) return;
+ 
+     try {
+         const userRef = doc(db, "users", user.id);
+         await updateDoc(userRef, {
+            accountStatus: 'active', 
+             plan: 'free', // Nên để chữ thường cho đồng bộ với hệ thống
+              
+              // 👇 2. SỬA SỐ 30 THÀNH SỐ 7 Ở ĐÂY
+              // Công thức: Số ngày * 24 giờ * 60 phút * 60 giây * 1000 mili giây
+             expiryDate: Timestamp.fromDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)), 
+              
+             approvedAt: new Date().toISOString()
+         });
+         alert("✅ Đã kích hoạt gói FREE (7 ngày) thành công!");
+         fetchUsers();
+     } catch (e) { alert("Lỗi: " + e); }
+    };
 
   const handleRejectUser = async (user: any) => {
       if(!confirm("TỪ CHỐI TÂN BINH NÀY?")) return;
