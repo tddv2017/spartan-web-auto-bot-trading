@@ -19,6 +19,7 @@ export interface UserProfile {
   createdAt?: any;
   displayName?: string;
   photoURL?: string;
+  role?: string;
   accountStatus?: 'pending' | 'active' | 'rejected' | 'banned'; // 👈 THÊM TRƯỜNG NÀY VÀO TYPE
   wallet?: {
     available: number;

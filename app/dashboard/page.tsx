@@ -3,16 +3,16 @@ import React, { useState, useEffect, Suspense, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
-import { useAuth } from '../context/AuthContext';
-import { useLanguage } from '../context/LanguageContext';
+import { useAuth } from '@/app/context/AuthContext';
+import { useLanguage } from '@/app/context/LanguageContext';
 import { db } from '@/lib/firebase'; 
 import { doc, onSnapshot, collection, query, orderBy, limit } from 'firebase/firestore'; 
 import { 
-  LogOut, Home, LayoutGrid, Radar, Users, 
-  Shield, Swords, Medal, Crown, Zap
+  LogOut, LayoutGrid, Radar, Users, 
+  Shield, Swords, Medal, Crown
 } from 'lucide-react';
 
-// 👇 IMPORT MODULES
+// 👇 IMPORT MODULES (Đảm bảo đường dẫn đúng với dự án của Đại tá)
 import PaymentModal from '@/components/landing/PaymentModal';
 import { VerificationLock } from '@/components/dashboard/onboarding/VerificationLock';
 import { GuideModal } from '@/components/dashboard/modals/GuideModal';
@@ -29,7 +29,7 @@ const getRankInfo = (profile: any) => {
   return { title: 'SOLDIER', icon: Swords, color: 'text-emerald-400', border: 'border-emerald-600' };
 };
 
-// --- 🔘 TAB BUTTON STYLE (ĐỒNG BỘ LANDING PAGE) ---
+// --- 🔘 TAB BUTTON STYLE ---
 const TabButton = ({ active, onClick, icon, label, hasLiveBadge }: any) => (
   <button 
     onClick={onClick}
@@ -52,7 +52,7 @@ const TabButton = ({ active, onClick, icon, label, hasLiveBadge }: any) => (
       {label}
     </span>
     
-    {/* 🔴 LIVE BADGE (ĐÈN BÁO ĐỘNG - KHÔNG CHIẾM DÒNG) */}
+    {/* 🔴 LIVE BADGE */}
     {hasLiveBadge && (
       <div className="flex h-2.5 w-2.5 ml-1">
          <span className="animate-ping absolute inline-flex h-2.5 w-2.5 rounded-full bg-red-400 opacity-75"></span>
@@ -78,6 +78,9 @@ function DashboardContent() {
   const isAccountActive = (profile as any)?.accountStatus === 'active'; 
   const rank = getRankInfo(profile);
   const RankIcon = rank.icon;
+
+  // 🔒 KIỂM TRA QUYỀN LIFETIME (HOẶC ADMIN)
+  const isLifetime = profile?.plan === 'LIFETIME' || profile?.role === 'admin';
 
   const isExpired = useMemo(() => {
     if (!profile?.expiryDate) return false;
@@ -110,6 +113,7 @@ function DashboardContent() {
     } catch (e) { alert("Lỗi kết nối Server!"); }
   };
 
+  // Lấy dữ liệu Bot
   useEffect(() => {
     if (!profile?.mt5Account || !isAccountActive) return; 
     const unsub = onSnapshot(doc(db, "bots", profile.mt5Account.toString()), (doc) => {
@@ -118,6 +122,7 @@ function DashboardContent() {
     return () => unsub(); 
   }, [profile?.mt5Account, isAccountActive]);
 
+  // Lấy lịch sử lệnh
   useEffect(() => {
     if (!profile?.mt5Account || !isAccountActive) return;
     const q = query(collection(db, "bots", profile.mt5Account.toString(), "trades"), orderBy("timestamp", "desc"), limit(50));
@@ -125,6 +130,7 @@ function DashboardContent() {
     return () => unsub();
   }, [profile?.mt5Account, isAccountActive]);
 
+  // Xử lý khi bấm nút thanh toán từ Landing page chuyển qua
   useEffect(() => {
     if (searchParams.get("action") === "checkout") {
       if (searchParams.get("plan")) setSelectedPlan(searchParams.get("plan")!);
@@ -136,7 +142,6 @@ function DashboardContent() {
   if (!profile && user) return <div className="min-h-screen bg-[#050b14] flex flex-col items-center justify-center gap-4 text-green-500 font-mono tracking-widest animate-pulse">:: INITIALIZING UPLINK ::</div>;
 
   return (
-    // ✨ NỀN ĐỒNG BỘ 100% VỚI LANDING PAGE (#050b14 + Grid)
     <div className="min-h-screen bg-[#050b14] text-white font-sans selection:bg-green-500/30 pb-20 relative overflow-x-hidden">
       
       {/* 1. BACKGROUND GRID EFFECT (Y HỆT TRANG CHỦ) */}
@@ -157,7 +162,7 @@ function DashboardContent() {
                     </div>
                  </Link>
 
-                 {/* 🎖️ Rank Badge (Minimalist Military Style) */}
+                 {/* 🎖️ Rank Badge */}
                  <div className={`hidden sm:flex items-center gap-2 px-3 py-1 rounded border bg-black/50 backdrop-blur-sm ${rank.border}`}>
                     <RankIcon size={14} className={rank.color} />
                     <span className={`text-[10px] font-bold uppercase tracking-widest ${rank.color}`}>{rank.title}</span>
@@ -198,7 +203,7 @@ function DashboardContent() {
              </div>
         ) : (
             <>
-                {/* --- NAVIGATION TABS (ĐỒNG BỘ STYLE) --- */}
+                {/* --- NAVIGATION TABS --- */}
                 <div className="flex flex-col md:flex-row border-b border-white/10 mb-8 sticky top-[72px] bg-[#050b14]/95 backdrop-blur z-40 md:static md:bg-transparent">
                     <TabButton 
                         active={activeTab === 'overview'} 
@@ -213,12 +218,16 @@ function DashboardContent() {
                         label="CHIẾN TRƯỜNG" 
                         hasLiveBadge={true} 
                     />
-                    <TabButton 
-                        active={activeTab === 'partner'} 
-                        onClick={() => setActiveTab('partner')} 
-                        icon={<Users size={18}/>} 
-                        label="ĐỐI TÁC" 
-                    />
+                    
+                    {/* 🔒 CHỈ HIỆN TAB ĐỐI TÁC NẾU LÀ LIFETIME */}
+                    {isLifetime && (
+                      <TabButton 
+                          active={activeTab === 'partner'} 
+                          onClick={() => setActiveTab('partner')} 
+                          icon={<Users size={18}/>} 
+                          label="ĐỐI TÁC" 
+                      />
+                    )}
                 </div>
 
                 {/* --- TAB CONTENT --- */}
@@ -233,7 +242,9 @@ function DashboardContent() {
                             <WarRoomTab trades={trades} accountInfo={botData} />
                         </div>
                     )}
-                    {activeTab === 'partner' && (
+                    
+                    {/* 🔒 CHỈ RENDER NỘI DUNG NẾU LÀ LIFETIME */}
+                    {activeTab === 'partner' && isLifetime && (
                         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                             <PartnerTab wallet={wallet} profile={profile} onWithdraw={handleWithdrawRequest} user={user} />
                         </div>
