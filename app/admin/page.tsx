@@ -1,29 +1,67 @@
 "use client";
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, updateDoc, doc, Timestamp, query, where, getDoc, arrayRemove, arrayUnion } from 'firebase/firestore';
+// 👇 1. THÊM deleteDoc VÀO IMPORT
+import { collection, getDocs, updateDoc, doc, Timestamp, query, where, getDoc, deleteDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { 
-  ShieldAlert, Crown, Zap, RefreshCw, Infinity, 
-  Search, Wallet, CheckCircle, XCircle, CreditCard, Bitcoin, Copy, UserPlus, Clock
+  ShieldAlert, Crown, Zap, RefreshCw, Infinity, Search, Wallet, 
+  CheckCircle, XCircle, CreditCard, Bitcoin, UserPlus, Clock, 
+  LayoutDashboard, Users, Banknote, Activity, Server, Radio,
+  Trash2 // 👈 2. THÊM ICON THÙNG RÁC
 } from 'lucide-react';
+
+// --- COMPONENTS ---
+
+// 1. STAT CARD (THẺ CHỈ SỐ)
+const StatCard = ({ label, value, icon: Icon, color, subValue }: any) => (
+  <div className={`bg-slate-900/50 border border-slate-800 p-6 rounded-2xl relative overflow-hidden group hover:border-${color}-500/50 transition-all`}>
+    <div className={`absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-${color}-500`}>
+       <Icon size={60} />
+    </div>
+    <div className="relative z-10">
+        <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-2">{label}</p>
+        <h3 className={`text-3xl font-black font-mono text-white`}>{value}</h3>
+        {subValue && <p className={`text-xs mt-1 font-bold text-${color}-500`}>{subValue}</p>}
+    </div>
+  </div>
+);
+
+// 2. TAB BUTTON (NAVIGATION)
+const AdminTabButton = ({ active, onClick, icon: Icon, label, alertCount }: any) => (
+    <button 
+      onClick={onClick}
+      className={`
+        relative flex items-center gap-3 px-6 py-4 transition-all duration-300 border-b-2
+        ${active ? 'border-green-500 bg-green-500/10 text-white' : 'border-transparent text-slate-500 hover:text-green-400 hover:bg-white/5'}
+      `}
+    >
+      <Icon size={18} className={active ? "text-green-500" : ""} />
+      <span className="font-bold uppercase tracking-widest text-sm">{label}</span>
+      {alertCount > 0 && (
+          <span className="ml-2 bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full animate-pulse">{alertCount}</span>
+      )}
+    </button>
+);
 
 export default function AdminPage() {
   const { isAdmin } = useAuth();
   const [users, setUsers] = useState<any[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<any[]>([]);
-  const [withdrawRequests, setWithdrawRequests] = useState<any[]>([]); 
-  const [pendingUsers, setPendingUsers] = useState<any[]>([]); // 👈 STATE MỚI: TÂN BINH CHỜ DUYỆT
+  const [activeTab, setActiveTab] = useState<'overview' | 'members' | 'finance'>('overview');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPlan, setFilterPlan] = useState("all");
 
-  // 💰 BẢNG HOA HỒNG
-  const COMMISSION_RATES: any = {
-    starter: 12,
-    yearly: 119.6,
-    LIFETIME: 3999.6
-  };
+  // Dữ liệu lọc
+  const pendingUsers = useMemo(() => users.filter(u => u.accountStatus === 'pending'), [users]);
+  const withdrawRequests = useMemo(() => users.filter(u => u.wallet?.pending > 0), [users]);
+  const activeUsers = useMemo(() => users.filter(u => u.accountStatus === 'active' && u.mt5Account), [users]);
+  
+  // Tổng tiền đang chờ rút
+  const totalPendingWithdraw = useMemo(() => withdrawRequests.reduce((acc, curr) => acc + (curr.wallet?.pending || 0), 0), [withdrawRequests]);
+
+  const COMMISSION_RATES: any = { starter: 12, yearly: 119.6, LIFETIME: 3999.6 };
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -31,33 +69,22 @@ export default function AdminPage() {
       const querySnapshot = await getDocs(collection(db, "users"));
       const userList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       
-      // Sắp xếp: Lifetime lên đầu -> còn hạn -> hết hạn
+      // Sort: Pending lên đầu, sau đó đến VIP
       userList.sort((a: any, b: any) => {
-        if (a.plan === 'LIFETIME' && b.plan !== 'LIFETIME') return -1;
-        if (b.plan === 'LIFETIME' && a.plan !== 'LIFETIME') return 1;
-        return (b.expiryDate?.seconds || 0) - (a.expiryDate?.seconds || 0);
+        if (a.accountStatus === 'pending' && b.accountStatus !== 'pending') return -1;
+        if (b.accountStatus === 'pending' && a.accountStatus !== 'pending') return 1;
+        if (a.wallet?.pending > 0 && b.wallet?.pending <= 0) return -1; // Ưu tiên rút tiền
+        return (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0);
       });
 
       setUsers(userList);
       setFilteredUsers(userList);
-
-      // 🔍 1. LỌC KHÁCH ĐANG RÚT TIỀN (Pending > 0)
-      setWithdrawRequests(userList.filter((u: any) => u.wallet?.pending > 0));
-
-      // 🔍 2. LỌC KHÁCH CHỜ DUYỆT (accountStatus == 'pending')
-      setPendingUsers(userList.filter((u: any) => u.accountStatus === 'pending'));
-
-    } catch (error) {
-      console.error("Lỗi tải danh sách:", error);
-    }
+    } catch (error) { console.error("Lỗi tải danh sách:", error); }
     setLoading(false);
   };
 
-  useEffect(() => {
-    if (isAdmin) fetchUsers();
-  }, [isAdmin]);
+  useEffect(() => { if (isAdmin) fetchUsers(); }, [isAdmin]);
 
-  // Filter Logic
   useEffect(() => {
     let result = users;
     if (searchTerm) {
@@ -65,7 +92,8 @@ export default function AdminPage() {
       result = result.filter(u => 
         (u.email && u.email.toLowerCase().includes(lowerTerm)) || 
         (u.licenseKey && u.licenseKey.toLowerCase().includes(lowerTerm)) ||
-        (u.displayName && u.displayName.toLowerCase().includes(lowerTerm))
+        (u.displayName && u.displayName.toLowerCase().includes(lowerTerm)) ||
+        (u.mt5Account && u.mt5Account.toString().includes(lowerTerm))
       );
     }
     if (filterPlan !== "all") {
@@ -74,109 +102,66 @@ export default function AdminPage() {
     setFilteredUsers(result);
   }, [searchTerm, filterPlan, users]);
 
+  // --- ACTIONS ---
   const handleApproveUser = async (user: any) => {
-      // 👇 1. Sửa nội dung thông báo cho đúng
-     if(!confirm(`DUYỆT TÂN BINH NÀY?\n\nEmail: ${user.email}\nMT5: ${user.mt5Account}\n\n-> Gói sẽ set thành: FREE (7 Ngày)`)) return;
- 
+     if(!confirm(`DUYỆT TÂN BINH: ${user.email}?`)) return;
      try {
-         const userRef = doc(db, "users", user.id);
-         await updateDoc(userRef, {
+         await updateDoc(doc(db, "users", user.id), {
             accountStatus: 'active', 
-             plan: 'free', // Nên để chữ thường cho đồng bộ với hệ thống
-              
-              // 👇 2. SỬA SỐ 30 THÀNH SỐ 7 Ở ĐÂY
-              // Công thức: Số ngày * 24 giờ * 60 phút * 60 giây * 1000 mili giây
-             expiryDate: Timestamp.fromDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)), 
-              
-             approvedAt: new Date().toISOString()
+            plan: 'free', 
+            expiryDate: Timestamp.fromDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)), 
+            approvedAt: new Date().toISOString()
          });
-         alert("✅ Đã kích hoạt gói FREE (7 ngày) thành công!");
          fetchUsers();
      } catch (e) { alert("Lỗi: " + e); }
-    };
-
-  const handleRejectUser = async (user: any) => {
-      if(!confirm("TỪ CHỐI TÂN BINH NÀY?")) return;
-      try {
-          const userRef = doc(db, "users", user.id);
-          await updateDoc(userRef, {
-              accountStatus: 'rejected',
-              rejectedAt: new Date().toISOString()
-          });
-          fetchUsers();
-      } catch (e) { alert("Lỗi: " + e); }
   };
 
-  // --- XỬ LÝ RÚT TIỀN ---
+  const handleRejectUser = async (user: any) => {
+     if(!confirm("TỪ CHỐI TÂN BINH NÀY?")) return;
+     try {
+         await updateDoc(doc(db, "users", user.id), { accountStatus: 'rejected', rejectedAt: new Date().toISOString() });
+         fetchUsers();
+     } catch (e) { alert("Lỗi: " + e); }
+  };
+
+  // 🔥 3. HÀM XÓA USER (DELETE)
+  const handleDeleteUser = async (userId: string) => {
+      if(!confirm("⚠️ CẢNH BÁO TUYỆT MẬT:\n\nHành động này sẽ XÓA VĨNH VIỄN User khỏi cơ sở dữ liệu.\nKhông thể khôi phục!\n\nĐại tá có chắc chắn muốn xóa không?")) return;
+      
+      try {
+          await deleteDoc(doc(db, "users", userId));
+          fetchUsers();
+          alert("🗑️ Đã xóa sổ mục tiêu thành công!");
+      } catch (e) {
+          alert("Lỗi khi xóa: " + e);
+      }
+  };
+
   const approveWithdraw = async (user: any) => {
     const amount = user.wallet.pending;
-    if(!confirm(`XÁC NHẬN ĐÃ CHUYỂN KHOẢN?\n\nKhách: ${user.email}\nSố tiền: $${amount}`)) return;
+    if(!confirm(`DUYỆT RÚT $${amount} cho ${user.email}?`)) return;
     try {
-        const userRef = doc(db, "users", user.id);
         const newWallet = { ...user.wallet, pending: 0, total_paid: Number((user.wallet.total_paid + amount).toFixed(2)) };
-        await updateDoc(userRef, { wallet: newWallet });
-        alert("✅ Đã duyệt rút tiền!");
+        await updateDoc(doc(db, "users", user.id), { wallet: newWallet });
         fetchUsers();
     } catch (e) { alert("Lỗi: " + e); }
   };
 
   const rejectWithdraw = async (user: any) => {
     const amount = user.wallet.pending;
-    if(!confirm(`TỪ CHỐI RÚT TIỀN? Tiền sẽ hoàn về ví.`)) return;
+    if(!confirm(`HOÀN TIỀN $${amount} về ví user?`)) return;
     try {
-        const userRef = doc(db, "users", user.id);
         const newWallet = { ...user.wallet, pending: 0, available: Number((user.wallet.available + amount).toFixed(2)) };
-        await updateDoc(userRef, { wallet: newWallet });
-        alert("🚫 Đã hoàn tiền!");
+        await updateDoc(doc(db, "users", user.id), { wallet: newWallet });
         fetchUsers();
     } catch (e) { alert("Lỗi: " + e); }
   };
 
-  // ... (Hàm renderPaymentInfo, updateUserSoldier, resetMT5 GIỮ NGUYÊN) ...
-  const renderPaymentInfo = (user: any) => {
-      if (user.cryptoInfo?.walletAddress) {
-          const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${user.cryptoInfo.walletAddress}`;
-          return (
-              <div className="bg-slate-900 p-3 rounded-xl border border-green-900/50 mt-2">
-                  <div className="flex justify-between items-start gap-3">
-                      <div className="flex-1 overflow-hidden">
-                          <div className="text-[10px] text-green-500 font-bold uppercase flex items-center gap-1 mb-1"><Bitcoin size={12}/> {user.cryptoInfo.network}</div>
-                          <div className="bg-black/40 p-2 rounded border border-slate-700 font-mono text-xs text-slate-300 break-all select-all">{user.cryptoInfo.walletAddress}</div>
-                      </div>
-                      <div className="bg-white p-1 rounded-lg shrink-0"><img src={qrUrl} alt="QR" className="w-20 h-20 object-contain" /></div>
-                  </div>
-              </div>
-          );
-      } else if (user.bankInfo?.accountNumber) {
-          const qrText = user.bankInfo.accountNumber;
-          const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${qrText}`;
-          return (
-              <div className="bg-slate-900 p-3 rounded-xl border border-blue-900/50 mt-2">
-                  <div className="flex justify-between items-start gap-3">
-                      <div className="flex-1">
-                          <div className="text-[10px] text-blue-400 font-bold uppercase flex items-center gap-1 mb-1"><CreditCard size={12}/> Bank Transfer</div>
-                          <div className="space-y-1">
-                              <p className="text-xs font-bold text-white">{user.bankInfo.bankName}</p>
-                              <p className="text-lg font-mono font-black text-yellow-500 select-all">{user.bankInfo.accountNumber}</p>
-                              <p className="text-xs text-slate-400 uppercase">{user.bankInfo.accountHolder}</p>
-                          </div>
-                      </div>
-                      <div className="bg-white p-1 rounded-lg shrink-0 flex flex-col items-center"><img src={qrUrl} alt="QR" className="w-16 h-16 object-contain" /></div>
-                  </div>
-              </div>
-          );
-      }
-      return <div className="bg-red-900/20 p-3 rounded-xl border border-red-900/50 mt-2 text-center text-xs text-red-500 font-bold italic">⚠️ Chưa cài đặt ví!</div>;
-  };
-
-  const updateUserSoldier = async (userId: string, currentExpiry: any, days: number, plan: string, manualDate?: string) => {
+  const updateUserSoldier = async (userId: string, currentExpiry: any, days: number, plan: string) => {
+    if(!confirm(`Xác nhận nâng cấp gói ${plan.toUpperCase()}?`)) return;
     const userRef = doc(db, "users", userId);
-    const userSnap = await getDoc(userRef);
-    if (!userSnap.exists()) return;
-    const userData = userSnap.data();
     let newDate;
-    if (manualDate) newDate = Timestamp.fromDate(new Date(manualDate));
-    else if (plan === 'LIFETIME') newDate = Timestamp.fromDate(new Date("2099-12-31T23:59:59"));
+    if (plan === 'LIFETIME') newDate = Timestamp.fromDate(new Date("2099-12-31T23:59:59"));
     else {
         const now = Date.now();
         const expiryMillis = currentExpiry ? currentExpiry.seconds * 1000 : 0;
@@ -185,176 +170,242 @@ export default function AdminPage() {
         newDate = Timestamp.fromDate(baseDate);
     }
     await updateDoc(userRef, { expiryDate: newDate, plan: plan });
-    
-    // Auto Commission (Giữ nguyên)
-    const referrerKey = userData.referredBy;
-    if (referrerKey) {
-        const q = query(collection(db, "users"), where("licenseKey", "==", referrerKey));
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) {
-            const referrerDoc = querySnapshot.docs[0];
-            const commissionAmount = COMMISSION_RATES[plan] || 0;
-            if (commissionAmount > 0) {
-                const newBalance = Number((referrerDoc.data().wallet?.available || 0 + commissionAmount).toFixed(2));
-                await updateDoc(referrerDoc.ref, { "wallet.available": newBalance });
-                alert(`✅ Đã cộng $${commissionAmount} hoa hồng!`);
-            }
-        }
-    }
     fetchUsers(); 
   };
 
   const resetMT5 = async (userId: string) => {
-    if(!confirm("⚠️ Reset MT5?")) return;
+    if(!confirm("⚠️ Reset MT5 ID?")) return;
     try { await updateDoc(doc(db, "users", userId), { mt5Account: "" }); fetchUsers(); } catch (e) { alert(e); }
   };
 
-  if (!isAdmin) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-red-500 font-black">🚫 ADMIN ONLY</div>;
+  const renderPaymentInfo = (user: any) => {
+      if (user.cryptoInfo?.walletAddress) {
+          return (
+              <div className="bg-black/40 p-3 rounded border border-slate-700 mt-2 text-xs font-mono">
+                  <div className="flex items-center gap-2 text-yellow-500 mb-1"><Bitcoin size={12}/> {user.cryptoInfo.network}</div>
+                  <div className="break-all select-all text-white">{user.cryptoInfo.walletAddress}</div>
+              </div>
+          );
+      } else if (user.bankInfo?.accountNumber) {
+          return (
+              <div className="bg-black/40 p-3 rounded border border-slate-700 mt-2 text-xs font-mono">
+                  <div className="flex items-center gap-2 text-blue-400 mb-1"><CreditCard size={12}/> {user.bankInfo.bankName}</div>
+                  <div className="text-lg font-bold text-white select-all">{user.bankInfo.accountNumber}</div>
+                  <div className="text-slate-400 uppercase">{user.bankInfo.accountHolder}</div>
+              </div>
+          );
+      }
+      return null;
+  };
+
+  if (!isAdmin) return <div className="min-h-screen bg-[#050b14] flex items-center justify-center text-red-500 font-black animate-pulse">:: ACCESS DENIED ::</div>;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 p-4 md:p-8 font-sans">
-      <div className="max-w-[1600px] mx-auto space-y-8">
-        
-        {/* HEADER */}
-        <div className="flex justify-between items-end pb-6 border-b border-slate-800">
-          <div>
-            <h1 className="text-4xl font-black text-white flex items-center gap-4 italic mb-2">
-              <ShieldAlert className="text-red-600 animate-pulse" size={48} /> TỔNG HÀNH DINH
-            </h1>
-            <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Hệ thống quản trị Spartan V8.0</p>
+    <div className="min-h-screen bg-[#050b14] text-white font-sans selection:bg-green-500/30 pb-20 relative">
+      
+      {/* BACKGROUND GRID */}
+      <div className="fixed inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none"></div>
+
+      {/* HEADER */}
+      <header className="border-b border-white/10 bg-[#050b14]/90 backdrop-blur sticky top-0 z-50">
+          <div className="max-w-[1600px] mx-auto px-6 py-4 flex justify-between items-center">
+              <div className="flex items-center gap-4">
+                  <ShieldAlert className="text-red-500 animate-pulse" size={32} />
+                  <div>
+                      <h1 className="text-xl font-black italic tracking-tighter leading-none">SPARTAN <span className="text-green-500">ADMIN</span></h1>
+                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.3em]">Supreme Command Center</p>
+                  </div>
+              </div>
+              <div className="flex items-center gap-4">
+                 <div className="flex items-center gap-2 px-3 py-1 bg-green-900/20 border border-green-500/30 rounded text-xs font-bold text-green-500">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                    SYSTEM ONLINE
+                 </div>
+                 <button onClick={fetchUsers} className="p-2 bg-slate-800 rounded hover:bg-slate-700 transition-colors">
+                     <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
+                 </button>
+              </div>
           </div>
-          <button onClick={fetchUsers} className="bg-slate-800 hover:bg-slate-700 p-4 rounded-xl border border-slate-700">
-             <RefreshCw size={24} className={loading ? "animate-spin" : ""} />
-          </button>
+      </header>
+
+      <div className="max-w-[1600px] mx-auto p-6 relative z-10 space-y-8">
+
+        {/* --- 1. STATS OVERVIEW --- */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 animate-in slide-in-from-top duration-500">
+            <StatCard label="Total Users" value={users.length} icon={Users} color="blue" subValue={`${activeUsers.length} Active MT5`} />
+            <StatCard label="Pending Approval" value={pendingUsers.length} icon={UserPlus} color="red" subValue={pendingUsers.length > 0 ? "Requires Action" : "All Clear"} />
+            <StatCard label="Pending Payout" value={`$${totalPendingWithdraw.toFixed(2)}`} icon={Wallet} color="yellow" subValue={`${withdrawRequests.length} Requests`} />
+            <StatCard label="Server Status" value="100%" icon={Server} color="green" subValue="Latency: 24ms" />
         </div>
 
-        {/* 🔥 1. KHU VỰC DUYỆT TÂN BINH (CHỜ DUYỆT) - ĐÃ BỔ SUNG 🔥 */}
-        {pendingUsers.length > 0 && (
-            <div className="bg-red-950/20 border border-red-500/50 rounded-3xl p-6 animate-in slide-in-from-top duration-500">
-                <h3 className="text-red-500 font-black text-xl mb-4 flex items-center gap-2 uppercase tracking-widest animate-pulse">
-                    <UserPlus /> CÓ {pendingUsers.length} TÂN BINH CẦN DUYỆT
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {pendingUsers.map((user) => (
-                        <div key={user.id} className="bg-black/60 border border-red-800 p-4 rounded-2xl flex flex-col gap-3 shadow-lg">
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <div className="font-bold text-white text-lg">{user.displayName || "Unknown"}</div>
-                                    <div className="text-xs text-slate-500 font-mono">{user.email}</div>
-                                </div>
-                                <Clock size={16} className="text-yellow-500"/>
-                            </div>
-                            <div className="bg-slate-900 p-3 rounded-lg border border-slate-700">
-                                <p className="text-[10px] text-slate-400 uppercase font-bold">ID MT5 Yêu cầu:</p>
-                                <p className="text-2xl font-mono font-black text-yellow-400 tracking-wider">{user.mt5Account}</p>
-                            </div>
-                            <div className="text-[10px] text-slate-500 text-center">
-                                Gửi lúc: {user.submittedAt ? new Date(user.submittedAt).toLocaleString('vi-VN') : 'N/A'}
-                            </div>
-                            <div className="flex gap-2 mt-2">
-                                <button onClick={() => handleRejectUser(user)} className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 rounded-lg font-bold text-xs border border-slate-600">HUỶ BỎ</button>
-                                <button onClick={() => handleApproveUser(user)} className="flex-1 bg-green-600 hover:bg-green-500 text-white py-2 rounded-lg font-bold text-xs border border-green-500 shadow-lg shadow-green-900/50 flex items-center justify-center gap-1">
-                                    <CheckCircle size={14}/> DUYỆT (STARTER)
-                                </button>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        )}
-
-        {/* 🔥 2. KHU VỰC KẾ TOÁN (RÚT TIỀN) */}
-        {withdrawRequests.length > 0 && (
-            <div className="bg-gradient-to-r from-yellow-900/20 to-slate-900 border border-yellow-500/30 rounded-3xl p-6">
-                <h3 className="text-yellow-500 font-black text-xl mb-4 flex items-center gap-2 uppercase">
-                    <Wallet className="animate-bounce" /> Yêu cầu rút tiền ({withdrawRequests.length})
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {withdrawRequests.map((req) => (
-                        <div key={req.id} className="bg-slate-950 border border-slate-700 p-4 rounded-2xl flex flex-col gap-3 shadow-xl relative overflow-hidden">
-                            <div className="flex justify-between items-start z-10">
-                                <div>
-                                    <div className="font-bold text-white text-lg truncate w-40">{req.displayName}</div>
-                                    <div className="text-xs text-slate-400 font-mono">{req.email}</div>
-                                </div>
-                                <div className="text-right">
-                                    <div className="text-[10px] text-slate-500 uppercase font-bold">Rút tiền</div>
-                                    <div className="text-2xl font-black text-green-400">${req.wallet.pending}</div>
-                                </div>
-                            </div>
-                            {renderPaymentInfo(req)}
-                            <div className="flex gap-2 mt-auto pt-4">
-                                <button onClick={() => rejectWithdraw(req)} className="flex-1 bg-red-900/20 hover:bg-red-900/40 text-red-500 py-2 rounded-lg font-bold text-xs border border-red-900/30 flex items-center justify-center gap-1"><XCircle size={14}/> TỪ CHỐI</button>
-                                <button onClick={() => approveWithdraw(req)} className="flex-1 bg-green-600 hover:bg-green-500 text-white py-2 rounded-lg font-bold text-xs border border-green-500 shadow-lg shadow-green-900/50 flex items-center justify-center gap-1"><CheckCircle size={14}/> DUYỆT CHI</button>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        )}
-
-        {/* TOOLBAR */}
-        <div className="flex gap-4 bg-slate-900/50 p-6 rounded-3xl border border-slate-800">
-          <div className="relative flex-1">
-            <Search className="absolute left-4 top-4 text-slate-500" size={24} />
-            <input type="text" placeholder="Tìm kiếm..." className="w-full bg-slate-950 border border-slate-700 rounded-2xl py-4 pl-12 pr-6 text-white focus:border-green-500 outline-none" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-          </div>
-          <select className="bg-slate-950 border border-slate-700 rounded-2xl px-6 text-white outline-none cursor-pointer" value={filterPlan} onChange={(e) => setFilterPlan(e.target.value)}>
-             <option value="all">Tất cả</option>
-             <option value="starter">PRO Daily</option>
-             <option value="yearly">VIP Yearly</option>
-             <option value="LIFETIME">Lifetime</option>
-          </select>
+        {/* --- 2. NAVIGATION TABS --- */}
+        <div className="flex flex-col md:flex-row border-b border-white/10 bg-black/20 backdrop-blur rounded-t-xl overflow-hidden">
+            <AdminTabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} icon={LayoutDashboard} label="Dashboard" alertCount={pendingUsers.length} />
+            <AdminTabButton active={activeTab === 'members'} onClick={() => setActiveTab('members')} icon={Users} label="Members List" alertCount={0} />
+            <AdminTabButton active={activeTab === 'finance'} onClick={() => setActiveTab('finance')} icon={Banknote} label="Finance" alertCount={withdrawRequests.length} />
         </div>
 
-        {/* TABLE */}
-        <div className="bg-slate-900 border border-slate-800 rounded-[2rem] overflow-hidden shadow-2xl relative min-h-[500px]">
-          {loading && <div className="absolute inset-0 bg-slate-900/90 z-50 flex items-center justify-center"><RefreshCw className="animate-spin text-green-500" size={60} /></div>}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-950 text-slate-400 text-sm uppercase font-black tracking-widest border-b border-slate-800">
-                  <th className="p-6">Chiến binh</th>
-                  <th className="p-6">Ví Tiền</th>
-                  <th className="p-6 text-center">Quân hàm</th>
-                  <th className="p-6">Hạn sử dụng</th>
-                  <th className="p-6 text-right">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/50 text-base">
-                {filteredUsers.map((u) => (
-                  <tr key={u.id} className="hover:bg-slate-800/40 transition-colors">
-                    <td className="p-6">
-                        <div className="font-bold text-white">{u.displayName}</div>
-                        <div className="text-sm text-slate-500 font-mono">{u.email}</div>
-                        <div className="text-xs text-green-500 font-mono mt-1">{u.licenseKey}</div>
-                    </td>
-                    <td className="p-6">
-                        <div className="flex flex-col gap-1 text-xs font-mono">
-                            <span className="text-green-400">Avail: ${u.wallet?.available || 0}</span>
-                            <span className="text-yellow-500">Pend: ${u.wallet?.pending || 0}</span>
-                            <span className="text-slate-500">Paid: ${u.wallet?.total_paid || 0}</span>
+        {/* --- 3. MAIN CONTENT --- */}
+        <div className="min-h-[500px] animate-in fade-in duration-500">
+            
+            {/* >>> TAB: OVERVIEW <<< */}
+            {activeTab === 'overview' && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* PENDING USERS CARD */}
+                    <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6">
+                        <h3 className="text-lg font-bold flex items-center gap-2 mb-4 text-slate-200">
+                            <UserPlus className="text-red-500"/> 
+                            NEW RECRUITS ({pendingUsers.length})
+                        </h3>
+                        {pendingUsers.length === 0 ? (
+                            <div className="text-center py-10 text-slate-600 italic">No pending applications</div>
+                        ) : (
+                            <div className="space-y-3">
+                                {pendingUsers.map(u => (
+                                    <div key={u.id} className="bg-black/40 border-l-2 border-red-500 p-4 rounded flex justify-between items-center group hover:bg-slate-800 transition-colors">
+                                        <div>
+                                            <p className="font-bold text-white">{u.displayName}</p>
+                                            <p className="text-xs text-slate-500">{u.email}</p>
+                                            <p className="text-xs font-mono text-yellow-500 mt-1">MT5: {u.mt5Account}</p>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => handleApproveUser(u)} className="p-2 bg-green-600/20 text-green-500 hover:bg-green-600 hover:text-white rounded transition-all"><CheckCircle size={18}/></button>
+                                            <button onClick={() => handleRejectUser(u)} className="p-2 bg-red-600/20 text-red-500 hover:bg-red-600 hover:text-white rounded transition-all"><XCircle size={18}/></button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* ACTIVITY / SYSTEM LOGS (PLACEHOLDER) */}
+                    <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6">
+                        <h3 className="text-lg font-bold flex items-center gap-2 mb-4 text-slate-200">
+                            <Activity className="text-blue-500"/> 
+                            LIVE ACTIVITY
+                        </h3>
+                        <div className="space-y-4">
+                            {[1,2,3].map((_,i) => (
+                                <div key={i} className="flex gap-3 items-start opacity-50">
+                                    <div className="mt-1 h-2 w-2 rounded-full bg-slate-500"></div>
+                                    <div>
+                                        <p className="text-xs text-slate-300">System check completed. All nodes operational.</p>
+                                        <p className="text-[10px] text-slate-600 font-mono">10:0{i} AM</p>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
-                    </td>
-                    <td className="p-6 text-center">
-                        <span className={`px-3 py-1 rounded-lg text-xs font-black border ${u.plan === 'LIFETIME' ? 'bg-purple-900 border-purple-500 text-white' : 'bg-slate-800 border-slate-600 text-slate-400'}`}>{u.plan || "FREE"}</span>
-                    </td>
-                    <td className="p-6 text-sm font-bold text-slate-300">
-                        {u.plan === 'LIFETIME' ? '∞ Vĩnh viễn' : u.expiryDate ? new Date(u.expiryDate.seconds * 1000).toLocaleDateString('vi-VN') : '---'}
-                    </td>
-                    <td className="p-6 text-right">
-                        <div className="flex justify-end gap-2">
-                            <button onClick={() => updateUserSoldier(u.id, u.expiryDate, 30, "starter")} className="p-2 bg-blue-600 rounded-lg hover:bg-blue-500 text-white" title="Gia hạn PRO"><Zap size={16}/></button>
-                            <button onClick={() => updateUserSoldier(u.id, u.expiryDate, 365, "yearly")} className="p-2 bg-amber-500 rounded-lg hover:bg-amber-400 text-black" title="Gia hạn VIP"><Crown size={16}/></button>
-                            <button onClick={() => updateUserSoldier(u.id, null, 0, "LIFETIME")} className="p-2 bg-purple-600 rounded-lg hover:bg-purple-500 text-white" title="Kích hoạt AGENCY"><Infinity size={16}/></button>
-                            <button onClick={() => resetMT5(u.id)} className="p-2 bg-red-900/50 rounded-lg hover:bg-red-500 text-red-500 hover:text-white border border-red-900" title="Reset MT5"><RefreshCw size={16}/></button>
+                    </div>
+                </div>
+            )}
+
+            {/* >>> TAB: FINANCE <<< */}
+            {activeTab === 'finance' && (
+                 <div className="space-y-6">
+                    <div className="bg-gradient-to-r from-yellow-900/10 to-transparent border border-yellow-500/20 rounded-2xl p-6">
+                        <h3 className="text-xl font-black text-yellow-500 uppercase flex items-center gap-2 mb-6">
+                            <Wallet className="animate-bounce"/> Withdrawal Requests
+                        </h3>
+                        {withdrawRequests.length === 0 ? (
+                            <div className="text-center py-10 text-slate-600 italic">No pending withdrawals</div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {withdrawRequests.map(req => (
+                                    <div key={req.id} className="bg-slate-950 border border-slate-800 p-5 rounded-xl shadow-lg relative group hover:border-yellow-500/50 transition-colors">
+                                        <div className="flex justify-between items-start mb-4">
+                                            <div>
+                                                <p className="font-bold text-white">{req.displayName}</p>
+                                                <p className="text-xs text-slate-500">{req.email}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-[10px] text-slate-500 uppercase font-bold">AMOUNT</p>
+                                                <p className="text-2xl font-black text-green-400 font-mono">${req.wallet.pending}</p>
+                                            </div>
+                                        </div>
+                                        {renderPaymentInfo(req)}
+                                        <div className="flex gap-2 mt-4 pt-4 border-t border-slate-800">
+                                            <button onClick={() => rejectWithdraw(req)} className="flex-1 py-2 text-xs font-bold text-red-500 bg-red-900/10 hover:bg-red-900/30 rounded">REJECT</button>
+                                            <button onClick={() => approveWithdraw(req)} className="flex-1 py-2 text-xs font-bold text-black bg-green-500 hover:bg-green-400 rounded shadow-[0_0_15px_rgba(34,197,94,0.3)]">PAY NOW</button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                 </div>
+            )}
+
+            {/* >>> TAB: MEMBERS (TABLE) <<< */}
+            {activeTab === 'members' && (
+                <div className="bg-slate-900/50 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
+                     {/* TOOLBAR */}
+                    <div className="p-4 border-b border-slate-800 flex flex-col md:flex-row gap-4 justify-between bg-black/20">
+                        <div className="relative flex-1 max-w-md">
+                            <Search className="absolute left-3 top-3 text-slate-500" size={18} />
+                            <input type="text" placeholder="Search by Email, Name, MT5..." className="w-full bg-slate-950 border border-slate-700 rounded-lg py-2.5 pl-10 pr-4 text-sm text-white focus:border-green-500 outline-none transition-colors" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                         </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                        <select className="bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white outline-none cursor-pointer hover:border-slate-600" value={filterPlan} onChange={(e) => setFilterPlan(e.target.value)}>
+                            <option value="all">Filter: All Plans</option>
+                            <option value="starter">PRO Daily</option>
+                            <option value="yearly">VIP Yearly</option>
+                            <option value="LIFETIME">Lifetime</option>
+                        </select>
+                    </div>
+
+                    {/* TABLE */}
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-black/40 text-slate-500 text-xs uppercase font-bold tracking-wider border-b border-slate-800">
+                                    <th className="p-4">Soldier</th>
+                                    <th className="p-4">Wallet Info</th>
+                                    <th className="p-4 text-center">Rank</th>
+                                    <th className="p-4">Expiry</th>
+                                    <th className="p-4 text-right">Command</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-800/50 text-sm">
+                                {filteredUsers.map((u) => (
+                                    <tr key={u.id} className="hover:bg-slate-800/30 transition-colors">
+                                        <td className="p-4">
+                                            <div className="font-bold text-white">{u.displayName}</div>
+                                            <div className="text-xs text-slate-500 font-mono">{u.email}</div>
+                                            <div className="text-[10px] text-green-500/70 font-mono mt-0.5">{u.licenseKey}</div>
+                                        </td>
+                                        <td className="p-4 font-mono text-xs">
+                                            <div className="flex gap-2">
+                                                <span className="text-green-400">A:${u.wallet?.available || 0}</span>
+                                                <span className="text-yellow-500">P:${u.wallet?.pending || 0}</span>
+                                            </div>
+                                            <div className="text-slate-600 mt-1">Paid: ${u.wallet?.total_paid || 0}</div>
+                                        </td>
+                                        <td className="p-4 text-center">
+                                            <span className={`px-2 py-0.5 rounded text-[10px] font-black border uppercase ${u.plan === 'LIFETIME' ? 'bg-purple-900/20 border-purple-500 text-purple-400' : 'bg-slate-800 border-slate-600 text-slate-400'}`}>{u.plan || "FREE"}</span>
+                                        </td>
+                                        <td className="p-4 text-slate-300 font-bold">
+                                            {u.plan === 'LIFETIME' ? <Infinity size={16} className="text-purple-500"/> : u.expiryDate ? new Date(u.expiryDate.seconds * 1000).toLocaleDateString('vi-VN') : '---'}
+                                        </td>
+                                        <td className="p-4 text-right">
+                                            <div className="flex justify-end gap-1">
+                                                <button onClick={() => updateUserSoldier(u.id, u.expiryDate, 30, "starter")} className="p-1.5 bg-blue-600/10 border border-blue-600/30 rounded hover:bg-blue-600 text-blue-500 hover:text-white transition-all" title="Extend PRO"><Zap size={14}/></button>
+                                                <button onClick={() => updateUserSoldier(u.id, u.expiryDate, 365, "yearly")} className="p-1.5 bg-amber-600/10 border border-amber-600/30 rounded hover:bg-amber-600 text-amber-500 hover:text-white transition-all" title="Extend VIP"><Crown size={14}/></button>
+                                                <button onClick={() => updateUserSoldier(u.id, null, 0, "LIFETIME")} className="p-1.5 bg-purple-600/10 border border-purple-600/30 rounded hover:bg-purple-600 text-purple-500 hover:text-white transition-all" title="Set LIFETIME"><Infinity size={14}/></button>
+                                                <button onClick={() => resetMT5(u.id)} className="p-1.5 bg-red-600/10 border border-red-600/30 rounded hover:bg-red-600 text-red-500 hover:text-white transition-all" title="Reset MT5"><RefreshCw size={14}/></button>
+                                                {/* 🔥 NÚT XÓA Ở CUỐI CÙNG */}
+                                                <button onClick={() => handleDeleteUser(u.id)} className="p-1.5 bg-red-900/20 border border-red-500/50 rounded hover:bg-red-500 text-red-500 hover:text-black transition-all ml-1" title="DELETE USER"><Trash2 size={14}/></button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+            
         </div>
       </div>
     </div>
