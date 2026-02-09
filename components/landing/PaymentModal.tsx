@@ -1,8 +1,8 @@
 "use client";
 import React, { useEffect, useState, useRef } from "react";
-import { useAuth } from "@/app/context/AuthContext";
-import { useLanguage } from "@/app/context/LanguageContext";
-import { Loader2, X, Shield, Star, Crown, CheckSquare, Square, FileText, Copy, Check, RefreshCw, CheckCircle, PartyPopper } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
+import { Loader2, X, Shield, Star, Crown, CheckSquare, Square, FileText, Copy, Check, RefreshCw, CheckCircle, PartyPopper, Zap } from "lucide-react";
 import { db } from '@/lib/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import Confetti from 'react-confetti';
@@ -34,8 +34,11 @@ export default function PaymentModal({ isOpen, onClose, plan: initialPlan }: { i
   const [copiedAccount, setCopiedAccount] = useState(false);
 
   // State kết quả
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [successType, setSuccessType] = useState<'upgrade' | 'renewal'>('upgrade'); // Phân loại thành công
+  const [isPaymentReady, setIsPaymentReady] = useState(false); // 🆕 Tiền về nhưng chưa hiện Success
+  const [isUserConfirmed, setIsUserConfirmed] = useState(false); // 🆕 Người dùng đã bấm nút chưa
+  const [isSuccess, setIsSuccess] = useState(false); // 🆕 Chỉ True khi cả 2 cái trên đều True
+  
+  const [successType, setSuccessType] = useState<'upgrade' | 'renewal'>('upgrade');
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
 
   // 🛡️ BIẾN LƯU TRỮ HẠN DÙNG CŨ
@@ -51,7 +54,7 @@ export default function PaymentModal({ isOpen, onClose, plan: initialPlan }: { i
     setWindowSize({ width: window.innerWidth, height: window.innerHeight });
   }, []);
 
-  // 🔥 LOGIC CHECK GIA HẠN / NÂNG CẤP
+  // 🔥 1. LOGIC CHECK NGẦM (BACKGROUND CHECK)
   useEffect(() => {
     if (!isOpen || !user || !profile) return;
 
@@ -65,23 +68,31 @@ export default function PaymentModal({ isOpen, onClose, plan: initialPlan }: { i
             const newExpiry = data.expiryDate?.seconds || 0;
             const newPlan = data.plan;
 
-            // Logic phân loại
             const isLifetimeUpgrade = newPlan === 'LIFETIME' && profile.plan !== 'LIFETIME';
             const isRenewal = newPlan === profile.plan && newExpiry > initialExpiryRef.current;
             const isUpgrade = newPlan !== 'free' && newPlan !== profile.plan;
 
             if (isLifetimeUpgrade || isUpgrade) {
                 setSuccessType('upgrade');
-                setIsSuccess(true);
+                setIsPaymentReady(true); // 👉 CHỈ BÁO READY, KHÔNG TỰ SUCCESS
             } else if (isRenewal) {
                 setSuccessType('renewal');
-                setIsSuccess(true);
+                setIsPaymentReady(true); // 👉 CHỈ BÁO READY
             }
         }
     });
 
     return () => unsub();
   }, [isOpen, user, profile]);
+
+  // 🔥 2. LOGIC KÍCH HOẠT (TRIGGER)
+  // Chỉ khi [Tiền Về] + [User Bấm] -> Mới nổ pháo hoa
+  useEffect(() => {
+      if (isPaymentReady && isUserConfirmed) {
+          setIsProcessing(false);
+          setIsSuccess(true);
+      }
+  }, [isPaymentReady, isUserConfirmed]);
 
   // Reset
   useEffect(() => {
@@ -90,6 +101,9 @@ export default function PaymentModal({ isOpen, onClose, plan: initialPlan }: { i
       setLoadingRate(true);
       setIsAgreed(false);
       setIsSuccess(false);
+      setIsPaymentReady(false); // Reset
+      setIsUserConfirmed(false); // Reset
+      setIsProcessing(false);
       
       if (profile?.expiryDate) {
           initialExpiryRef.current = profile.expiryDate.seconds || 0;
@@ -124,17 +138,22 @@ export default function PaymentModal({ isOpen, onClose, plan: initialPlan }: { i
   };
 
   const handleConfirmPayment = () => {
-      setIsProcessing(true);
-      setTimeout(() => {
-          alert("⏳ Hệ thống đang chờ tiền về... (Vui lòng đợi 30s - 1 phút)");
-          setIsProcessing(false);
-      }, 2000);
+      // 1. Đánh dấu là user đã bấm
+      setIsUserConfirmed(true);
+
+      // 2. Nếu tiền chưa về -> Hiện loading quay quay
+      if (!isPaymentReady) {
+          setIsProcessing(true);
+          // Fallback: Nếu đợi lâu quá (ví dụ 10s) mà chưa thấy gì thì hiện thông báo
+          // (Nhưng ở đây ta để quay cho đến khi tiền về hoặc user tắt đi)
+      }
+      // 3. Nếu tiền đã về (isPaymentReady = true) -> useEffect ở trên sẽ tự bắt và chuyển sang Success ngay lập tức.
   };
 
   return (
     <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-[100] p-4 backdrop-blur-xl animate-in fade-in duration-300">
       
-      {/* 🎉 PHÁO HOA TUNG TRỜI (LUÔN CÓ KHI SUCCESS) */}
+      {/* 🎉 PHÁO HOA TUNG TRỜI (CHỈ NỔ KHI CÓ SUCCESS) */}
       {isSuccess && <Confetti width={windowSize.width} height={windowSize.height} recycle={false} numberOfPieces={800} gravity={0.2} />}
 
       <div className="bg-slate-900 border border-slate-800 p-6 md:p-8 rounded-[2.5rem] max-w-lg w-full relative shadow-2xl overflow-y-auto max-h-[90vh]">
@@ -164,7 +183,7 @@ export default function PaymentModal({ isOpen, onClose, plan: initialPlan }: { i
                 </button>
             </div>
         ) : (
-            // ... Phần nội dung QR Code giữ nguyên ...
+            // ... Màn hình thanh toán ...
             <>
                 <h2 className="text-2xl font-black text-white mb-6 text-center uppercase tracking-tighter italic">{text.title}</h2>
                 <div className="grid grid-cols-3 gap-3 mb-6">
@@ -222,10 +241,30 @@ export default function PaymentModal({ isOpen, onClose, plan: initialPlan }: { i
                     <div className="text-xs text-slate-400 select-none leading-relaxed">{text.agree_text}</div>
                   </div>
 
-                  <button onClick={handleConfirmPayment} disabled={!isAgreed || isProcessing} className={`w-full py-4 font-black rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 ${isAgreed && !isProcessing ? "bg-green-500 hover:bg-green-400 text-black cursor-pointer hover:scale-105 active:scale-95" : "bg-slate-800 text-slate-500 cursor-not-allowed"}`}>
-                    {isProcessing ? <Loader2 className="animate-spin" /> : <FileText size={20} />}
-                    {isProcessing ? "ĐANG QUÉT GIAO DỊCH..." : "TÔI ĐÃ CHUYỂN KHOẢN XONG"}
+                  {/* 🔽 NÚT BẤM THÔNG MINH - CHỐT CHẶN CUỐI CÙNG 🔽 */}
+                  <button 
+                    onClick={handleConfirmPayment} 
+                    disabled={(!isAgreed || isProcessing) && !isPaymentReady} // Chỉ disable nếu tiền chưa về
+                    className={`w-full py-4 font-black rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 
+                    ${isPaymentReady 
+                        ? "bg-gradient-to-r from-green-500 to-emerald-600 hover:scale-105 animate-pulse text-white cursor-pointer border-2 border-white/20" // Nếu tiền về -> Nút sáng rực
+                        : (isAgreed && !isProcessing 
+                            ? "bg-slate-700 hover:bg-slate-600 text-white" 
+                            : "bg-slate-800 text-slate-500 cursor-not-allowed")}`}
+                  >
+                    {isPaymentReady ? (
+                        <>
+                            <Zap size={24} className="fill-yellow-300 text-yellow-300 animate-bounce" /> 
+                            TIỀN ĐÃ VỀ - BẤM ĐỂ KÍCH HOẠT!
+                        </>
+                    ) : (
+                        <>
+                            {isProcessing ? <Loader2 className="animate-spin" /> : <FileText size={20} />}
+                            {isProcessing ? "ĐANG TÌM GIAO DỊCH..." : "TÔI ĐÃ CHUYỂN KHOẢN XONG"}
+                        </>
+                    )}
                   </button>
+
                 </div>
             </>
         )}
