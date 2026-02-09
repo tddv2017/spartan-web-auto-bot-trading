@@ -1,13 +1,12 @@
 "use client";
 import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '@/lib/firebase';
-// 👇 1. THÊM deleteDoc VÀO IMPORT
-import { collection, onSnapshot, query, orderBy, where, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, doc, deleteDoc } from 'firebase/firestore';
 import { 
-  Activity, Users, DollarSign, TrendingUp, AlertTriangle, 
+  Activity, Users, DollarSign, TrendingUp, 
   Server, ShieldAlert, Wifi, WifiOff, Search, Crosshair, 
-  Target, Radio, ShieldCheck, Zap, Sword, CheckCircle, XCircle, Clock, Lock,
-  Trash2 // 👈 2. THÊM ICON THÙNG RÁC
+  Target, Radio, ShieldCheck, Zap, Sword, Lock,
+  Trash2 
 } from 'lucide-react';
 import { useAuth } from '@/app/context/AuthContext';
 
@@ -24,21 +23,13 @@ interface BotData {
   symbol: string;
 }
 
-interface PendingUser {
-  id: string; 
-  email: string;
-  displayName: string;
-  mt5Account: number;
-  submittedAt: string;
-}
-
 export default function BattlefieldDashboard() {
   const { isAdmin, loading: authLoading } = useAuth();
   const [bots, setBots] = useState<BotData[]>([]);
-  const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('ALL');
 
+  // 🔒 1. CHỐT CHẶN AN NINH
   if (authLoading) return <div className="min-h-screen bg-black flex items-center justify-center text-green-800 font-mono animate-pulse">:: CHECKING CLEARANCE ::</div>;
 
   if (!isAdmin) {
@@ -60,6 +51,7 @@ export default function BattlefieldDashboard() {
       );
   }
 
+  // 🎧 1. LẮNG NGHE BOT REAL-TIME (QUÂN LÍNH)
   useEffect(() => {
     const q = query(collection(db, "bots"), orderBy("lastHeartbeat", "desc"));
     const unsub = onSnapshot(q, (snapshot) => {
@@ -69,46 +61,7 @@ export default function BattlefieldDashboard() {
     return () => unsub();
   }, []);
 
-  useEffect(() => {
-    const q = query(collection(db, "users"), where("accountStatus", "==", "pending"));
-    const unsub = onSnapshot(q, (snapshot) => {
-      setPendingUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as PendingUser[]);
-    });
-    return () => unsub();
-  }, []);
-
-  const handleApprove = async (uid: string, mt5: number) => {
-    if(!confirm(`Xác nhận duyệt MT5: ${mt5}?`)) return;
-    try {
-        await updateDoc(doc(db, "users", uid), {
-            accountStatus: 'active',
-            plan: 'LIFETIME',
-            approvedAt: new Date().toISOString()
-        });
-        alert("✅ Đã duyệt tân binh!");
-    } catch (e) { alert("Lỗi: " + e); }
-  };
-
-  const handleReject = async (uid: string) => {
-    if(!prompt("Nhập lý do từ chối (để trống cũng được):")) return;
-    try {
-        await updateDoc(doc(db, "users", uid), {
-            accountStatus: 'rejected',
-            rejectedAt: new Date().toISOString()
-        });
-    } catch (e) { alert("Lỗi: " + e); }
-  };
-
-  // 🔥 3. HÀM XÓA USER (THANH TRỪNG)
-  const handleDeleteUser = async (uid: string) => {
-      if(!confirm("⚠️ CẢNH BÁO: Xóa VĨNH VIỄN User này khỏi Database? Hành động không thể hoàn tác!")) return;
-      try {
-          await deleteDoc(doc(db, "users", uid));
-          // alert("🗑️ Đã xóa sổ mục tiêu!");
-      } catch (e) { alert("Lỗi: " + e); }
-  };
-
-  // 🔥 4. HÀM XÓA BOT (DỌN DẸP)
+  // 🔥 XÓA BOT (DỌN DẸP CHIẾN TRƯỜNG)
   const handleDeleteBot = async (botId: string) => {
       if(!confirm("⚠️ CẢNH BÁO: Xóa Bot này khỏi danh sách theo dõi?")) return;
       try {
@@ -116,6 +69,7 @@ export default function BattlefieldDashboard() {
       } catch (e) { alert("Lỗi: " + e); }
   };
 
+  // 🧮 TÍNH TOÁN CHIẾN TRƯỜNG
   const stats = useMemo(() => {
     const now = Date.now();
     let totalBalance = 0;
@@ -170,50 +124,7 @@ export default function BattlefieldDashboard() {
         </div>
       </div>
 
-      {/* 🚨🚨🚨 KHU VỰC DUYỆT KHÁCH 🚨🚨🚨 */}
-      {pendingUsers.length > 0 && (
-        <div className="relative z-10 mb-8 animate-in slide-in-from-top-4 duration-500">
-            <div className="bg-red-950/30 border border-red-500 rounded-xl p-6 overflow-hidden relative">
-                <div className="absolute top-0 right-0 p-2 opacity-50"><AlertTriangle className="text-red-500" size={100}/></div>
-                <h3 className="text-red-500 font-black text-xl mb-4 flex items-center gap-2 uppercase tracking-widest animate-pulse">
-                    <Radio size={24}/> PHÁT HIỆN TÍN HIỆU TÂN BINH ({pendingUsers.length})
-                </h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 relative z-10">
-                    {pendingUsers.map(user => (
-                        <div key={user.id} className="bg-black/80 border border-red-800 p-4 rounded-lg shadow-lg flex flex-col gap-2 group">
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <p className="text-white font-bold">{user.displayName || "Unknown Soldier"}</p>
-                                    <p className="text-xs text-slate-500">{user.email}</p>
-                                </div>
-                                
-                                {/* 🗑️ NÚT XÓA Ở GÓC TRÊN */}
-                                <button onClick={() => handleDeleteUser(user.id)} className="text-slate-600 hover:text-red-500 transition-colors" title="Xóa vĩnh viễn">
-                                    <Trash2 size={16} />
-                                </button>
-                            </div>
-                            <div className="bg-slate-900 p-2 rounded border border-slate-700 mt-2">
-                                <p className="text-[10px] text-slate-400 uppercase">ID MT5 YÊU CẦU:</p>
-                                <p className="text-xl font-mono font-black text-yellow-400 tracking-wider">{user.mt5Account}</p>
-                            </div>
-                            <div className="flex gap-2 mt-2">
-                                <button onClick={() => handleApprove(user.id, user.mt5Account)} className="flex-1 bg-green-600 hover:bg-green-500 text-black font-bold py-2 rounded flex items-center justify-center gap-1 text-xs transition-transform active:scale-95">
-                                    <CheckCircle size={14}/> DUYỆT
-                                </button>
-                                <button onClick={() => handleReject(user.id)} className="flex-1 bg-red-900/50 hover:bg-red-900 text-red-200 border border-red-800 font-bold py-2 rounded flex items-center justify-center gap-1 text-xs transition-transform active:scale-95">
-                                    <XCircle size={14}/> TỪ CHỐI
-                                </button>
-                            </div>
-                            <p className="text-[10px] text-slate-600 text-center mt-1">Gửi lúc: {user.submittedAt ? new Date(user.submittedAt).toLocaleTimeString('vi-VN') : 'N/A'}</p>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        </div>
-      )}
-
-      {/* STATS CARDS (GIỮ NGUYÊN) */}
+      {/* STATS CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 relative z-10">
         <div className="bg-black/80 border border-green-800 p-4">
             <p className="text-green-700 text-[10px] font-bold uppercase tracking-widest mb-1">ACTIVE UNITS</p>
