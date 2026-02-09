@@ -213,7 +213,17 @@ export default function BattlefieldDashboard() {
                             <td className="p-3 font-bold">{bot.isOnline ? <span className="flex items-center gap-2 text-green-400"><Target size={14} className="animate-spin-slow"/> ONLINE</span> : <span className="text-red-600 flex items-center gap-2"><WifiOff size={14}/> LOST</span>}</td>
                             <td className="p-3"><div className="font-bold text-white">{bot.mt5Account}</div><div className="text-[10px] text-green-800">{bot.symbol || 'UNK'}</div></td>
                             <td className="p-3 text-right text-green-300 font-mono">${bot.balance.toLocaleString()}</td>
-                            <td className={`p-3 text-right font-black font-mono ${bot.floatingProfit >= 0 ? 'text-green-400' : 'text-red-500'}`}>{bot.floatingProfit > 0 ? '+' : ''}{bot.floatingProfit.toFixed(2)}</td>
+                            <td className="p-3 text-right font-mono">
+                                {/* Dòng 1: Lợi nhuận đã chốt (Realized) - Dùng ?? 0 để chặn lỗi undefined */}
+                                <div className={`font-black ${(bot.profit ?? 0) >= 0 ? 'text-green-400' : 'text-red-500'}`}>
+                                    {(bot.profit ?? 0) > 0 ? '+' : ''}{(bot.profit ?? 0).toFixed(2)} <span className="text-[8px] text-slate-500">REALIZED</span>
+                                </div>
+                                
+                                {/* Dòng 2: Lợi nhuận thả nổi (Floating) */}
+                                <div className={`text-[10px] ${bot.floatingProfit >= 0 ? 'text-green-600' : 'text-red-700'}`}>
+                                    ({bot.floatingProfit > 0 ? '+' : ''}{bot.floatingProfit.toFixed(2)} Float)
+                                </div>
+                            </td>
                             <td className="p-3 text-right font-black font-mono text-white bg-green-900/20">+${bot.commission.toFixed(2)}</td>
                             <td className="p-3 text-center text-[10px] text-green-700 font-mono">{bot.lastHeartbeat ? new Date(bot.lastHeartbeat).toLocaleTimeString('vi-VN') : 'NEVER'}</td>
                         </tr>
