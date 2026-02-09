@@ -29,7 +29,7 @@ export interface UserProfile {
     date: string;
     package: string;
     commission: number;
-    status: 'pending' | 'approved';
+    accountStatus?: 'new' | 'pending' | 'active' | 'rejected';
   }>;
   referredBy?: string; // 👇 Thêm trường này để biết ai giới thiệu
 }
