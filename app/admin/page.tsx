@@ -1,19 +1,17 @@
 "use client";
 import React, { useEffect, useState, useMemo } from 'react';
 import { db } from '@/lib/firebase';
-// 👇 1. THÊM deleteDoc VÀO IMPORT
 import { collection, getDocs, updateDoc, doc, Timestamp, query, where, getDoc, deleteDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { 
   ShieldAlert, Crown, Zap, RefreshCw, Infinity, Search, Wallet, 
   CheckCircle, XCircle, CreditCard, Bitcoin, UserPlus, Clock, 
   LayoutDashboard, Users, Banknote, Activity, Server, Radio,
-  Trash2 // 👈 2. THÊM ICON THÙNG RÁC
+  Trash2 
 } from 'lucide-react';
 
 // --- COMPONENTS ---
 
-// 1. STAT CARD (THẺ CHỈ SỐ)
 const StatCard = ({ label, value, icon: Icon, color, subValue }: any) => (
   <div className={`bg-slate-900/50 border border-slate-800 p-6 rounded-2xl relative overflow-hidden group hover:border-${color}-500/50 transition-all`}>
     <div className={`absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-${color}-500`}>
@@ -27,7 +25,6 @@ const StatCard = ({ label, value, icon: Icon, color, subValue }: any) => (
   </div>
 );
 
-// 2. TAB BUTTON (NAVIGATION)
 const AdminTabButton = ({ active, onClick, icon: Icon, label, alertCount }: any) => (
     <button 
       onClick={onClick}
@@ -53,15 +50,10 @@ export default function AdminPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPlan, setFilterPlan] = useState("all");
 
-  // Dữ liệu lọc
   const pendingUsers = useMemo(() => users.filter(u => u.accountStatus === 'pending'), [users]);
   const withdrawRequests = useMemo(() => users.filter(u => u.wallet?.pending > 0), [users]);
   const activeUsers = useMemo(() => users.filter(u => u.accountStatus === 'active' && u.mt5Account), [users]);
-  
-  // Tổng tiền đang chờ rút
   const totalPendingWithdraw = useMemo(() => withdrawRequests.reduce((acc, curr) => acc + (curr.wallet?.pending || 0), 0), [withdrawRequests]);
-
-  const COMMISSION_RATES: any = { starter: 12, yearly: 119.6, LIFETIME: 3999.6 };
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -69,11 +61,11 @@ export default function AdminPage() {
       const querySnapshot = await getDocs(collection(db, "users"));
       const userList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       
-      // Sort: Pending lên đầu, sau đó đến VIP
       userList.sort((a: any, b: any) => {
+        // Ưu tiên: Pending -> Rút tiền -> Mới nhất
         if (a.accountStatus === 'pending' && b.accountStatus !== 'pending') return -1;
         if (b.accountStatus === 'pending' && a.accountStatus !== 'pending') return 1;
-        if (a.wallet?.pending > 0 && b.wallet?.pending <= 0) return -1; // Ưu tiên rút tiền
+        if (a.wallet?.pending > 0 && b.wallet?.pending <= 0) return -1; 
         return (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0);
       });
 
@@ -113,6 +105,7 @@ export default function AdminPage() {
             approvedAt: new Date().toISOString()
          });
          fetchUsers();
+         alert("✅ Đã duyệt thành công!");
      } catch (e) { alert("Lỗi: " + e); }
   };
 
@@ -124,17 +117,13 @@ export default function AdminPage() {
      } catch (e) { alert("Lỗi: " + e); }
   };
 
-  // 🔥 3. HÀM XÓA USER (DELETE)
   const handleDeleteUser = async (userId: string) => {
-      if(!confirm("⚠️ CẢNH BÁO TUYỆT MẬT:\n\nHành động này sẽ XÓA VĨNH VIỄN User khỏi cơ sở dữ liệu.\nKhông thể khôi phục!\n\nĐại tá có chắc chắn muốn xóa không?")) return;
-      
+      if(!confirm("⚠️ CẢNH BÁO TUYỆT MẬT:\n\nXóa VĨNH VIỄN User khỏi Database?\nHành động này không thể hoàn tác!")) return;
       try {
           await deleteDoc(doc(db, "users", userId));
           fetchUsers();
-          alert("🗑️ Đã xóa sổ mục tiêu thành công!");
-      } catch (e) {
-          alert("Lỗi khi xóa: " + e);
-      }
+          alert("🗑️ Đã xóa sổ mục tiêu!");
+      } catch (e) { alert("Lỗi: " + e); }
   };
 
   const approveWithdraw = async (user: any) => {
@@ -202,8 +191,6 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-[#050b14] text-white font-sans selection:bg-green-500/30 pb-20 relative">
-      
-      {/* BACKGROUND GRID */}
       <div className="fixed inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none"></div>
 
       {/* HEADER */}
@@ -218,22 +205,16 @@ export default function AdminPage() {
               </div>
               <div className="flex items-center gap-4">
                  <div className="flex items-center gap-2 px-3 py-1 bg-green-900/20 border border-green-500/30 rounded text-xs font-bold text-green-500">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                    </span>
+                    <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span></span>
                     SYSTEM ONLINE
                  </div>
-                 <button onClick={fetchUsers} className="p-2 bg-slate-800 rounded hover:bg-slate-700 transition-colors">
-                     <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
-                 </button>
+                 <button onClick={fetchUsers} className="p-2 bg-slate-800 rounded hover:bg-slate-700 transition-colors"><RefreshCw size={18} className={loading ? "animate-spin" : ""} /></button>
               </div>
           </div>
       </header>
 
       <div className="max-w-[1600px] mx-auto p-6 relative z-10 space-y-8">
-
-        {/* --- 1. STATS OVERVIEW --- */}
+        {/* STATS */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 animate-in slide-in-from-top duration-500">
             <StatCard label="Total Users" value={users.length} icon={Users} color="blue" subValue={`${activeUsers.length} Active MT5`} />
             <StatCard label="Pending Approval" value={pendingUsers.length} icon={UserPlus} color="red" subValue={pendingUsers.length > 0 ? "Requires Action" : "All Clear"} />
@@ -241,28 +222,21 @@ export default function AdminPage() {
             <StatCard label="Server Status" value="100%" icon={Server} color="green" subValue="Latency: 24ms" />
         </div>
 
-        {/* --- 2. NAVIGATION TABS --- */}
+        {/* TABS */}
         <div className="flex flex-col md:flex-row border-b border-white/10 bg-black/20 backdrop-blur rounded-t-xl overflow-hidden">
             <AdminTabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} icon={LayoutDashboard} label="Dashboard" alertCount={pendingUsers.length} />
             <AdminTabButton active={activeTab === 'members'} onClick={() => setActiveTab('members')} icon={Users} label="Members List" alertCount={0} />
             <AdminTabButton active={activeTab === 'finance'} onClick={() => setActiveTab('finance')} icon={Banknote} label="Finance" alertCount={withdrawRequests.length} />
         </div>
 
-        {/* --- 3. MAIN CONTENT --- */}
+        {/* CONTENT */}
         <div className="min-h-[500px] animate-in fade-in duration-500">
-            
             {/* >>> TAB: OVERVIEW <<< */}
             {activeTab === 'overview' && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* PENDING USERS CARD */}
                     <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6">
-                        <h3 className="text-lg font-bold flex items-center gap-2 mb-4 text-slate-200">
-                            <UserPlus className="text-red-500"/> 
-                            NEW RECRUITS ({pendingUsers.length})
-                        </h3>
-                        {pendingUsers.length === 0 ? (
-                            <div className="text-center py-10 text-slate-600 italic">No pending applications</div>
-                        ) : (
+                        <h3 className="text-lg font-bold flex items-center gap-2 mb-4 text-slate-200"><UserPlus className="text-red-500"/> NEW RECRUITS ({pendingUsers.length})</h3>
+                        {pendingUsers.length === 0 ? <div className="text-center py-10 text-slate-600 italic">No pending applications</div> : (
                             <div className="space-y-3">
                                 {pendingUsers.map(u => (
                                     <div key={u.id} className="bg-black/40 border-l-2 border-red-500 p-4 rounded flex justify-between items-center group hover:bg-slate-800 transition-colors">
@@ -280,23 +254,11 @@ export default function AdminPage() {
                             </div>
                         )}
                     </div>
-
-                    {/* ACTIVITY / SYSTEM LOGS (PLACEHOLDER) */}
+                    {/* Activity Log Placeholder */}
                     <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6">
-                        <h3 className="text-lg font-bold flex items-center gap-2 mb-4 text-slate-200">
-                            <Activity className="text-blue-500"/> 
-                            LIVE ACTIVITY
-                        </h3>
+                        <h3 className="text-lg font-bold flex items-center gap-2 mb-4 text-slate-200"><Activity className="text-blue-500"/> LIVE ACTIVITY</h3>
                         <div className="space-y-4">
-                            {[1,2,3].map((_,i) => (
-                                <div key={i} className="flex gap-3 items-start opacity-50">
-                                    <div className="mt-1 h-2 w-2 rounded-full bg-slate-500"></div>
-                                    <div>
-                                        <p className="text-xs text-slate-300">System check completed. All nodes operational.</p>
-                                        <p className="text-[10px] text-slate-600 font-mono">10:0{i} AM</p>
-                                    </div>
-                                </div>
-                            ))}
+                            {[1,2,3].map((_,i) => (<div key={i} className="flex gap-3 items-start opacity-50"><div className="mt-1 h-2 w-2 rounded-full bg-slate-500"></div><div><p className="text-xs text-slate-300">System check completed. All nodes operational.</p><p className="text-[10px] text-slate-600 font-mono">10:0{i} AM</p></div></div>))}
                         </div>
                     </div>
                 </div>
@@ -306,24 +268,14 @@ export default function AdminPage() {
             {activeTab === 'finance' && (
                  <div className="space-y-6">
                     <div className="bg-gradient-to-r from-yellow-900/10 to-transparent border border-yellow-500/20 rounded-2xl p-6">
-                        <h3 className="text-xl font-black text-yellow-500 uppercase flex items-center gap-2 mb-6">
-                            <Wallet className="animate-bounce"/> Withdrawal Requests
-                        </h3>
-                        {withdrawRequests.length === 0 ? (
-                            <div className="text-center py-10 text-slate-600 italic">No pending withdrawals</div>
-                        ) : (
+                        <h3 className="text-xl font-black text-yellow-500 uppercase flex items-center gap-2 mb-6"><Wallet className="animate-bounce"/> Withdrawal Requests</h3>
+                        {withdrawRequests.length === 0 ? <div className="text-center py-10 text-slate-600 italic">No pending withdrawals</div> : (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {withdrawRequests.map(req => (
                                     <div key={req.id} className="bg-slate-950 border border-slate-800 p-5 rounded-xl shadow-lg relative group hover:border-yellow-500/50 transition-colors">
                                         <div className="flex justify-between items-start mb-4">
-                                            <div>
-                                                <p className="font-bold text-white">{req.displayName}</p>
-                                                <p className="text-xs text-slate-500">{req.email}</p>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-[10px] text-slate-500 uppercase font-bold">AMOUNT</p>
-                                                <p className="text-2xl font-black text-green-400 font-mono">${req.wallet.pending}</p>
-                                            </div>
+                                            <div><p className="font-bold text-white">{req.displayName}</p><p className="text-xs text-slate-500">{req.email}</p></div>
+                                            <div className="text-right"><p className="text-[10px] text-slate-500 uppercase font-bold">AMOUNT</p><p className="text-2xl font-black text-green-400 font-mono">${req.wallet.pending}</p></div>
                                         </div>
                                         {renderPaymentInfo(req)}
                                         <div className="flex gap-2 mt-4 pt-4 border-t border-slate-800">
@@ -338,10 +290,9 @@ export default function AdminPage() {
                  </div>
             )}
 
-            {/* >>> TAB: MEMBERS (TABLE) <<< */}
+            {/* >>> TAB: MEMBERS (SMART TABLE) <<< */}
             {activeTab === 'members' && (
                 <div className="bg-slate-900/50 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
-                     {/* TOOLBAR */}
                     <div className="p-4 border-b border-slate-800 flex flex-col md:flex-row gap-4 justify-between bg-black/20">
                         <div className="relative flex-1 max-w-md">
                             <Search className="absolute left-3 top-3 text-slate-500" size={18} />
@@ -355,7 +306,6 @@ export default function AdminPage() {
                         </select>
                     </div>
 
-                    {/* TABLE */}
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                             <thead>
@@ -376,10 +326,7 @@ export default function AdminPage() {
                                             <div className="text-[10px] text-green-500/70 font-mono mt-0.5">{u.licenseKey}</div>
                                         </td>
                                         <td className="p-4 font-mono text-xs">
-                                            <div className="flex gap-2">
-                                                <span className="text-green-400">A:${u.wallet?.available || 0}</span>
-                                                <span className="text-yellow-500">P:${u.wallet?.pending || 0}</span>
-                                            </div>
+                                            <div className="flex gap-2"><span className="text-green-400">A:${u.wallet?.available || 0}</span><span className="text-yellow-500">P:${u.wallet?.pending || 0}</span></div>
                                             <div className="text-slate-600 mt-1">Paid: ${u.wallet?.total_paid || 0}</div>
                                         </td>
                                         <td className="p-4 text-center">
@@ -388,13 +335,26 @@ export default function AdminPage() {
                                         <td className="p-4 text-slate-300 font-bold">
                                             {u.plan === 'LIFETIME' ? <Infinity size={16} className="text-purple-500"/> : u.expiryDate ? new Date(u.expiryDate.seconds * 1000).toLocaleDateString('vi-VN') : '---'}
                                         </td>
+                                        
+                                        {/* 🔥 CỘT THAO TÁC THÔNG MINH (SMART ACTIONS) */}
                                         <td className="p-4 text-right">
                                             <div className="flex justify-end gap-1">
-                                                <button onClick={() => updateUserSoldier(u.id, u.expiryDate, 30, "starter")} className="p-1.5 bg-blue-600/10 border border-blue-600/30 rounded hover:bg-blue-600 text-blue-500 hover:text-white transition-all" title="Extend PRO"><Zap size={14}/></button>
-                                                <button onClick={() => updateUserSoldier(u.id, u.expiryDate, 365, "yearly")} className="p-1.5 bg-amber-600/10 border border-amber-600/30 rounded hover:bg-amber-600 text-amber-500 hover:text-white transition-all" title="Extend VIP"><Crown size={14}/></button>
-                                                <button onClick={() => updateUserSoldier(u.id, null, 0, "LIFETIME")} className="p-1.5 bg-purple-600/10 border border-purple-600/30 rounded hover:bg-purple-600 text-purple-500 hover:text-white transition-all" title="Set LIFETIME"><Infinity size={14}/></button>
-                                                <button onClick={() => resetMT5(u.id)} className="p-1.5 bg-red-600/10 border border-red-600/30 rounded hover:bg-red-600 text-red-500 hover:text-white transition-all" title="Reset MT5"><RefreshCw size={14}/></button>
-                                                {/* 🔥 NÚT XÓA Ở CUỐI CÙNG */}
+                                                {u.accountStatus === 'pending' ? (
+                                                    // NẾU CHỜ DUYỆT -> HIỆN NÚT DUYỆT
+                                                    <>
+                                                        <button onClick={() => handleApproveUser(u)} className="p-1.5 bg-green-600/20 border border-green-500/50 rounded hover:bg-green-600 text-green-500 hover:text-white transition-all mr-1" title="DUYỆT NGAY"><CheckCircle size={14}/></button>
+                                                        <button onClick={() => handleRejectUser(u)} className="p-1.5 bg-red-600/20 border border-red-500/50 rounded hover:bg-red-600 text-red-500 hover:text-white transition-all mr-1" title="TỪ CHỐI"><XCircle size={14}/></button>
+                                                    </>
+                                                ) : (
+                                                    // NẾU ĐÃ DUYỆT -> HIỆN NÚT GIA HẠN
+                                                    <>
+                                                        <button onClick={() => updateUserSoldier(u.id, u.expiryDate, 30, "starter")} className="p-1.5 bg-blue-600/10 border border-blue-600/30 rounded hover:bg-blue-600 text-blue-500 hover:text-white transition-all" title="Extend PRO"><Zap size={14}/></button>
+                                                        <button onClick={() => updateUserSoldier(u.id, u.expiryDate, 365, "yearly")} className="p-1.5 bg-amber-600/10 border border-amber-600/30 rounded hover:bg-amber-600 text-amber-500 hover:text-white transition-all" title="Extend VIP"><Crown size={14}/></button>
+                                                        <button onClick={() => updateUserSoldier(u.id, null, 0, "LIFETIME")} className="p-1.5 bg-purple-600/10 border border-purple-600/30 rounded hover:bg-purple-600 text-purple-500 hover:text-white transition-all" title="Set LIFETIME"><Infinity size={14}/></button>
+                                                        <button onClick={() => resetMT5(u.id)} className="p-1.5 bg-red-600/10 border border-red-600/30 rounded hover:bg-red-600 text-red-500 hover:text-white transition-all" title="Reset MT5"><RefreshCw size={14}/></button>
+                                                    </>
+                                                )}
+                                                {/* NÚT XÓA LUÔN HIỆN */}
                                                 <button onClick={() => handleDeleteUser(u.id)} className="p-1.5 bg-red-900/20 border border-red-500/50 rounded hover:bg-red-500 text-red-500 hover:text-black transition-all ml-1" title="DELETE USER"><Trash2 size={14}/></button>
                                             </div>
                                         </td>
