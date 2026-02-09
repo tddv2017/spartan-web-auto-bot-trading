@@ -12,6 +12,7 @@ import {
 interface BotData {
   id: string;
   mt5Account: number;
+  botName?: string; // Tên Bot (nếu có)
   balance: number;
   equity: number;
   floatingProfit: number;
@@ -212,7 +213,22 @@ export default function BattlefieldDashboard() {
                     {displayBots.map(bot => (
                         <tr key={bot.id} className="hover:bg-green-900/10">
                             <td className="p-3 font-bold">{bot.isOnline ? <span className="flex items-center gap-2 text-green-400"><Target size={14} className="animate-spin-slow"/> ONLINE</span> : <span className="text-red-600 flex items-center gap-2"><WifiOff size={14}/> LOST</span>}</td>
-                            <td className="p-3"><div className="font-bold text-white">{bot.mt5Account}</div><div className="text-[10px] text-green-800">{bot.symbol || 'UNK'}</div></td>
+                                <td className="p-3">
+                                    {/* Dòng 1: Tên Bot (Nếu không có thì hiện mặc định SPARTAN UNIT) */}
+                                    <div className="font-black text-white text-sm uppercase">
+                                        {bot.botName || "SPARTAN UNIT"} 
+                                    </div>
+                                    
+                                    {/* Dòng 2: Số MT5 (Cho nhỏ lại) */}
+                                    <div className="text-[10px] text-slate-400 font-mono">
+                                        ID: {bot.mt5Account}
+                                    </div>
+
+                                    {/* Dòng 3: Cặp tiền */}
+                                    <div className="text-[10px] text-green-600 font-bold bg-green-900/10 px-1 rounded w-fit mt-1">
+                                        {bot.symbol || 'UNK'}
+                                    </div>
+                                </td>
                             <td className="p-3 text-right text-green-300 font-mono">${bot.balance.toLocaleString()}</td>
                             <td className="p-3 text-right font-mono">
                                 {/* Dòng 1: Lợi nhuận đã chốt (Realized) - Dùng ?? 0 để chặn lỗi undefined */}
