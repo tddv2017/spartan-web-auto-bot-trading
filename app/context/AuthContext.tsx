@@ -20,7 +20,6 @@ export interface UserProfile {
   displayName?: string;
   photoURL?: string;
   role?: string;
-  accountStatus?: 'pending' | 'active' | 'rejected' | 'banned'; // 👈 THÊM TRƯỜNG NÀY VÀO TYPE
   wallet?: {
     available: number;
     pending: number;
@@ -89,7 +88,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               licenseKey: "SPARTAN-" + Math.random().toString(36).substring(2, 10).toUpperCase(),
               
               // 🔥 QUAN TRỌNG: ĐÁNH DẤU LÀ TÂN BINH CHỜ DUYỆT 🔥
-              accountStatus: 'pending', 
+              accountStatus: 'new', // 'new' = mới tạo, chờ admin duyệt; 'pending' = đã duyệt nhưng chưa thanh toán; 'active' = đã thanh toán; 'rejected' = bị từ chối
               
               mt5Account: "",
               mt5Account2: "", 
