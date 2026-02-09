@@ -94,7 +94,7 @@ export default function AdminPage() {
     // 🔥 3. FIX: NẾU ĐANG Ở TAB "MEMBERS" -> ẨN BỌN PENDING ĐI
     // (Vì bọn Pending đã nằm ở Tab Dashboard rồi, cho đỡ rối đội hình)
     if (activeTab === 'members') {
-        result = result.filter(u => u.accountStatus !== 'pending');
+        result = result.filter(u => u.accountStatus !== 'pending'&& u.accountStatus !== 'rejected');
     }   
     setFilteredUsers(result);
   }, [searchTerm, filterPlan, users, activeTab]);
