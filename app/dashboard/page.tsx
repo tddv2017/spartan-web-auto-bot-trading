@@ -19,6 +19,9 @@ import {
 } from 'lucide-react';
 import PaymentModal from '@/components/landing/PaymentModal';
 
+// 👇 3. IMPORT SIGNAL FEED (Đảm bảo đường dẫn đúng với nơi Đại tá lưu file)
+import SignalFeed from '@/components/SignalFeed'; 
+
 // 🏦 DANH SÁCH NGÂN HÀNG
 const VN_BANKS = [
     "Vietcombank (VCB)", "MBBank (Quân Đội)", "Techcombank (TCB)", "ACB (Á Châu)",
@@ -473,26 +476,40 @@ function DashboardContent() {
                         </div>
                         )}
                         
-                        {/* BẢNG LỊCH SỬ GIAO DỊCH */}
-                        {trades.length > 0 && (
-                        <div className="bg-slate-900/60 border border-slate-800 rounded-[2rem] p-6 md:p-8 mb-8">
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="font-bold text-slate-300 flex items-center gap-2 uppercase text-sm tracking-wider"><List size={16} className="text-blue-500"/> Lịch sử giao dịch (Real-time)</h3>
+                        {/* 🔥 GRID: BẢNG LỊCH SỬ GIAO DỊCH & SIGNAL FEED 🔥 */}
+                        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
+                            {/* Cột 1: Lịch sử giao dịch (Chiếm 2 phần) */}
+                            <div className="xl:col-span-2">
+                                {trades.length > 0 ? (
+                                    <div className="bg-slate-900/60 border border-slate-800 rounded-[2rem] p-6 h-full">
+                                        <div className="flex justify-between items-center mb-6">
+                                            <h3 className="font-bold text-slate-300 flex items-center gap-2 uppercase text-sm tracking-wider"><List size={16} className="text-blue-500"/> Lịch sử giao dịch (Real-time)</h3>
+                                        </div>
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-xs text-left text-slate-400">
+                                                <thead className="text-slate-500 uppercase font-black border-b border-slate-800">
+                                                    <tr><th className="py-3 pl-4">Ticket</th><th className="py-3">Symbol</th><th className="py-3">Type</th><th className="py-3">Time</th><th className="py-3 text-right pr-4">Profit</th></tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-800">
+                                                    {trades.map((trade, idx) => (
+                                                        <tr key={idx} className="hover:bg-slate-800/30 transition-colors"><td className="py-3 pl-4 font-mono">#{trade.ticket}</td><td className="py-3 font-bold text-white">{trade.symbol}</td><td className="py-3"><span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${trade.type === 'BUY' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>{trade.type}</span></td><td className="py-3 text-slate-500">{new Date(trade.time).toLocaleTimeString('vi-VN')}</td><td className={`py-3 text-right pr-4 font-bold font-mono ${trade.profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>{trade.profit > 0 ? '+' : ''}{trade.profit.toFixed(2)}</td></tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="bg-slate-900/60 border border-slate-800 rounded-[2rem] p-6 h-full flex items-center justify-center text-slate-500">
+                                        Chưa có giao dịch nào
+                                    </div>
+                                )}
                             </div>
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-xs text-left text-slate-400">
-                                    <thead className="text-slate-500 uppercase font-black border-b border-slate-800">
-                                        <tr><th className="py-3 pl-4">Ticket</th><th className="py-3">Symbol</th><th className="py-3">Type</th><th className="py-3">Time</th><th className="py-3 text-right pr-4">Profit</th></tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-800">
-                                        {trades.map((trade, idx) => (
-                                            <tr key={idx} className="hover:bg-slate-800/30 transition-colors"><td className="py-3 pl-4 font-mono">#{trade.ticket}</td><td className="py-3 font-bold text-white">{trade.symbol}</td><td className="py-3"><span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${trade.type === 'BUY' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>{trade.type}</span></td><td className="py-3 text-slate-500">{new Date(trade.time).toLocaleTimeString('vi-VN')}</td><td className={`py-3 text-right pr-4 font-bold font-mono ${trade.profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>{trade.profit > 0 ? '+' : ''}{trade.profit.toFixed(2)}</td></tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+
+                            {/* Cột 2: Signal Feed (Chiếm 1 phần) */}
+                            <div className="xl:col-span-1">
+                                <SignalFeed />
                             </div>
                         </div>
-                        )}
 
                         {/* LICENSE CARD */}
                         <div className="bg-slate-900 border border-slate-800 p-6 md:p-8 rounded-[2rem] shadow-2xl relative overflow-hidden group hover:border-green-500/30 transition-colors">
@@ -505,7 +522,7 @@ function DashboardContent() {
                             </div>
                         </div>
 
-                        {/* 👇 DOWNLOAD SECTION (ĐÃ MỞ KHÓA CHO GÓI FREE/TRIAL) 👇 */}
+                        {/* DOWNLOAD SECTION */}
                         <div className="bg-gradient-to-r from-green-900/20 to-slate-900 border border-green-500/30 p-8 rounded-[2rem] flex flex-col md:flex-row items-center justify-between gap-6 shadow-[0_0_30px_rgba(34,197,94,0.05)] relative mt-8">
                             <div className="flex items-center gap-5 relative z-10">
                                 <div className="bg-green-500 p-4 rounded-2xl shadow-[0_0_20px_rgba(34,197,94,0.4)]"><ShieldCheck size={32} className="text-black" /></div>
@@ -540,32 +557,32 @@ function DashboardContent() {
 
 // Helper Components
 function StatBox({ label, value, icon, color = "text-white" }: any) {
-  return (
-    <div className="bg-slate-900/40 border border-slate-800 p-6 rounded-3xl backdrop-blur-sm hover:border-slate-700 transition-all group">
-      <div className="text-slate-500 text-[10px] font-black mb-3 uppercase tracking-[0.2em] flex items-center gap-2 group-hover:text-slate-300">{icon} {label}</div>
-      <div className={`text-xl font-black tracking-tight truncate ${color}`}>{value}</div>
-    </div>
-  );
+  return (
+    <div className="bg-slate-900/40 border border-slate-800 p-6 rounded-3xl backdrop-blur-sm hover:border-slate-700 transition-all group">
+      <div className="text-slate-500 text-[10px] font-black mb-3 uppercase tracking-[0.2em] flex items-center gap-2 group-hover:text-slate-300">{icon} {label}</div>
+      <div className={`text-xl font-black tracking-tight truncate ${color}`}>{value}</div>
+    </div>
+  );
 }
 function Step({ num, title, desc, code }: { num: string, title: string, desc: string, code?: string }) {
-  return (
-    <div className="flex gap-4">
-      <div className="font-black text-2xl text-slate-800">{num}</div>
-      <div>
-        <h4 className="font-bold text-white text-base mb-1">{title}</h4>
-        <p className="text-slate-400 text-sm leading-relaxed mb-2">{desc}</p>
-        {code && <div className="bg-black/50 p-2 rounded border border-slate-700 font-mono text-green-400 text-xs inline-block break-all select-all">{code}</div>}
-      </div>
-    </div>
-  );
+  return (
+    <div className="flex gap-4">
+      <div className="font-black text-2xl text-slate-800">{num}</div>
+      <div>
+        <h4 className="font-bold text-white text-base mb-1">{title}</h4>
+        <p className="text-slate-400 text-sm leading-relaxed mb-2">{desc}</p>
+        {code && <div className="bg-black/50 p-2 rounded border border-slate-700 font-mono text-green-400 text-xs inline-block break-all select-all">{code}</div>}
+      </div>
+    </div>
+  );
 }
 
 export default function DashboardPage() {
-  return (
-    <ProtectedRoute>
-      <Suspense fallback={<div className="min-h-screen bg-slate-950 flex items-center justify-center text-green-500 font-black italic">INITIALIZING...</div>}>
-        <DashboardContent />
-      </Suspense>
-    </ProtectedRoute>
-  );
+  return (
+    <ProtectedRoute>
+      <Suspense fallback={<div className="min-h-screen bg-slate-950 flex items-center justify-center text-green-500 font-black italic">INITIALIZING...</div>}>
+        <DashboardContent />
+      </Suspense>
+    </ProtectedRoute>
+  );
 }
