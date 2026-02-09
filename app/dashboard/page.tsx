@@ -15,7 +15,7 @@ import {
   LogOut, Copy, Check, CreditCard, Activity, Clock, ShieldCheck, Zap, 
   Home, Users, TrendingUp, DollarSign, LayoutDashboard, Lock, Wallet, 
   CheckCircle, Share2, Globe, FileText, Settings, Save, Bitcoin, 
-  ChevronDown, List, AlertTriangle, Send, ExternalLink, Download
+  ChevronDown, List, AlertTriangle, Send, ExternalLink, Download, X
 } from 'lucide-react';
 import PaymentModal from '@/components/landing/PaymentModal';
 
@@ -343,7 +343,7 @@ function DashboardContent() {
   const [trades, setTrades] = useState<any[]>([]);
 
   const wallet = profile?.wallet || { available: 0, pending: 0, total_paid: 0 };
-  const isAccountActive = profile?.accountStatus === 'active'; 
+  const isAccountActive = (profile as any)?.accountStatus === 'active'; 
 
   // 🎧 LẮNG NGHE BOT (Chỉ chạy khi đã Active)
   useEffect(() => {
