@@ -91,8 +91,13 @@ export default function AdminPage() {
     if (filterPlan !== "all") {
       result = result.filter(u => (u.plan || "free") === filterPlan);
     }
+    // 🔥 3. FIX: NẾU ĐANG Ở TAB "MEMBERS" -> ẨN BỌN PENDING ĐI
+    // (Vì bọn Pending đã nằm ở Tab Dashboard rồi, cho đỡ rối đội hình)
+    if (activeTab === 'members') {
+        result = result.filter(u => u.accountStatus !== 'pending');
+    }   
     setFilteredUsers(result);
-  }, [searchTerm, filterPlan, users]);
+  }, [searchTerm, filterPlan, users, activeTab]);
 
   // --- ACTIONS ---
   const handleApproveUser = async (user: any) => {

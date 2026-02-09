@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase"; // Giữ nguyên đường dẫn của Đại tá
 import { 
   doc, getDoc, setDoc, onSnapshot, 
-  collection, query, where, getDocs, updateDoc, arrayUnion 
+  collection, query, where, getDocs, updateDoc, arrayUnion, serverTimestamp 
 } from "firebase/firestore";
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
 
@@ -19,6 +19,7 @@ export interface UserProfile {
   createdAt?: any;
   displayName?: string;
   photoURL?: string;
+  accountStatus?: 'pending' | 'active' | 'rejected' | 'banned'; // 👈 THÊM TRƯỜNG NÀY VÀO TYPE
   wallet?: {
     available: number;
     pending: number;
@@ -31,7 +32,7 @@ export interface UserProfile {
     commission: number;
     accountStatus?: 'new' | 'pending' | 'active' | 'rejected';
   }>;
-  referredBy?: string; // 👇 Thêm trường này để biết ai giới thiệu
+  referredBy?: string; 
 }
 
 interface AuthContextType {
@@ -76,29 +77,31 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           if (!userSnap.exists()) {
             console.log("🚀 Lính mới! Đang tạo hồ sơ & kiểm tra người giới thiệu...");
             
-            // 1. Lấy mã giới thiệu từ LocalStorage (Được lưu khi khách nhấp link ?ref=...)
-            // Lưu ý: Cần đảm bảo file app/page.tsx đã lưu mã này vào 'spartan_license' hoặc 'spartan_referrer'
-            // Ở đây tôi dùng thống nhất là 'spartan_referrer' cho rõ ràng
             const referrerCode = typeof window !== 'undefined' ? localStorage.getItem('spartan_referrer') : null;
 
             // 2. Tạo hồ sơ User mới
             const newUserData = {
+              uid: currentUser.uid, // Lưu thêm UID cho chắc
               email: currentUser.email,
               displayName: currentUser.displayName || "Chiến Binh Mới",
               photoURL: currentUser.photoURL || "",
               licenseKey: "SPARTAN-" + Math.random().toString(36).substring(2, 10).toUpperCase(),
+              
+              // 🔥 QUAN TRỌNG: ĐÁNH DẤU LÀ TÂN BINH CHỜ DUYỆT 🔥
+              accountStatus: 'pending', 
+              
               mt5Account: "",
               mt5Account2: "", 
               plan: "free",
-              createdAt: new Date(),
-              expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 ngày dùng thử
+              createdAt: serverTimestamp(), // Dùng serverTimestamp chuẩn Firebase
+              expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 
               wallet: {
                 available: 0,
                 pending: 0,
                 total_paid: 0
               },
               referrals: [],
-              referredBy: referrerCode || null // Lưu lại ân nhân
+              referredBy: referrerCode || null 
             };
 
             await setDoc(userRef, newUserData);
@@ -106,21 +109,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             // 3. CẬP NHẬT CHO ĐẠI LÝ (NẾU CÓ MÃ GIỚI THIỆU)
             if (referrerCode) {
                 try {
-                    // Tìm ông Đại lý sở hữu mã này
                     const q = query(collection(db, "users"), where("licenseKey", "==", referrerCode));
                     const querySnapshot = await getDocs(q);
 
                     if (!querySnapshot.empty) {
                         const referrerDoc = querySnapshot.docs[0];
-                        
-                        // Thêm lính mới vào danh sách referrals của Đại lý
                         await updateDoc(referrerDoc.ref, {
                             referrals: arrayUnion({
                                 user: currentUser.displayName || currentUser.email,
-                                date: new Date().toLocaleDateString('vi-VN'), // Ngày gia nhập
-                                package: "FREE (Trial)", // Gói ban đầu
-                                commission: 0, // Chưa có tiền
-                                status: "pending" // Chờ mua gói
+                                date: new Date().toLocaleDateString('vi-VN'), 
+                                package: "FREE (Trial)", 
+                                commission: 0, 
+                                status: "pending" 
                             })
                         });
                         console.log("✅ Đã ghi công cho Đại lý:", referrerCode);
@@ -174,7 +174,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const logout = async () => {
     try {
       await signOut(auth);
-      // Xóa luôn mã ref khi logout để tránh dính cho lần sau (tùy chọn)
       localStorage.removeItem("spartan_referrer"); 
       window.location.href = "/"; 
     } catch (error) {
