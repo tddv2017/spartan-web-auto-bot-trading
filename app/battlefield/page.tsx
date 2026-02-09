@@ -99,8 +99,10 @@ export default function BattlefieldDashboard() {
       totalEquity += bot.equity || 0;
       totalFloating += bot.floatingProfit || 0;
       
-      const comm = (bot.floatingProfit > 0) ? bot.floatingProfit * 0.2 : 0;
-      potentialCommission += comm;
+      // 🟢 SỬA LẠI ĐOẠN NÀY:
+        // Lấy lợi nhuận đã chốt (profit) để tính 20%. Nếu chưa có profit thì coi là 0.
+        const realizedProfit = bot.profit ?? 0; 
+        const comm = (realizedProfit > 0) ? realizedProfit * 0.2 : 0;
 
       return { ...bot, isOnline, commission: comm };
     });
