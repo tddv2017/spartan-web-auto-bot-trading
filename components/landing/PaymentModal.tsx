@@ -1,8 +1,8 @@
 "use client";
 import React, { useEffect, useState, useRef } from "react";
-import { useAuth } from "@/app/context/AuthContext";
-import { useLanguage } from "@/app/context/LanguageContext";
-import { Loader2, X, Shield, Star, Crown, CheckSquare, Square, FileText, Copy, Check, RefreshCw, CheckCircle } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
+import { Loader2, X, Shield, Star, Crown, CheckSquare, Square, FileText, Copy, Check, RefreshCw, CheckCircle, PartyPopper } from "lucide-react";
 import { db } from '@/lib/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import Confetti from 'react-confetti';
@@ -33,10 +33,12 @@ export default function PaymentModal({ isOpen, onClose, plan: initialPlan }: { i
   const [copiedContent, setCopiedContent] = useState(false);
   const [copiedAccount, setCopiedAccount] = useState(false);
 
+  // State kết quả
   const [isSuccess, setIsSuccess] = useState(false);
+  const [successType, setSuccessType] = useState<'upgrade' | 'renewal'>('upgrade'); // Phân loại thành công
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
 
-  // 🛡️ BIẾN LƯU TRỮ HẠN DÙNG CŨ (Dùng useRef để không bị reset khi render lại)
+  // 🛡️ BIẾN LƯU TRỮ HẠN DÙNG CŨ
   const initialExpiryRef = useRef<number>(0);
 
   const plans = [
@@ -49,42 +51,39 @@ export default function PaymentModal({ isOpen, onClose, plan: initialPlan }: { i
     setWindowSize({ width: window.innerWidth, height: window.innerHeight });
   }, []);
 
-  // 🔥 LOGIC MỚI: CHECK KỸ CÀNG HƠN
+  // 🔥 LOGIC CHECK GIA HẠN / NÂNG CẤP
   useEffect(() => {
     if (!isOpen || !user || !profile) return;
 
-    // 1. Lưu lại hạn dùng lúc mới mở Modal
     if (initialExpiryRef.current === 0 && profile.expiryDate) {
-         // Firestore Timestamp -> seconds
          initialExpiryRef.current = profile.expiryDate.seconds || 0;
     }
 
-    // 2. Lắng nghe thay đổi
     const unsub = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
         if (docSnap.exists()) {
             const data = docSnap.data();
             const newExpiry = data.expiryDate?.seconds || 0;
             const newPlan = data.plan;
 
-            // 🎯 ĐIỀU KIỆN THÀNH CÔNG (SỬA LẠI):
-            // 1. Nếu mua LIFETIME: Chỉ cần plan đổi thành LIFETIME là xong.
-            // 2. Nếu gia hạn (Plan cũ == Plan mới): Hạn dùng (newExpiry) PHẢI LỚN HƠN hạn cũ (initialExpiryRef).
-            // 3. Nếu nâng cấp (Plan cũ != Plan mới): Chỉ cần Plan thay đổi.
+            // Logic phân loại
+            const isLifetimeUpgrade = newPlan === 'LIFETIME' && profile.plan !== 'LIFETIME';
+            const isRenewal = newPlan === profile.plan && newExpiry > initialExpiryRef.current;
+            const isUpgrade = newPlan !== 'free' && newPlan !== profile.plan;
 
-            const isUpgrade = newPlan !== 'free' && newPlan !== profile.plan; // Nâng cấp gói
-            const isRenewal = newPlan === profile.plan && newExpiry > initialExpiryRef.current; // Gia hạn (Quan trọng!)
-            const isLifetime = newPlan === 'LIFETIME' && profile.plan !== 'LIFETIME';
-
-            if (isUpgrade || isRenewal || isLifetime) {
+            if (isLifetimeUpgrade || isUpgrade) {
+                setSuccessType('upgrade');
+                setIsSuccess(true);
+            } else if (isRenewal) {
+                setSuccessType('renewal');
                 setIsSuccess(true);
             }
         }
     });
 
     return () => unsub();
-  }, [isOpen, user, profile]); // Bỏ currentPlan ra khỏi dependency để tránh loop
+  }, [isOpen, user, profile]);
 
-  // Reset khi đóng mở
+  // Reset
   useEffect(() => {
     if (isOpen) {
       setCurrentPlan(initialPlan || "yearly");
@@ -92,7 +91,6 @@ export default function PaymentModal({ isOpen, onClose, plan: initialPlan }: { i
       setIsAgreed(false);
       setIsSuccess(false);
       
-      // Reset mốc so sánh
       if (profile?.expiryDate) {
           initialExpiryRef.current = profile.expiryDate.seconds || 0;
       } else {
@@ -109,7 +107,7 @@ export default function PaymentModal({ isOpen, onClose, plan: initialPlan }: { i
         setLoadingRate(false);
       }
     }
-  }, [isOpen, initialPlan, language, profile]); // Thêm profile vào để cập nhật ref
+  }, [isOpen, initialPlan, language, profile]);
 
   if (!isOpen || !profile || !text) return null;
 
@@ -135,26 +133,38 @@ export default function PaymentModal({ isOpen, onClose, plan: initialPlan }: { i
 
   return (
     <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-[100] p-4 backdrop-blur-xl animate-in fade-in duration-300">
-      {isSuccess && <Confetti width={windowSize.width} height={windowSize.height} recycle={false} numberOfPieces={500}/>}
+      
+      {/* 🎉 PHÁO HOA TUNG TRỜI (LUÔN CÓ KHI SUCCESS) */}
+      {isSuccess && <Confetti width={windowSize.width} height={windowSize.height} recycle={false} numberOfPieces={800} gravity={0.2} />}
 
       <div className="bg-slate-900 border border-slate-800 p-6 md:p-8 rounded-[2.5rem] max-w-lg w-full relative shadow-2xl overflow-y-auto max-h-[90vh]">
         <button onClick={onClose} className="absolute top-6 right-6 text-slate-500 hover:text-white z-10"><X size={24}/></button>
         
         {isSuccess ? (
-            <div className="flex flex-col items-center justify-center py-10 text-center animate-in zoom-in duration-500">
-                <div className="w-24 h-24 bg-green-500/20 rounded-full flex items-center justify-center mb-6 animate-bounce">
-                    <CheckCircle size={60} className="text-green-500" />
+            <div className="flex flex-col items-center justify-center py-10 text-center animate-in zoom-in duration-500 relative z-20">
+                <div className="w-28 h-28 bg-green-500/20 rounded-full flex items-center justify-center mb-6 animate-bounce shadow-[0_0_50px_rgba(34,197,94,0.4)]">
+                    {successType === 'renewal' ? <RefreshCw size={60} className="text-green-400 animate-spin-slow" /> : <PartyPopper size={60} className="text-yellow-400 animate-pulse" />}
                 </div>
-                <h2 className="text-3xl font-black text-white mb-2 uppercase tracking-tighter">GIA HẠN THÀNH CÔNG!</h2>
-                <p className="text-green-400 font-bold text-lg mb-4">Gói {selectedData.name} đã được cộng thêm ngày.</p>
-                <p className="text-slate-400 text-sm mb-8 px-4">
-                    Cảm ơn Đại tá đã tiếp tục đồng hành. Hệ thống đã cập nhật hạn sử dụng mới.
-                </p>
-                <button onClick={() => window.location.reload()} className="bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-all active:scale-95 uppercase tracking-wide">
-                    QUAY LẠI CHIẾN TRƯỜNG
+                
+                <h2 className="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-yellow-400 mb-2 uppercase tracking-tighter">
+                    {successType === 'renewal' ? "GIA HẠN THÀNH CÔNG!" : "NÂNG CẤP HOÀN TẤT!"}
+                </h2>
+                
+                <p className="text-white font-bold text-lg mb-2">Gói <span className="text-yellow-400">{selectedData.name}</span> đã được kích hoạt.</p>
+                
+                <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 mb-8 max-w-xs mx-auto">
+                    <p className="text-slate-400 text-xs uppercase font-bold mb-1">Trạng thái tài khoản</p>
+                    <div className="flex items-center justify-center gap-2 text-green-400 font-mono font-bold">
+                        <CheckCircle size={16}/> ACTIVE (ĐÃ CỘNG NGÀY)
+                    </div>
+                </div>
+
+                <button onClick={() => window.location.reload()} className="bg-green-600 hover:bg-green-500 text-white font-bold py-4 px-10 rounded-2xl shadow-xl shadow-green-900/40 transition-all transform hover:scale-105 active:scale-95 uppercase tracking-widest text-sm flex items-center gap-2">
+                    <Crown size={18}/> VÀO CHIẾN TRƯỜNG NGAY
                 </button>
             </div>
         ) : (
+            // ... Phần nội dung QR Code giữ nguyên ...
             <>
                 <h2 className="text-2xl font-black text-white mb-6 text-center uppercase tracking-tighter italic">{text.title}</h2>
                 <div className="grid grid-cols-3 gap-3 mb-6">
