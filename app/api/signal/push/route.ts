@@ -1,15 +1,29 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/firebase'; // Đảm bảo đường dẫn này đúng tới file config firebase của Đại tá
+import { db } from '@/lib/firebase'; // Đảm bảo đường dẫn này đúng
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
-// Cho phép phương thức POST
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: Request) {
   try {
-    // 1. Đọc dữ liệu từ MT5 gửi lên
+    // 🛡️ 1. LÍNH GÁC CỔNG: KIỂM TRA MẬT KHẨU API (QUAN TRỌNG)
+    const secret = req.headers.get("x-api-secret");
+    
+    // So sánh mật khẩu gửi lên từ MT5 với mật khẩu trong file .env.local
+    // Nếu không khớp hoặc không có -> ĐÁ VĂNG NGAY (Lỗi 401)
+    if (secret !== process.env.API_SECRET_KEY) {
+      console.warn("⛔ PHÁT HIỆN XÂM NHẬP: Sai mật khẩu API hoặc thiếu Key!");
+      return NextResponse.json(
+        { success: false, message: "CÚT RA NGOÀI! (Unauthorized Access)" },
+        { status: 401 }
+      );
+    }
+
+    // ✅ NẾU MẬT KHẨU ĐÚNG -> TIẾP TỤC XỬ LÝ NHƯ CŨ
     const body = await req.json();
 
-    // Log ra để debug trên Vercel (Xem trong tab Logs của Vercel)
-    console.log("📨 Nhận tín hiệu từ MT5:", body);
+    // Log ra để debug
+    console.log("📨 Nhận tín hiệu từ MT5 (Auth OK):", body);
 
     // 2. Validate (Kiểm tra dữ liệu đầu vào)
     if (!body.symbol || !body.price || !body.type) {
@@ -22,28 +36,28 @@ export async function POST(req: Request) {
     // 3. Ghi vào Firestore (Database)
     const docRef = await addDoc(collection(db, "signals"), {
       symbol: body.symbol,
-      type: body.type,          // Ví dụ: BUY_BREAKOUT
+      type: body.type,          
       price: Number(body.price),
       sl: Number(body.sl || 0),
       tp: Number(body.tp || 0),
-      time: body.time,          // Thời gian từ MT5
-      createdAt: serverTimestamp() // Thời gian thực của Server
+      time: body.time,          
+      createdAt: serverTimestamp() 
     });
 
     console.log("✅ Đã lưu vào DB với ID:", docRef.id);
 
-    // 4. Trả về thành công (Code 200)
+    // 4. Trả về thành công
     return NextResponse.json(
       { success: true, id: docRef.id, message: "Signal Received & Saved" },
       { status: 200 }
     );
 
   } catch (error: any) {
-    // 💥 NẾU CÓ LỖI, BÁO NGAY RA NGOÀI
+    // 💥 NẾU CÓ LỖI SERVER
     console.error("❌ LỖI SERVER:", error);
     return NextResponse.json(
       { success: false, error: error.message },
-      { status: 500 } // Đây chính là cái lỗi 500 Đại tá vừa gặp
+      { status: 500 }
     );
   }
 }
