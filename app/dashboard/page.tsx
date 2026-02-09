@@ -132,7 +132,7 @@ const VerificationLock = ({ user, profile }: { user: any, profile: any }) => {
             </a>để hệ thống tự động nhận diện và kích hoạt Bot.
           </p>
           <ul className="text-xs text-slate-300 space-y-2 mb-6">
-             <li className="flex items-center gap-2"><CheckCircle size={12} className="text-green-500"/> Backcom <span className="text-yellow-400 font-bold">90%</span> trọn đời.</li>
+             <li className="flex items-center gap-2"><CheckCircle size={12} className="text-green-500"/> Backcom <span className="text-yellow-400 font-bold">95%</span> trọn đời.</li>
              <li className="flex items-center gap-2"><CheckCircle size={12} className="text-green-500"/> Loại tài khoản: <span className="text-white font-bold">Zero</span> hoặc <span className="text-white font-bold">Raw Spread</span>.</li>
              <li className="flex items-center gap-2"><CheckCircle size={12} className="text-green-500"/> Đòn bẩy: 1:400 trở lên.</li>
           </ul>
