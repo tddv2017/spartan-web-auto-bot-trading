@@ -15,6 +15,7 @@ interface BotData {
   balance: number;
   equity: number;
   floatingProfit: number;
+  profit?: number; // hoặc dailyProfit, totalProfit tùy code Bot
   lastHeartbeat: string;
   symbol: string;
 }
