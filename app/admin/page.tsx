@@ -90,60 +90,48 @@ export default function AdminPage() {
 
   const updateUserSoldier = async (userId: string, currentExpiry: any, days: number, plan: string) => {
     if(!confirm(`Xác nhận nâng cấp gói ${plan.toUpperCase()}?`)) return;
+
+    // Tính toán ngày hết hạn ở Client (chỉ để gửi lên làm tham số)
+    let newDateStr;
+    if (plan === 'LIFETIME') {
+        newDateStr = "2099-12-31T23:59:59.000Z";
+    } else {
+        const now = Date.now();
+        const expiryMillis = currentExpiry ? currentExpiry.seconds * 1000 : 0;
+        const baseDate = (expiryMillis > now) ? new Date(expiryMillis) : new Date();
+        baseDate.setDate(baseDate.getDate() + days);
+        newDateStr = baseDate.toISOString();
+    }
+
     try {
-        const userRef = doc(db, "users", userId);
-        const userSnap = await getDoc(userRef);
-        if (!userSnap.exists()) return;
-        const userData = userSnap.data();
+        // Lấy Token Admin
+        const token = await useAuth().user?.getIdToken(); // Hoặc lấy từ context adminUser
 
-        let newDate;
-        if (plan === 'LIFETIME') newDate = Timestamp.fromDate(new Date("2099-12-31T23:59:59"));
-        else {
-            const now = Date.now();
-            const expiryMillis = currentExpiry ? currentExpiry.seconds * 1000 : 0;
-            const baseDate = (expiryMillis > now) ? new Date(expiryMillis) : new Date();
-            baseDate.setDate(baseDate.getDate() + days);
-            newDate = Timestamp.fromDate(baseDate);
+        const res = await fetch('/api/admin/update-user', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}` // 👈 BẮT BUỘC
+            },
+            body: JSON.stringify({
+                userId: userId,
+                newExpiryDate: newDateStr,
+                newPlan: plan,
+                daysAdded: days
+            })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+            alert(data.message);
+            fetchUsers(); // Refresh lại danh sách
+        } else {
+            alert("❌ Lỗi: " + data.error);
         }
-
-        await updateDoc(userRef, { expiryDate: newDate, plan: plan, accountStatus: 'active' });
-
-        const referrerKey = userData.referredBy;
-        if (referrerKey) {
-            const planPrices: { [key: string]: number } = { "starter": 30, "yearly": 299, "LIFETIME": 9999 };
-            const commissionAmount = Number(((planPrices[plan] || 0) * 0.4).toFixed(2));
-
-            if (commissionAmount > 0) {
-                const q = query(collection(db, "users"), where("licenseKey", "==", referrerKey));
-                const refSnapshot = await getDocs(q);
-
-                if (!refSnapshot.empty) {
-                    const referrerDoc = refSnapshot.docs[0];
-                    const referrerData = referrerDoc.data();
-
-                    await updateDoc(referrerDoc.ref, {
-                        "wallet.available": Number(((referrerData.wallet?.available || 0) + commissionAmount).toFixed(2)),
-                        referrals: (referrerData.referrals || []).map((ref: any) => {
-                            if (ref.uid === userId || ref.email === userData.email) {
-                                return { 
-                                    ...ref, 
-                                    status: 'approved', 
-                                    plan: plan, 
-                                    commission: commissionAmount, 
-                                    updatedAt: new Date().toISOString() 
-                                };
-                            }
-                            return ref;
-                        })
-                    });
-                }
-            }
-        }
-        
-        fetchUsers();
-        alert("✅ Nâng cấp & Giải ngân hoa hồng thành công!");
-    } catch (e) { alert("Lỗi: " + e); }
-  };
+    } catch (e) {
+        alert("❌ Lỗi kết nối Server!");
+    }
+};
 
   const handleApproveUser = async (user: any) => {
      if(!confirm(`DUYỆT TÂN BINH: ${user.email}?`)) return;
