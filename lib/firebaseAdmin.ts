@@ -15,3 +15,6 @@ if (!admin.apps.length) {
 
 const adminDb = admin.firestore(); // Đổi tên biến thành adminDb cho đồng bộ
 export { adminDb };                // Xuất ra đúng tên adminDb
+export const adminAuth = admin.auth(); // Xuất auth nếu cần
+
+// So sánh với đoạn code trong app/api/withdraw/route.ts

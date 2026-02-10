@@ -68,6 +68,7 @@ export const PartnerTab = ({ wallet, profile, user }: any) => {
     } catch (error) { alert("❌ Lỗi hệ thống, thử lại sau."); }
   };
 
+  // 🔥 HÀM RÚT TIỀN BẢO MẬT (TOKEN VERIFICATION) 🔥
   const handleRequestWithdraw = async () => {
     if (!profile?.bankInfo && !profile?.cryptoInfo) {
         alert("⚠️ Vui lòng cập nhật Ví nhận tiền (Nút cài đặt) trước!");
@@ -87,11 +88,18 @@ export const PartnerTab = ({ wallet, profile, user }: any) => {
     setIsWithdrawing(true);
 
     try {
+        // 1. LẤY TOKEN CĂN CƯỚC TỪ USER
+        const token = await user.getIdToken();
+
+        // 2. GỬI REQUEST KÈM TOKEN
         const res = await fetch('/api/withdraw', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}` // 👈 QUAN TRỌNG: Kẹp token vào đây
+            },
             body: JSON.stringify({ 
-                uid: user.uid,     
+                // Không cần gửi UID, Server sẽ tự soi từ Token
                 email: user.email, 
                 amount: amount 
             }),
