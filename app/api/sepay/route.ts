@@ -7,7 +7,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 const PLAN_DEFS: any = {
   'STARTER':  { id: 'starter',   usd: 30,   days: 30,    commission_rate: 0.4 }, 
   'YEARLY':   { id: 'yearly',    usd: 299,  days: 365,   commission_rate: 0.4 }, 
-  'LIFETIME': { id: 'LIFETIME',  usd: 9999,  days: 99999, commission_rate: 0.4 }
+  'LIFETIME': { id: 'LIFETIME',  usd: 99999,  days: 99999, commission_rate: 0.4 }
 };
 
 export async function POST(req: NextRequest) {

@@ -44,7 +44,7 @@ export default function PaymentModal({ isOpen, onClose, plan: initialPlan }: { i
   const plans = [
     { id: "starter", name: "PRO DAILY", price: 30, icon: <Shield size={16}/>, color: "border-blue-500 text-blue-400" },
     { id: "yearly", name: "VIP YEARLY", price: 299, icon: <Star size={16}/>, color: "border-amber-500 text-amber-400" },
-    { id: "LIFETIME", name: "LIFETIME", price: 999, icon: <Crown size={16}/>, color: "border-purple-500 text-purple-400" }
+    { id: "LIFETIME", name: "LIFETIME", price: 9999, icon: <Crown size={16}/>, color: "border-purple-500 text-purple-400" }
   ];
 
   // --- 1. LOGIC LẮNG NGHE WEBHOOK (SIÊU NHẸ) ---
