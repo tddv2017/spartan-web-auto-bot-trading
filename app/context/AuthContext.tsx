@@ -1,7 +1,7 @@
 "use client";
 import { createContext, useContext, useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
-import { doc, getDoc, setDoc, onSnapshot, collection, query, where, getDocs, updateDoc, arrayUnion, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, onSnapshot, collection, query, where, getDocs, updateDoc, arrayUnion, serverTimestamp } from "firebase/timestamp";
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
 
 export interface UserProfile {
@@ -15,7 +15,6 @@ export interface UserProfile {
   displayName?: string;
   photoURL?: string;
   accountStatus: 'new' | 'pending' | 'active' | 'rejected';
-  role?: 'user' | 'admin';
   referredBy?: string | null;
   referrals: Array<{ 
     uid: string; 
@@ -69,7 +68,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             createdAt: serverTimestamp(),
             expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
             wallet: { available: 0, pending: 0, total_paid: 0 },
-            referrals: [],
+            referrals: [], // Khởi tạo mảng rỗng chuẩn
             referredBy: referrerCode || null 
           };
           await setDoc(userRef, newUserData);
@@ -105,7 +104,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const login = async () => {
     const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: 'select_account' });
     await signInWithPopup(auth, provider);
   };
 
