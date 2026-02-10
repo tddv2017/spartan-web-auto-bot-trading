@@ -1,38 +1,24 @@
 "use client";
 import { createContext, useContext, useEffect, useState } from "react";
-import { auth, db } from "@/lib/firebase"; // Giữ nguyên đường dẫn của Đại tá
+import { auth, db } from "@/lib/firebase";
 import { 
   doc, getDoc, setDoc, onSnapshot, 
   collection, query, where, getDocs, updateDoc, arrayUnion, serverTimestamp 
 } from "firebase/firestore";
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
 
-// 1. ĐỊNH NGHĨA KIỂU DỮ LIỆU USER
 export interface UserProfile {
   id: string; 
   licenseKey: string;
   plan: string;
   mt5Account: string;
-  mt5Account2?: string;
   email: string;
   expiryDate?: any;
-  createdAt?: any;
   displayName?: string;
   photoURL?: string;
-  role?: string;
-  wallet?: {
-    available: number;
-    pending: number;
-    total_paid: number;
-  };
-  referrals?: Array<{
-    user: string;
-    date: string;
-    package: string;
-    commission: number;
-    accountStatus?: 'new' | 'pending' | 'active' | 'rejected';
-  }>;
-  referredBy?: string; 
+  accountStatus: 'new' | 'pending' | 'active' | 'rejected';
+  referredBy?: string;
+  wallet: { available: number; pending: number; total_paid: number; };
 }
 
 interface AuthContextType {
@@ -46,11 +32,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// DANH SÁCH ADMIN
-const ADMIN_EMAILS = [
-  "tddv2017@gmail.com", 
-  "itcrazy2021pro@gmail.com", 
-];
+const ADMIN_EMAILS = ["tddv2017@gmail.com", "itcrazy2021pro@gmail.com"];
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<any>(null);
@@ -61,124 +43,73 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setLoading(true);
-      
       if (currentUser) {
         setUser(currentUser);
-        const checkAdmin = currentUser.email ? ADMIN_EMAILS.includes(currentUser.email) : false;
-        setIsAdmin(checkAdmin);
+        setIsAdmin(ADMIN_EMAILS.includes(currentUser.email || ""));
 
-        try {
-          const userRef = doc(db, "users", currentUser.uid);
-          const userSnap = await getDoc(userRef);
+        const userRef = doc(db, "users", currentUser.uid);
+        const userSnap = await getDoc(userRef);
 
-          // -----------------------------------------------------------
-          // 🚀 LOGIC TẠO TÀI KHOẢN MỚI & GHI NHẬN REFERRAL
-          // -----------------------------------------------------------
-          if (!userSnap.exists()) {
-            console.log("🚀 Lính mới! Đang tạo hồ sơ & kiểm tra người giới thiệu...");
-            
-            const referrerCode = typeof window !== 'undefined' ? localStorage.getItem('spartan_referrer') : null;
+        if (!userSnap.exists()) {
+          const referrerCode = typeof window !== 'undefined' ? localStorage.getItem('spartan_referrer') : null;
+          const newUserData = {
+            uid: currentUser.uid,
+            email: currentUser.email,
+            displayName: currentUser.displayName || "Chiến Binh",
+            photoURL: currentUser.photoURL || "",
+            licenseKey: "SPARTAN-" + Math.random().toString(36).substring(2, 10).toUpperCase(),
+            accountStatus: 'new', 
+            plan: "free",
+            createdAt: serverTimestamp(),
+            expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+            wallet: { available: 0, pending: 0, total_paid: 0 },
+            referrals: [],
+            referredBy: referrerCode || null 
+          };
+          await setDoc(userRef, newUserData);
 
-            // 2. Tạo hồ sơ User mới
-            const newUserData = {
-              uid: currentUser.uid, // Lưu thêm UID cho chắc
-              email: currentUser.email,
-              displayName: currentUser.displayName || "Chiến Binh Mới",
-              photoURL: currentUser.photoURL || "",
-              licenseKey: "SPARTAN-" + Math.random().toString(36).substring(2, 10).toUpperCase(),
-              
-              // 🔥 QUAN TRỌNG: ĐÁNH DẤU LÀ TÂN BINH CHỜ DUYỆT 🔥
-              accountStatus: 'new', // 'new' = mới tạo, chờ admin duyệt; 'pending' = đã duyệt nhưng chưa thanh toán; 'active' = đã thanh toán; 'rejected' = bị từ chối
-              
-              mt5Account: "",
-              mt5Account2: "", 
-              plan: "free",
-              createdAt: serverTimestamp(), // Dùng serverTimestamp chuẩn Firebase
-              expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 
-              wallet: {
-                available: 0,
-                pending: 0,
-                total_paid: 0
-              },
-              referrals: [],
-              referredBy: referrerCode || null 
-            };
-
-            await setDoc(userRef, newUserData);
-
-            // 3. CẬP NHẬT CHO ĐẠI LÝ (NẾU CÓ MÃ GIỚI THIỆU)
-            if (referrerCode) {
-                try {
-                    const q = query(collection(db, "users"), where("licenseKey", "==", referrerCode));
-                    const querySnapshot = await getDocs(q);
-
-                    if (!querySnapshot.empty) {
-                        const referrerDoc = querySnapshot.docs[0];
-                        await updateDoc(referrerDoc.ref, {
-                            referrals: arrayUnion({
-                                user: currentUser.displayName || currentUser.email,
-                                date: new Date().toLocaleDateString('vi-VN'), 
-                                package: "FREE (Trial)", 
-                                commission: 0, 
-                                status: "pending" 
-                            })
-                        });
-                        console.log("✅ Đã ghi công cho Đại lý:", referrerCode);
-                    } else {
-                        console.warn("⚠️ Mã giới thiệu không tồn tại:", referrerCode);
-                    }
-                } catch (err) {
-                    console.error("❌ Lỗi cập nhật Referral:", err);
-                }
+          if (referrerCode) {
+            const q = query(collection(db, "users"), where("licenseKey", "==", referrerCode));
+            const qSnap = await getDocs(q);
+            if (!qSnap.empty) {
+              await updateDoc(qSnap.docs[0].ref, {
+                referrals: arrayUnion({
+                  uid: currentUser.uid,
+                  email: currentUser.email,
+                  date: new Date().toISOString(),
+                  status: "pending"
+                })
+              });
             }
           }
-          // -----------------------------------------------------------
-
-          const unsubProfile = onSnapshot(userRef, (docSnap) => {
-            if (docSnap.exists()) {
-              setProfile({
-                id: docSnap.id, 
-                ...docSnap.data()
-              } as UserProfile);
-            }
-            setLoading(false);
-          });
-
-          return () => unsubProfile();
-
-        } catch (error) {
-          console.error("❌ Lỗi Firebase Auth:", error);
-          setLoading(false);
         }
+
+        const unsubProfile = onSnapshot(userRef, (docSnap) => {
+          if (docSnap.exists()) {
+            setProfile({ id: docSnap.id, ...docSnap.data() } as UserProfile);
+          }
+          setLoading(false);
+        });
+        return () => unsubProfile();
+
       } else {
-        setUser(null);
-        setProfile(null);
-        setIsAdmin(false);
-        setLoading(false);
+        setUser(null); setProfile(null); setIsAdmin(false); setLoading(false);
       }
     });
-
     return () => unsubscribe();
   }, []);
 
   const login = async () => {
     try {
       const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: 'select_account' });
       await signInWithPopup(auth, provider);
-    } catch (error) {
-      console.error("Lỗi đăng nhập:", error);
-    }
+    } catch (e) { console.error(e); }
   };
 
   const logout = async () => {
-    try {
-      await signOut(auth);
-      localStorage.removeItem("spartan_referrer"); 
-      window.location.href = "/"; 
-    } catch (error) {
-      console.error("Lỗi đăng xuất:", error);
-    }
+    await signOut(auth);
+    localStorage.removeItem("spartan_referrer");
+    window.location.href = "/";
   };
 
   return (
