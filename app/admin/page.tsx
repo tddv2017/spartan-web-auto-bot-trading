@@ -110,7 +110,7 @@ export default function AdminPage() {
 
         const referrerKey = userData.referredBy;
         if (referrerKey) {
-            const planPrices: { [key: string]: number } = { "starter": 30, "yearly": 299, "LIFETIME": 999 };
+            const planPrices: { [key: string]: number } = { "starter": 30, "yearly": 299, "LIFETIME": 9999 };
             const commissionAmount = Number(((planPrices[plan] || 0) * 0.4).toFixed(2));
 
             if (commissionAmount > 0) {
