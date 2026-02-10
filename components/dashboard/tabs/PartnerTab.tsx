@@ -51,13 +51,11 @@ export const PartnerTab = ({ wallet, profile, onWithdraw, user }: any) => {
 
   return (
     <div className="space-y-8 animate-in slide-in-from-right duration-500 mt-6">
-      {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-end gap-4 border-b border-slate-800 pb-6">
           <div><h2 className="text-2xl font-black text-white flex items-center gap-2"><ShieldCheck className="text-yellow-500" /> SPARTAN AGENCY</h2><p className="text-sm text-slate-400 mt-1">Cấp bậc: <span className="text-yellow-500 font-bold">COMMANDER (40% Hoa hồng)</span></p></div>
           <div className="bg-slate-900 px-4 py-2 rounded-lg border border-slate-800 flex items-center gap-3"><Globe size={16} className="text-green-500"/><span className="text-xs text-slate-400">Mã giới thiệu:</span><span className="text-sm font-mono font-bold text-white select-all">{profile?.licenseKey}</span></div>
       </div>
       
-      {/* STATS GRID */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-gradient-to-br from-green-900/40 to-slate-900 border border-green-500/50 p-6 rounded-[2rem] relative overflow-hidden group hover:border-green-400 transition-colors">
               <div className="absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity"><Wallet size={100}/></div>
@@ -76,74 +74,46 @@ export const PartnerTab = ({ wallet, profile, onWithdraw, user }: any) => {
           </div>
       </div>
 
-      {/* MARKETING TOOLS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
          <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem]">
             <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2 uppercase"><Share2 size={16} className="text-blue-500"/> Link Giới thiệu</h3>
-            <div className="bg-black/50 p-3 rounded-xl border border-slate-700 flex items-center gap-2 mb-3"><span className="text-xs text-slate-400 truncate flex-1 font-mono select-all">{refLink}</span><button onClick={() => { navigator.clipboard.writeText(refLink); setCopiedLink(true); setTimeout(() => setCopiedLink(false), 2000); }} className="p-2 bg-slate-800 hover:bg-slate-700 rounded text-white transition-colors">{copiedLink ? <Check size={16} className="text-green-500"/> : <Copy size={16}/>}</button></div>
+            <div className="bg-black/50 p-3 rounded-xl border border-slate-700 flex items-center gap-2 mb-3"><span className="text-xs text-slate-400 truncate flex-1 font-mono select-all">{refLink}</span><button onClick={() => { navigator.clipboard.writeText(refLink); setCopiedLink(true); setTimeout(() => setCopiedLink(false), 2000); }} className="p-2 bg-slate-800 rounded text-white">{copiedLink ? <Check size={16} className="text-green-500"/> : <Copy size={16}/>}</button></div>
          </div>
          <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem]">
             <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2 uppercase"><FileText size={16} className="text-purple-500"/> Content Mẫu</h3>
             <div className="bg-black/50 p-3 rounded-xl border border-slate-700 relative group h-24 overflow-hidden">
                <p className="text-[10px] text-slate-300 whitespace-pre-line font-mono">{adText}</p>
-               <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent flex items-end justify-center pb-2 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => { navigator.clipboard.writeText(adText); setCopiedAd(true); setTimeout(() => setCopiedAd(false), 2000); }} className="text-xs bg-purple-600 hover:bg-purple-500 text-white px-3 py-1 rounded font-bold shadow-lg">Sao chép</button></div>
+               <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent flex items-end justify-center pb-2 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => { navigator.clipboard.writeText(adText); setCopiedAd(true); setTimeout(() => setCopiedAd(false), 2000); }} className="text-xs bg-purple-600 text-white px-3 py-1 rounded font-bold">Sao chép</button></div>
             </div>
          </div>
       </div>
 
-      {/* DANH SÁCH THÀNH VIÊN */}
       <div className="bg-slate-900/60 border border-slate-800 rounded-[2rem] p-6 md:p-8">
           <h3 className="font-bold text-white mb-6 flex items-center gap-2 uppercase tracking-widest border-b border-slate-800 pb-4">
               <UserPlus size={18} className="text-green-500"/> NHẬT KÝ TUYỂN DỤNG (RECRUITMENT LOG)
           </h3>
-          
           <div className="overflow-x-auto">
               <table className="w-full text-sm text-left text-slate-400">
                   <thead className="text-slate-500 uppercase font-black text-xs bg-slate-950/50">
-                      <tr>
-                          <th className="px-4 py-3 rounded-l-lg">Thành viên (F1)</th>
-                          <th className="px-4 py-3">Ngày tham gia</th>
-                          <th className="px-4 py-3">Gói</th>
-                          <th className="px-4 py-3">Trạng thái</th>
-                          <th className="px-4 py-3 text-right rounded-r-lg">Hoa hồng</th>
-                      </tr>
+                      <tr> <th className="px-4 py-3 rounded-l-lg">Thành viên (F1)</th> <th className="px-4 py-3">Ngày tham gia</th> <th className="px-4 py-3">Gói</th> <th className="px-4 py-3">Trạng thái</th> <th className="px-4 py-3 text-right rounded-r-lg">Hoa hồng</th> </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800">
                       {profile?.referrals && profile.referrals.length > 0 ? (
                           profile.referrals.map((ref: any, index: number) => (
                               <tr key={index} className="hover:bg-slate-800/30 transition-colors">
-                                  <td className="px-4 py-4 font-bold text-white truncate max-w-[150px]">
-                                      {ref.email ? `${ref.email.split('@')[0]}***@${ref.email.split('@')[1]}` : 'Ẩn danh'}
-                                  </td>
-                                  <td className="px-4 py-4 text-xs font-mono">
-                                      {ref.date ? new Date(ref.date).toLocaleDateString('vi-VN') : 'N/A'}
-                                  </td>
-                                  <td className="px-4 py-4">
-                                      <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase ${ref.plan === 'LIFETIME' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-slate-700 text-slate-300'}`}>
-                                          {ref.plan || 'TRIAL'}
-                                      </span>
-                                  </td>
-                                  <td className="px-4 py-4">
-                                      {ref.status === 'approved' ? (
-                                          <span className="flex items-center gap-1 text-green-500 text-xs font-bold"><CheckCircle size={12}/> Active</span>
-                                      ) : (
-                                          <span className="flex items-center gap-1 text-yellow-500 text-xs font-bold"><Clock size={12}/> Pending</span>
-                                      )}
-                                  </td>
-                                  <td className="px-4 py-4 text-right font-mono font-bold text-green-400">
-                                      +${(ref.commission || 0).toFixed(2)}
-                                  </td>
+                                  <td className="px-4 py-4 font-bold text-white truncate max-w-[150px]"> {ref.email ? `${ref.email.split('@')[0]}***@${ref.email.split('@')[1]}` : 'Ẩn danh'} </td>
+                                  <td className="px-4 py-4 text-xs font-mono"> {ref.date ? new Date(ref.date).toLocaleDateString('vi-VN') : 'N/A'} </td>
+                                  <td className="px-4 py-4"> <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase ${ref.plan === 'LIFETIME' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-slate-700 text-slate-300'}`}> {ref.plan || 'TRIAL'} </span> </td>
+                                  <td className="px-4 py-4"> {ref.status === 'approved' ? ( <span className="flex items-center gap-1 text-green-500 text-xs font-bold"><CheckCircle size={12}/> Active</span> ) : ( <span className="flex items-center gap-1 text-yellow-500 text-xs font-bold"><Clock size={12}/> Pending</span> )} </td>
+                                  <td className="px-4 py-4 text-right font-mono font-bold text-green-400"> +${(ref.commission || 0).toFixed(2)} </td>
                               </tr>
                           ))
-                      ) : (
-                          <tr><td colSpan={5} className="text-center py-8 text-slate-500 italic">Chưa có thành viên nào. Hãy chia sẻ link giới thiệu ngay!</td></tr>
-                      )}
+                      ) : ( <tr><td colSpan={5} className="text-center py-8 text-slate-500 italic">Chưa có thành viên nào. Hãy chia sẻ link giới thiệu ngay!</td></tr> )}
                   </tbody>
               </table>
           </div>
       </div>
       
-      {/* MODAL SETTINGS */}
       {showSettingsModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-md p-6 shadow-2xl relative">
@@ -154,12 +124,10 @@ export const PartnerTab = ({ wallet, profile, onWithdraw, user }: any) => {
             </div>
             <div className="space-y-4">
                 {activeTab === 'bank' ? (
-                    <><select value={bankInfo.bankName} onChange={(e) => setBankInfo({...bankInfo, bankName: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none focus:border-blue-500"><option value="" disabled>-- Chọn ngân hàng --</option>{VN_BANKS.map((bank, idx) => <option key={idx} value={bank}>{bank}</option>)}</select><input type="text" value={bankInfo.accountNumber} onChange={(e) => setBankInfo({...bankInfo, accountNumber: e.target.value})} placeholder="Số tài khoản" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none focus:border-blue-500" /><input type="text" value={bankInfo.accountHolder} onChange={(e) => setBankInfo({...bankInfo, accountHolder: e.target.value.toUpperCase()})} placeholder="Tên chủ tài khoản" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white uppercase outline-none focus:border-blue-500" /></>
-                ) : (
-                    <><input type="text" value={cryptoInfo.walletAddress} onChange={(e) => setCryptoInfo({...cryptoInfo, walletAddress: e.target.value})} placeholder="Địa chỉ ví TRC20" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white font-mono text-xs outline-none focus:border-green-500" /></>
-                )}
+                    <><select value={bankInfo.bankName} onChange={(e) => setBankInfo({...bankInfo, bankName: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none"><option value="" disabled>-- Chọn ngân hàng --</option>{VN_BANKS.map((bank, idx) => <option key={idx} value={bank}>{bank}</option>)}</select><input type="text" value={bankInfo.accountNumber} onChange={(e) => setBankInfo({...bankInfo, accountNumber: e.target.value})} placeholder="Số tài khoản" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" /><input type="text" value={bankInfo.accountHolder} onChange={(e) => setBankInfo({...bankInfo, accountHolder: e.target.value.toUpperCase()})} placeholder="Tên chủ tài khoản" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white uppercase outline-none" /></>
+                ) : ( <><input type="text" value={cryptoInfo.walletAddress} onChange={(e) => setCryptoInfo({...cryptoInfo, walletAddress: e.target.value})} placeholder="Địa chỉ ví TRC20" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white font-mono text-xs outline-none" /></> )}
             </div>
-            <div className="mt-8 flex gap-3"><button onClick={() => setShowSettingsModal(false)} className="flex-1 py-3 rounded-xl font-bold text-slate-400 hover:bg-slate-800">Hủy</button><button onClick={savePaymentInfo} className="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-500">LƯU</button></div>
+            <div className="mt-8 flex gap-3"><button onClick={() => setShowSettingsModal(false)} className="flex-1 py-3 rounded-xl font-bold text-slate-400 hover:bg-slate-800">Hủy</button><button onClick={savePaymentInfo} className="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold">LƯU</button></div>
           </div>
         </div>
       )}

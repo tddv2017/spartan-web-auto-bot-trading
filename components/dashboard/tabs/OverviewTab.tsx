@@ -1,9 +1,11 @@
-import React from 'react';
-import { ShieldCheck, Wallet, Activity, CreditCard, Download, FileText, Terminal, Medal } from 'lucide-react';
+"use client";
+import React, { useState } from 'react';
+import { ShieldCheck, Wallet, Activity, CreditCard, Download, Terminal, Medal, Copy, Check } from 'lucide-react';
 import { StatBox } from '../shared/StatBox';
 
 export const OverviewTab = ({ profile, botData, isExpired, formatExpiryDate, onOpenPay, onOpenGuide }: any) => {
-  
+  const [copied, setCopied] = useState(false);
+
   // Logic xác định Quân Hàm (Rank)
   const getRankInfo = () => {
       if (profile?.plan === 'LIFETIME') return { label: "COMMANDER", color: "text-amber-400" };
@@ -12,22 +14,44 @@ export const OverviewTab = ({ profile, botData, isExpired, formatExpiryDate, onO
       return { label: "RECRUIT", color: "text-green-400" };
   };
 
+  const handleCopy = () => {
+    if (profile?.licenseKey) {
+      navigator.clipboard.writeText(profile.licenseKey);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
   const rankInfo = getRankInfo();
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
         {/* Header */}
-        <div className="flex justify-between items-end">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
             <div>
-                <h1 className="text-3xl font-black text-white">HEADQUARTERS</h1>
-                <p className="text-slate-400 text-sm">Trung tâm chỉ huy tài khoản {profile?.mt5Account}</p>
+                <h1 className="text-3xl font-black text-white italic tracking-tighter">HEADQUARTERS</h1>
+                <div className="flex flex-col gap-1 mt-1">
+                    <p className="text-slate-400 text-sm flex items-center gap-2">
+                        MT5 ID: <span className="text-white font-mono font-bold">{profile?.mt5Account || 'N/A'}</span>
+                    </p>
+                    {/* 👇 MÃ LICENSE KEY ĐÃ TRỞ LẠI 👇 */}
+                    <div 
+                        onClick={handleCopy}
+                        className="group flex items-center gap-2 bg-slate-900/80 border border-slate-800 px-3 py-1.5 rounded-lg cursor-pointer hover:border-green-500/50 transition-all w-fit"
+                        title="Click để sao chép License Key"
+                    >
+                        <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest">License Key:</span>
+                        <code className="text-xs font-mono font-bold text-green-400">{profile?.licenseKey || 'SPARTAN-XXXXXX'}</code>
+                        {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} className="text-slate-600 group-hover:text-white transition-colors" />}
+                    </div>
+                </div>
             </div>
-            <div className={`px-3 py-1 rounded-full text-[10px] font-black border ${isExpired ? 'border-red-500 text-red-500 bg-red-500/10' : 'border-green-500 text-green-500 bg-green-500/10'}`}>
-                {isExpired ? 'LICENSE EXPIRED' : 'LICENSE ACTIVE'}
+            <div className={`px-4 py-1.5 rounded-full text-[10px] font-black border tracking-widest shadow-lg ${isExpired ? 'border-red-500 text-red-500 bg-red-500/10 shadow-red-900/20' : 'border-green-500 text-green-500 bg-green-500/10 shadow-green-900/20'}`}>
+                {isExpired ? '● LICENSE EXPIRED' : '● LICENSE ACTIVE'}
             </div>
         </div>
 
-        {/* Stats Grid - Đã thêm lại QUÂN HÀM */}
+        {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <StatBox 
                 label="VỐN (EQUITY)" 
@@ -47,7 +71,6 @@ export const OverviewTab = ({ profile, botData, isExpired, formatExpiryDate, onO
                 icon={<Activity size={20}/>} 
                 color={botData && (Date.now() - new Date(botData.lastHeartbeat).getTime() < 120000) ? "text-green-400" : "text-red-500"} 
             />
-            {/* 👇 QUÂN HÀM ĐÃ TRỞ LẠI 👇 */}
             <StatBox 
                 label="CẤP BẬC (RANK)" 
                 value={rankInfo.label} 
@@ -57,26 +80,31 @@ export const OverviewTab = ({ profile, botData, isExpired, formatExpiryDate, onO
         </div>
         
         {/* Renewal Banner */}
-        <div className="bg-gradient-to-r from-slate-900 to-slate-800 p-6 rounded-2xl border border-slate-700 flex flex-col md:flex-row justify-between items-center gap-4">
-            <div>
-                <h3 className="font-bold text-white flex items-center gap-2"><CreditCard size={18}/> Gia hạn License</h3>
-                <p className="text-sm text-slate-400">Ngày hết hạn: <span className="text-white font-bold">{formatExpiryDate()}</span></p>
+        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-6 rounded-[2rem] border border-slate-700 flex flex-col md:flex-row justify-between items-center gap-4 shadow-2xl">
+            <div className="flex items-center gap-4">
+                <div className="p-3 bg-slate-800 rounded-2xl border border-slate-700">
+                    <CreditCard size={24} className="text-green-500" />
+                </div>
+                <div>
+                    <h3 className="font-black text-white uppercase tracking-tight">Gia hạn License</h3>
+                    <p className="text-sm text-slate-400">Hết hạn vào: <span className="text-white font-bold">{formatExpiryDate()}</span></p>
+                </div>
             </div>
-            <div className="flex gap-2">
-                <button onClick={() => onOpenPay("yearly")} className="px-5 py-2 bg-slate-700 hover:bg-slate-600 rounded-xl text-xs font-bold transition-all">Gia hạn năm</button>
-                <button onClick={() => onOpenPay("LIFETIME")} className="px-5 py-2 bg-gradient-to-r from-amber-600 to-amber-500 text-black rounded-xl text-xs font-black hover:scale-105 transition-all shadow-lg shadow-amber-900/20">NÂNG CẤP VIP</button>
+            <div className="flex gap-3 w-full md:w-auto">
+                <button onClick={() => onOpenPay("yearly")} className="flex-1 md:flex-none px-6 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl text-xs font-bold transition-all active:scale-95">GIA HẠN NĂM</button>
+                <button onClick={() => onOpenPay("LIFETIME")} className="flex-1 md:flex-none px-6 py-3 bg-gradient-to-r from-amber-600 to-amber-500 text-black rounded-xl text-xs font-black hover:scale-105 transition-all shadow-[0_0_20px_rgba(245,158,11,0.3)] active:scale-95">NÂNG CẤP VIP</button>
             </div>
         </div>
 
         {/* Download & Guide Area */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-800/50">
-            <a href="https://docs.google.com/uc?export=download&id=1BGtSMioGSIk-kkSrhmvipGW1gTg4LHTQ" className="bg-slate-900/50 hover:bg-slate-800 p-6 rounded-2xl border border-slate-800 flex items-center gap-4 group transition-all hover:border-green-500/50 cursor-pointer">
-                <div className="bg-green-500/20 p-4 rounded-xl text-green-500 group-hover:scale-110 transition-transform"><Download size={24}/></div>
-                <div><h4 className="font-bold text-white text-lg">Tải Bot V7.3.3</h4><p className="text-xs text-slate-400">Phiên bản mới nhất (Auto-update)</p></div>
+            <a href="https://docs.google.com/uc?export=download&id=1BGtSMioGSIk-kkSrhmvipGW1gTg4LHTQ" className="bg-slate-900/50 hover:bg-slate-800 p-6 rounded-[2rem] border border-slate-800 flex items-center gap-4 group transition-all hover:border-green-500/50 cursor-pointer shadow-xl">
+                <div className="bg-green-500/10 p-4 rounded-2xl text-green-500 group-hover:bg-green-500/20 group-hover:scale-110 transition-all border border-green-500/20"><Download size={28}/></div>
+                <div><h4 className="font-black text-white text-lg tracking-tight uppercase">Tải Bot V7.3.3</h4><p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Phiên bản Auto-update</p></div>
             </a>
-            <button onClick={onOpenGuide} className="bg-slate-900/50 hover:bg-slate-800 p-6 rounded-2xl border border-slate-800 flex items-center gap-4 group transition-all hover:border-blue-500/50 text-left">
-                <div className="bg-blue-500/20 p-4 rounded-xl text-blue-500 group-hover:scale-110 transition-transform"><Terminal size={24}/></div>
-                <div><h4 className="font-bold text-white text-lg">Hướng dẫn cài đặt</h4><p className="text-xs text-slate-400">Xem URL & Các bước</p></div>
+            <button onClick={onOpenGuide} className="bg-slate-900/50 hover:bg-slate-800 p-6 rounded-[2rem] border border-slate-800 flex items-center gap-4 group transition-all hover:border-blue-500/50 text-left shadow-xl">
+                <div className="bg-blue-500/10 p-4 rounded-2xl text-blue-500 group-hover:bg-blue-500/20 group-hover:scale-110 transition-all border border-blue-500/20"><Terminal size={28}/></div>
+                <div><h4 className="font-black text-white text-lg tracking-tight uppercase">Hướng dẫn cài đặt</h4><p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Xem URL & Các bước</p></div>
             </button>
         </div>
     </div>

@@ -1,10 +1,7 @@
 "use client";
 import { createContext, useContext, useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
-import { 
-  doc, getDoc, setDoc, onSnapshot, 
-  collection, query, where, getDocs, updateDoc, arrayUnion, serverTimestamp 
-} from "firebase/firestore";
+import { doc, getDoc, setDoc, onSnapshot, collection, query, where, getDocs, updateDoc, arrayUnion, serverTimestamp } from "firebase/firestore";
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
 
 export interface UserProfile {
