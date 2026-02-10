@@ -1,9 +1,17 @@
 import { NextResponse } from 'next/server';
 import { adminDb, adminAuth } from "@/lib/firebaseAdmin"; 
+import { z } from "zod"; 
 
-// Cấu hình Telegram (Giữ nguyên)
 const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_ADMIN_ID;
+
+// Định nghĩa khuôn mẫu (Schema)
+const WithdrawSchema = z.object({
+  amount: z.number()
+    .min(10, "Tối thiểu phải rút $10") 
+    .max(10000, "Tối đa rút $10,000/lần") 
+    .positive("Số tiền phải lớn hơn 0"),
+});
 
 export async function POST(req: Request) {
   try {
@@ -12,7 +20,6 @@ export async function POST(req: Request) {
     // 1. LẤY TOKEN TỪ HEADER
     const authHeader = req.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        console.log("❌ Lỗi: Không có Header Authorization");
         return NextResponse.json({ success: false, message: "Không có quyền truy cập!" }, { status: 401 });
     }
 
@@ -20,40 +27,43 @@ export async function POST(req: Request) {
     let uid = "";
     let emailFromToken = "";
 
-    // 2. GIẢI MÃ TOKEN (Để lấy UID thật)
+    // 2. GIẢI MÃ TOKEN
     try {
         const decodedToken = await adminAuth.verifyIdToken(token);
         uid = decodedToken.uid;
         emailFromToken = decodedToken.email || "";
-        console.log("✅ Auth OK. UID:", uid);
     } catch (e) {
         console.log("❌ Lỗi verify token:", e);
         return NextResponse.json({ success: false, message: "Token không hợp lệ!" }, { status: 403 });
     }
 
-    // 3. ĐỌC DỮ LIỆU GỬI LÊN
+    // 3. ĐỌC DỮ LIỆU
     const body = await req.json();
-    console.log("📦 Body nhận được:", body);
     
-    const { amount } = body; // Chỉ cần lấy amount, không cần uid từ body nữa
+    // 🔥 4. DÙNG ZOD VALIDATION (Thay thế đoạn if cũ)
+    const validation = WithdrawSchema.safeParse(body);
 
-    // 4. KIỂM TRA DỮ LIỆU
-    if (!amount || isNaN(amount) || amount <= 0) {
-        console.log("❌ Lỗi: Số tiền không hợp lệ. Amount =", amount);
-        return NextResponse.json({ success: false, message: "Số tiền không hợp lệ!" }, { status: 400 });
+    if (!validation.success) {
+        // Lấy thông báo lỗi tiếng Việt đầu tiên
+        const errorMessage = validation.error.issues[0].message;
+        console.log("❌ Lỗi Validation:", errorMessage);
+        return NextResponse.json({ success: false, message: errorMessage }, { status: 400 });
     }
 
+    // Lấy dữ liệu sạch từ Zod
+    const { amount } = validation.data;
+
     // 5. THỰC HIỆN GIAO DỊCH (TRANSACTION)
-    const userRef = adminDb.collection("users").doc(uid); // Dùng UID từ Token
+    const userRef = adminDb.collection("users").doc(uid); 
 
     const result = await adminDb.runTransaction(async (t) => {
         const doc = await t.get(userRef);
-        
         if (!doc.exists) { throw new Error("Tài khoản không tồn tại!"); }
 
         const userData = doc.data() || {};
         const currentWallet = userData.wallet || { available: 0, pending: 0, total_paid: 0 };
-        console.log("💰 Số dư hiện tại:", currentWallet.available, "| Muốn rút:", amount);
+        
+        console.log(`💰 User: ${emailFromToken} | Dư: ${currentWallet.available} | Rút: ${amount}`);
 
         if (amount > currentWallet.available) {
             throw new Error("Số dư không đủ!");
@@ -73,9 +83,10 @@ export async function POST(req: Request) {
 
     console.log("✅ RÚT TIỀN THÀNH CÔNG!");
 
-    // 6. GỬI TELEGRAM (Optional)
+    // 6. GỬI TELEGRAM
     if (TELEGRAM_TOKEN && TELEGRAM_CHAT_ID) {
-        await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+        // Chạy nền, không cần await để trả response cho nhanh
+        fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
@@ -93,6 +104,7 @@ export async function POST(req: Request) {
 
   } catch (error: any) {
     console.error("🔥 LỖI SERVER:", error.message);
-    return NextResponse.json({ success: false, message: error.message || "Lỗi Server" }, { status: 500 }); // Đổi thành 500 nếu lỗi code
+    // Trả về lỗi cụ thể từ transaction (ví dụ: Số dư không đủ)
+    return NextResponse.json({ success: false, message: error.message || "Lỗi Server" }, { status: 500 });
   }
 }
