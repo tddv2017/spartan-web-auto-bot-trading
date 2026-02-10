@@ -1,160 +1,142 @@
 import { NextRequest, NextResponse } from 'next/server';
-// ⚠️ QUAN TRỌNG: Dùng adminDb để có quyền ghi đè (Bypass Rules)
-// Nếu chưa có file firebase-admin.ts, hãy báo tôi để tôi cung cấp code
+// ⚠️ Đảm bảo ông đã có file lib/firebaseAdmin.ts cấu hình service account
 import { adminDb } from '@/lib/firebaseAdmin'; 
 import { FieldValue } from 'firebase-admin/firestore';
 
-// CẤU HÌNH GÓI (Giá USD)
+// CẤU HÌNH GÓI (Giá USD & Hoa hồng 40%)
 const PLAN_DEFS: any = {
-  'STARTER':  { id: 'starter',  usd: 30,   days: 30,    commission_percent: 0.15 }, 
-  'YEARLY':   { id: 'yearly',   usd: 299,  days: 365,   commission_percent: 0.40 }, 
-  'LIFETIME': { id: 'LIFETIME', usd: 9999, days: 99999, commission_percent: 0.40 }
+  'STARTER':  { id: 'starter',   usd: 30,   days: 30,    commission_rate: 0.4 }, 
+  'YEARLY':   { id: 'yearly',    usd: 299,  days: 365,   commission_rate: 0.4 }, 
+  'LIFETIME': { id: 'LIFETIME',  usd: 9999,  days: 99999, commission_rate: 0.4 }
 };
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     
-    // id: Mã giao dịch ngân hàng (Dùng để chống trùng lặp)
+    // Lấy dữ liệu từ Casso/SePay/Cổng thanh toán
     const { id, content, transferAmount } = body; 
     const contentUpper = content.toUpperCase();
 
-    console.log(`💰 [1] WEBHOOK NHẬN: ${transferAmount} VND - Nội dung: ${content}`);
+    console.log(`💰 [WEBHOOK] NHẬN: ${transferAmount} VND - Content: ${content}`);
 
-    // --- 🛡️ CHỐNG TRÙNG LẶP (IDEMPOTENCY) ---
-    // Kiểm tra xem mã giao dịch này đã xử lý chưa
-    const txCheck = await adminDb.collection('transactions').doc(String(id)).get();
+    // --- 1. CHỐNG TRÙNG LẶP (IDEMPOTENCY) ---
+    const txRef = adminDb.collection('transactions').doc(String(id));
+    const txCheck = await txRef.get();
     if (txCheck.exists) {
-        console.log("⚠️ Giao dịch này đã xử lý rồi. Bỏ qua.");
-        return NextResponse.json({ success: true, message: "Already processed" });
+        return NextResponse.json({ success: true, message: "Transaction already processed" });
     }
 
-    // 1. TÌM KEY SPARTAN
+    // --- 2. TÌM LICENSE KEY ---
     const keyMatch = contentUpper.match(/SPARTAN[-]*[A-Z0-9]+/); 
-    if (!keyMatch) {
-        return NextResponse.json({ success: false, message: "No License Key found" });
-    }
+    if (!keyMatch) return NextResponse.json({ success: false, message: "No License Key found" });
     
     let licenseKey = keyMatch[0];
-    if (!licenseKey.includes("-")) {
-        licenseKey = licenseKey.replace("SPARTAN", "SPARTAN-");
-    }
+    if (!licenseKey.includes("-")) licenseKey = licenseKey.replace("SPARTAN", "SPARTAN-");
 
-    // 2. LẤY TỶ GIÁ
+    // --- 3. LẤY TỶ GIÁ USD/VND ---
     let currentRate = 25500;
     try {
         const rateRes = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
         const rateData = await rateRes.json();
         if(rateData?.rates?.VND) currentRate = rateData.rates.VND;
-    } catch (e) { console.warn("⚠️ Lỗi tỷ giá, dùng 25.500"); }
+    } catch (e) { console.warn("⚠️ Lỗi tỷ giá, dùng mặc định 25.500"); }
 
-    // 3. XÁC ĐỊNH GÓI (CÓ CƠ CHẾ DỰ PHÒNG THEO TIỀN)
-    let selectedPlanDef = null;
+    // --- 4. XÁC ĐỊNH GÓI CƯỚC ---
+    let selectedPlan = null;
     
-    // Cách 1: Tìm theo tên trong nội dung
-    if (contentUpper.includes("LIFETIME")) selectedPlanDef = PLAN_DEFS.LIFETIME;
-    else if (contentUpper.includes("YEARLY") || contentUpper.includes("VIP")) selectedPlanDef = PLAN_DEFS.YEARLY;
-    else if (contentUpper.includes("STARTER") || contentUpper.includes("PRO")) selectedPlanDef = PLAN_DEFS.STARTER;
+    // Ưu tiên 1: Tìm theo tên gói trong nội dung CK
+    if (contentUpper.includes("LIFETIME")) selectedPlan = PLAN_DEFS.LIFETIME;
+    else if (contentUpper.includes("YEARLY") || contentUpper.includes("VIP")) selectedPlan = PLAN_DEFS.YEARLY;
+    else if (contentUpper.includes("STARTER") || contentUpper.includes("PRO")) selectedPlan = PLAN_DEFS.STARTER;
 
-    // Cách 2: Nếu không thấy tên, đoán theo số tiền (USD)
-    if (!selectedPlanDef) {
+    // Ưu tiên 2: Đoán theo số tiền (Chấp nhận sai số 10%)
+    if (!selectedPlan) {
         const usdPaid = transferAmount / currentRate;
-        if (usdPaid >= PLAN_DEFS.LIFETIME.usd * 0.9) selectedPlanDef = PLAN_DEFS.LIFETIME;
-        else if (usdPaid >= PLAN_DEFS.YEARLY.usd * 0.9) selectedPlanDef = PLAN_DEFS.YEARLY;
-        else if (usdPaid >= PLAN_DEFS.STARTER.usd * 0.9) selectedPlanDef = PLAN_DEFS.STARTER;
+        if (usdPaid >= PLAN_DEFS.LIFETIME.usd * 0.9) selectedPlan = PLAN_DEFS.LIFETIME;
+        else if (usdPaid >= PLAN_DEFS.YEARLY.usd * 0.9) selectedPlan = PLAN_DEFS.YEARLY;
+        else if (usdPaid >= PLAN_DEFS.STARTER.usd * 0.9) selectedPlan = PLAN_DEFS.STARTER;
     }
 
-    if (!selectedPlanDef) {
-         console.log("❌ Không xác định được gói nào khớp với số tiền.");
+    if (!selectedPlan) {
+         console.log("❌ Không xác định được gói.");
          return NextResponse.json({ success: false, message: "Unknown Plan" });
     }
 
-    // 4. KIỂM TRA SỐ TIỀN (DOUBLE CHECK)
-    const expectedAmount = selectedPlanDef.usd * currentRate;
-    const minAcceptable = expectedAmount - 50000; // Buffer 50k
-
-    if (transferAmount < minAcceptable) {
-         console.warn(`❌ TỪ CHỐI: Tiền thiếu. Nhận: ${transferAmount}, Cần: ${expectedAmount}`);
-         return NextResponse.json({ success: false, message: "Amount too low" });
-    }
-
-    // 5. TÌM USER (Dùng Admin SDK)
+    // --- 5. TÌM USER TRONG DB ---
     const usersRef = adminDb.collection("users");
     const snapshot = await usersRef.where("licenseKey", "==", licenseKey).limit(1).get();
 
-    if (snapshot.empty) {
-        return NextResponse.json({ success: false, message: "User not found" });
-    }
+    if (snapshot.empty) return NextResponse.json({ success: false, message: "User not found" });
 
     const userDoc = snapshot.docs[0];
     const userData = userDoc.data();
+    const userId = userDoc.id;
 
-    // 6. KÍCH HOẠT GÓI & LƯU LỊCH SỬ GIAO DỊCH
-    try {
-        let newExpiry;
-        if (selectedPlanDef.id === 'LIFETIME') {
-            newExpiry = new Date("2099-12-31T23:59:59");
-        } else {
-            const now = new Date();
-            // userData.expiryDate ở Admin SDK là Timestamp, cần toDate()
-            const currentExp = userData.expiryDate ? userData.expiryDate.toDate() : new Date();
-            const baseDate = currentExp > now ? currentExp : now;
-            baseDate.setDate(baseDate.getDate() + selectedPlanDef.days);
-            newExpiry = baseDate;
-        }
-
-        // Cập nhật User
-        await userDoc.ref.update({ 
-            plan: selectedPlanDef.id,
-            expiryDate: newExpiry,
-            lastPaymentId: id // Lưu lại mã giao dịch gần nhất
-        });
-
-        // Lưu vào collection transactions để chống trùng lặp sau này
-        await adminDb.collection('transactions').doc(String(id)).set({
-            userId: userDoc.id,
-            amount: transferAmount,
-            plan: selectedPlanDef.id,
-            licenseKey: licenseKey,
-            createdAt: FieldValue.serverTimestamp()
-        });
-
-        console.log(`🎉 Kích hoạt thành công gói ${selectedPlanDef.id}`);
-
-    } catch (err) {
-        console.error("❌ Lỗi DB:", err);
-        return NextResponse.json({ success: false, error: "DB Error" });
+    // --- 6. KÍCH HOẠT GÓI CHO USER ---
+    let newExpiry;
+    if (selectedPlan.id === 'LIFETIME') {
+        newExpiry = new Date("2099-12-31T23:59:59");
+    } else {
+        const now = new Date();
+        // Firebase Admin trả về Timestamp, cần toDate()
+        const currentExp = userData.expiryDate?.toDate ? userData.expiryDate.toDate() : new Date();
+        const baseDate = (currentExp > now) ? currentExp : now;
+        baseDate.setDate(baseDate.getDate() + selectedPlan.days);
+        newExpiry = baseDate;
     }
 
-    // 7. HOA HỒNG (Dùng Admin SDK)
+    await userDoc.ref.update({ 
+        plan: selectedPlan.id,
+        expiryDate: newExpiry,
+        accountStatus: 'active',
+        updatedAt: FieldValue.serverTimestamp()
+    });
+
+    // Lưu giao dịch để không xử lý lại
+    await txRef.set({
+        userId: userId,
+        amount: transferAmount,
+        plan: selectedPlan.id,
+        licenseKey: licenseKey,
+        createdAt: FieldValue.serverTimestamp()
+    });
+
+    console.log(`✅ Đã kích hoạt gói ${selectedPlan.id} cho ${userData.email}`);
+
+    // --- 7. TÍNH & CỘNG HOA HỒNG (40%) ---
     if (userData.referredBy) {
          const refSnap = await usersRef.where("licenseKey", "==", userData.referredBy).limit(1).get();
          
          if (!refSnap.empty) {
-            const resellerDoc = refSnap.docs[0];
-            const commissionUSD = Math.round(selectedPlanDef.usd * selectedPlanDef.commission_percent);
+            const referrerDoc = refSnap.docs[0];
+            const refData = referrerDoc.data();
             
-            const newRef = {
-                user: userData.displayName || userData.email,
-                date: new Date().toLocaleDateString('vi-VN'),
-                package: selectedPlanDef.id.toUpperCase(),
-                commission: commissionUSD,
-                status: "approved"
-            };
-
-            // Dùng arrayUnion của Admin SDK
-            await resellerDoc.ref.update({
-                "wallet.available": FieldValue.increment(commissionUSD),
-                referrals: FieldValue.arrayUnion(newRef)
+            // Tính hoa hồng (USD)
+            const commissionAmount = Number((selectedPlan.usd * selectedPlan.commission_rate).toFixed(2));
+            
+            // Cập nhật ví Sếp
+            await referrerDoc.ref.update({
+                "wallet.available": FieldValue.increment(commissionAmount),
+                // Đồng bộ cấu trúc Referral object với AuthContext
+                referrals: FieldValue.arrayUnion({
+                    uid: userId,
+                    email: userData.email,
+                    date: new Date().toISOString(),
+                    plan: selectedPlan.id,
+                    commission: commissionAmount,
+                    status: "approved",
+                    updatedAt: new Date().toISOString()
+                })
             });
-            console.log(`💸 Đã cộng hoa hồng: $${commissionUSD}`);
+            console.log(`💸 Đã cộng $${commissionAmount} cho đại lý.`);
          }
     }
 
-    return NextResponse.json({ success: true, message: "Activated" });
+    return NextResponse.json({ success: true, message: "Activated & Commission Distributed" });
 
   } catch (error) {
-    console.error("🔥 SERVER ERROR:", error);
+    console.error("🔥 WEBHOOK ERROR:", error);
     return NextResponse.json({ success: false, error: "Server Error" }, { status: 500 });
   }
 }
