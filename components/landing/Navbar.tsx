@@ -36,7 +36,7 @@ export default function Navbar() {
           </div>
           <div className="flex flex-col">
             <span className="text-lg md:text-xl font-black tracking-wider text-white leading-none">
-              SPARTAN <span className="text-green-500">V7.2</span>
+              SPARTAN <span className="text-green-500">V7.3.3</span>
             </span>
           </div>
         </Link>
