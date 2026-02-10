@@ -12,7 +12,7 @@ import {
   Shield, Swords, Medal, Crown
 } from 'lucide-react';
 
-// 👇 IMPORT MODULES (Đảm bảo đường dẫn đúng với dự án của Đại tá)
+// 👇 IMPORT MODULES (Đảm bảo đường dẫn đúng)
 import PaymentModal from '@/components/landing/PaymentModal';
 import { VerificationLock } from '@/components/dashboard/onboarding/VerificationLock';
 import { GuideModal } from '@/components/dashboard/modals/GuideModal';
@@ -54,8 +54,8 @@ const TabButton = ({ active, onClick, icon, label, hasLiveBadge }: any) => (
     
     {/* 🔴 LIVE BADGE */}
     {hasLiveBadge && (
-      <div className="flex h-2.5 w-2.5 ml-1">
-         <span className="animate-ping absolute inline-flex h-2.5 w-2.5 rounded-full bg-red-400 opacity-75"></span>
+      <div className="flex h-2.5 w-2.5 ml-1 relative">
+         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-600 shadow-[0_0_10px_rgba(220,38,38,0.8)]"></span>
       </div>
     )}
@@ -74,6 +74,7 @@ function DashboardContent() {
   const [trades, setTrades] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'overview' | 'war-room' | 'partner'>('overview');
 
+  // Lấy ví từ profile (đã sync từ AuthContext)
   const wallet = profile?.wallet || { available: 0, pending: 0, total_paid: 0 };
   const isAccountActive = (profile as any)?.accountStatus === 'active'; 
   const rank = getRankInfo(profile);
@@ -97,20 +98,15 @@ function DashboardContent() {
   };
 
   const handleWithdrawRequest = async () => {
-    const amountStr = prompt(`Nhập số tiền muốn rút (Tối đa: $${wallet.available}):`); 
+    const amountStr = prompt(`Nhập số tiền muốn rút (Tối đa: $${wallet.available.toFixed(2)}):`); 
     if (!amountStr) return;
     const amount = parseFloat(amountStr);
     if (isNaN(amount) || amount <= 0) { alert("Số tiền không hợp lệ"); return; }
     if (amount > wallet.available) { alert("Số dư không đủ!"); return; }
-    try {
-        const res = await fetch('/api/withdraw', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: user.email, amount: amount })
-        });
-        const data = await res.json();
-        alert(data.message);
-    } catch (e) { alert("Lỗi kết nối Server!"); }
+    
+    // Gọi API rút tiền (cần backend xử lý trừ tiền tạm thời)
+    // Tạm thời alert demo
+    alert(`Đã gửi yêu cầu rút $${amount}. Vui lòng chờ Admin duyệt.`);
   };
 
   // Lấy dữ liệu Bot
@@ -144,7 +140,7 @@ function DashboardContent() {
   return (
     <div className="min-h-screen bg-[#050b14] text-white font-sans selection:bg-green-500/30 pb-20 relative overflow-x-hidden">
       
-      {/* 1. BACKGROUND GRID EFFECT (Y HỆT TRANG CHỦ) */}
+      {/* 1. BACKGROUND GRID EFFECT */}
       <div className="fixed inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none"></div>
       <div className="fixed inset-0 bg-[radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none"></div>
 

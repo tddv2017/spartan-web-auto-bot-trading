@@ -1,10 +1,13 @@
 "use client";
 import { createContext, useContext, useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
-// 👇 Đổi "firebase/timestamp" thành "firebase/firestore"
-import { doc, getDoc, setDoc, onSnapshot, collection, query, where, getDocs, updateDoc, arrayUnion, serverTimestamp } from "firebase/firestore";
+import { 
+  doc, getDoc, setDoc, onSnapshot, 
+  collection, query, where, getDocs, updateDoc, arrayUnion, serverTimestamp 
+} from "firebase/firestore";
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
 
+// 👇 Cập nhật Interface: Thêm dòng role
 export interface UserProfile {
   id: string; 
   uid: string;
@@ -16,8 +19,11 @@ export interface UserProfile {
   displayName?: string;
   photoURL?: string;
   accountStatus: 'new' | 'pending' | 'active' | 'rejected';
+  
+  // 🔥 QUAN TRỌNG: Thêm dòng này để fix lỗi TypeScript
+  role?: 'admin' | 'user'; 
+
   referredBy?: string | null;
-  role?: 'user' | 'admin';
   referrals: Array<{ 
     uid: string; 
     email: string; 
@@ -53,7 +59,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setLoading(true);
       if (currentUser) {
         setUser(currentUser);
-        setIsAdmin(ADMIN_EMAILS.includes(currentUser.email || ""));
+        
+        // Check Admin dựa trên Email cứng
+        const isSystemAdmin = ADMIN_EMAILS.includes(currentUser.email || "");
+        setIsAdmin(isSystemAdmin);
+
         const userRef = doc(db, "users", currentUser.uid);
         const userSnap = await getDoc(userRef);
 
@@ -67,10 +77,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             licenseKey: "SPARTAN-" + Math.random().toString(36).substring(2, 10).toUpperCase(),
             accountStatus: 'new', 
             plan: "free",
+            role: isSystemAdmin ? 'admin' : 'user', // Lưu role vào DB luôn
             createdAt: serverTimestamp(),
             expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
             wallet: { available: 0, pending: 0, total_paid: 0 },
-            referrals: [], // Khởi tạo mảng rỗng chuẩn
+            referrals: [], 
             referredBy: referrerCode || null 
           };
           await setDoc(userRef, newUserData);
@@ -92,8 +103,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             }
           }
         }
+        
         const unsubProfile = onSnapshot(userRef, (docSnap) => {
-          if (docSnap.exists()) setProfile({ id: docSnap.id, ...docSnap.data() } as UserProfile);
+          if (docSnap.exists()) {
+             // Ép kiểu dữ liệu về UserProfile để TypeScript không báo lỗi
+             const data = docSnap.data();
+             setProfile({ id: docSnap.id, ...data } as UserProfile);
+          }
           setLoading(false);
         });
         return () => unsubProfile();
@@ -106,6 +122,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const login = async () => {
     const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
     await signInWithPopup(auth, provider);
   };
 
