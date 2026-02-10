@@ -93,8 +93,6 @@ export async function POST(req: Request) {
                         return r;
                     })
                 });
-
-                console.log(`💰 Đã cộng $${commission} cho đại lý ${refData.email}`);
             }
         }
     });
