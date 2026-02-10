@@ -159,15 +159,37 @@ export default function AdminPage() {
       try { await deleteDoc(doc(db, "users", userId)); fetchUsers(); } catch (e) { alert(e); }
   };
 
-  const approveWithdraw = async (user: any) => {
-    const amount = user.wallet.pending;
-    if(!confirm(`XÁC NHẬN ĐÃ CHUYỂN $${amount}?`)) return;
+  // ✅ CODE MỚI (Gọi qua API Bọc thép)
+const approveWithdraw = async (user: any) => {
+    const amount = user.wallet?.pending || 0;
+    if(!confirm(`XÁC NHẬN ĐÃ CHUYỂN $${amount} CHO ${user.email}?`)) return;
+    
     try {
-        const newWallet = { ...user.wallet, pending: 0, total_paid: Number((user.wallet.total_paid + amount).toFixed(2)) };
-        await updateDoc(doc(db, "users", user.id), { wallet: newWallet });
-        fetchUsers();
-    } catch (e) { alert(e); }
-  };
+        // Lấy token căn cước của Admin
+        // (Giả sử ngài đang dùng useAuth() có chứa 'user')
+        const token = await user.getIdToken(); 
+
+        const res = await fetch('/api/admin/approve-withdraw', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}` // 👈 Trình thẻ bài Admin
+            },
+            body: JSON.stringify({ userId: user.id, amount: amount })
+        });
+        
+        const data = await res.json();
+        
+        if (res.ok && data.success) {
+            alert("✅ Đã giải ngân và cập nhật ví thành công!");
+            fetchUsers(); // Tải lại danh sách
+        } else {
+            alert("❌ Lỗi Server: " + (data.error || "Không rõ nguyên nhân"));
+        }
+    } catch (e) { 
+        alert("❌ Lỗi kết nối mạng!"); 
+    }
+};
 
   const resetMT5 = async (userId: string) => {
     if(!confirm("Reset MT5 ID?")) return;
