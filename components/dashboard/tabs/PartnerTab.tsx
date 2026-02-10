@@ -6,18 +6,19 @@ import { ShieldCheck, Globe, Wallet, CheckCircle, Settings, Bitcoin, CreditCard,
 
 const VN_BANKS = ["Vietcombank (VCB)", "MBBank (Quân Đội)", "Techcombank (TCB)", "ACB (Á Châu)", "VietinBank (CTG)", "BIDV (Đầu tư & PT)", "VPBank", "TPBank", "Sacombank", "VIB", "HDBank", "MSB", "OCB", "SHB", "Eximbank", "SeABank", "ABBank", "Nam A Bank", "Agribank"];
 
-export const PartnerTab = ({ wallet, profile, onWithdraw, user }: any) => {
+export const PartnerTab = ({ wallet, profile, user }: any) => {
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedAd, setCopiedAd] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'bank' | 'crypto'>('bank');
   const [bankInfo, setBankInfo] = useState({ bankName: "", accountNumber: "", accountHolder: "" });
   const [cryptoInfo, setCryptoInfo] = useState({ network: "USDT (TRC20)", walletAddress: "" });
+  
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
 
   const refLink = `https://spartan-web-auto-bot-trading.vercel.app/?ref=${profile?.licenseKey}`;
   const adText = `🔥 SPARTAN BOT V7.3 - CỖ MÁY IN TIỀN XAUUSD 🔥\n✅ Lợi nhuận 15-30%/tháng\n✅ Tự động 100%, Không gồng lỗ\n✅ Bảo hiểm vốn 100%\n👉 Nhận Bot miễn phí tại: ${refLink}`;
 
-  // --- LOGIC TÍNH TOÁN ---
   const { monthlyCommission, currentMonthLabel } = useMemo(() => {
     const now = new Date();
     const currentMonth = now.getMonth();
@@ -35,7 +36,6 @@ export const PartnerTab = ({ wallet, profile, onWithdraw, user }: any) => {
     return { monthlyCommission: total, currentMonthLabel: `Tháng ${currentMonth + 1}/${currentYear}` };
   }, [profile?.referrals]);
 
-  // Lấy thông tin ngân hàng
   useEffect(() => {
     if (!user) return;
     const fetchData = async () => {
@@ -68,10 +68,54 @@ export const PartnerTab = ({ wallet, profile, onWithdraw, user }: any) => {
     } catch (error) { alert("❌ Lỗi hệ thống, thử lại sau."); }
   };
 
+  const handleRequestWithdraw = async () => {
+    if (!profile?.bankInfo && !profile?.cryptoInfo) {
+        alert("⚠️ Vui lòng cập nhật Ví nhận tiền (Nút cài đặt) trước!");
+        return;
+    }
+    
+    const amountStr = prompt(`Nhập số tiền muốn rút (Tối đa: $${wallet?.available?.toFixed(2) || 0}):`); 
+    if (!amountStr) return;
+    const amount = parseFloat(amountStr);
+
+    if (isNaN(amount) || amount <= 0) { alert("⚠️ Số tiền không hợp lệ"); return; }
+    if (amount < 10) { alert("⚠️ Số tiền rút tối thiểu là $10"); return; }
+    if (amount > wallet.available) { alert("⚠️ Số dư không đủ!"); return; }
+
+    if(!confirm(`Xác nhận rút $${amount} về ví của bạn?`)) return;
+
+    setIsWithdrawing(true);
+
+    try {
+        const res = await fetch('/api/withdraw', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                uid: user.uid,     
+                email: user.email, 
+                amount: amount 
+            }),
+        });
+    
+        const data = await res.json();
+    
+        if (data.success) {
+            alert(data.message);
+        } else {
+            alert("❌ Thất bại: " + data.message);
+        }
+        
+    } catch (e) {
+        console.error(e);
+        alert("❌ Lỗi kết nối server!");
+    } finally {
+        setIsWithdrawing(false);
+    }
+  };
+
   return (
     <div className="space-y-8 animate-in slide-in-from-right duration-500 mt-6 pb-20">
       
-      {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-end gap-4 border-b border-slate-800 pb-6">
           <div>
             <h2 className="text-2xl font-black text-white flex items-center gap-2">
@@ -86,10 +130,7 @@ export const PartnerTab = ({ wallet, profile, onWithdraw, user }: any) => {
           </div>
       </div>
       
-      {/* 💰 KHU VỰC TÀI CHÍNH */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          
-          {/* Card 1: VÍ KHẢ DỤNG */}
           <div className="md:col-span-2 bg-gradient-to-br from-green-900/40 to-slate-900 border border-green-500/50 p-6 rounded-[2rem] relative overflow-hidden group hover:border-green-400 transition-colors">
               <div className="absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity"><Wallet size={100}/></div>
               <div className="flex justify-between items-start mb-2 relative z-10"><p className="text-[10px] text-green-400 font-black uppercase flex items-center gap-2 tracking-widest"><CheckCircle size={12}/> Số dư khả dụng</p><button onClick={() => setShowSettingsModal(true)} className="text-slate-400 hover:text-white transition-colors p-2 bg-slate-800/50 rounded-lg hover:bg-slate-800"><Settings size={16} /></button></div>
@@ -99,12 +140,15 @@ export const PartnerTab = ({ wallet, profile, onWithdraw, user }: any) => {
                    bankInfo.accountNumber ? (<p className="text-[10px] text-slate-400 font-mono truncate flex items-center gap-1"><CreditCard size={12} /> {bankInfo.bankName.split('(')[0]} • {bankInfo.accountNumber}</p>) : 
                    (<p className="text-[10px] text-red-500 italic animate-pulse">⚠ Chưa cài đặt ví nhận tiền</p>)}
               </div>
-              <button onClick={onWithdraw} className="w-full py-4 bg-green-600 hover:bg-green-500 text-white text-sm font-bold rounded-xl shadow-lg shadow-green-900/50 active:scale-95 transition-all mt-auto relative z-10 uppercase tracking-widest flex items-center justify-center gap-2">
-                 <ArrowUpRight size={18}/> Rút tiền ngay
+              <button 
+                onClick={handleRequestWithdraw} 
+                disabled={isWithdrawing}
+                className="w-full py-4 bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-bold rounded-xl shadow-lg shadow-green-900/50 active:scale-95 transition-all mt-auto relative z-10 uppercase tracking-widest flex items-center justify-center gap-2"
+              >
+                 {isWithdrawing ? "ĐANG GỬI YÊU CẦU..." : <><ArrowUpRight size={18}/> RÚT TIỀN NGAY</>}
               </button>
           </div>
 
-          {/* Card 2: TRẠNG THÁI RÚT TIỀN (Pending) */}
           <div className={`bg-slate-900/60 border p-6 rounded-[2rem] flex flex-col justify-center ${wallet?.pending > 0 ? 'border-yellow-500/50 shadow-[0_0_20px_rgba(234,179,8,0.1)]' : 'border-slate-800'}`}>
               <p className="text-[10px] text-yellow-500 font-black uppercase mb-2 flex items-center gap-2 tracking-widest"><Clock size={12}/> Đang xử lý</p>
               <h2 className={`text-3xl font-black font-chakra mb-2 ${wallet?.pending > 0 ? 'text-yellow-400' : 'text-slate-600'}`}>${(wallet?.pending || 0).toFixed(2)}</h2>
@@ -117,7 +161,6 @@ export const PartnerTab = ({ wallet, profile, onWithdraw, user }: any) => {
               )}
           </div>
 
-          {/* Card 3: ĐÃ RÚT THÀNH CÔNG (Total Paid) */}
           <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem] flex flex-col justify-center">
               <p className="text-[10px] text-blue-400 font-black uppercase mb-2 flex items-center gap-2 tracking-widest"><CheckCircle size={12}/> Tổng đã rút</p>
               <h2 className="text-3xl font-black text-white font-chakra mb-2">${(wallet?.total_paid || 0).toFixed(2)}</h2>
@@ -125,7 +168,6 @@ export const PartnerTab = ({ wallet, profile, onWithdraw, user }: any) => {
           </div>
       </div>
 
-      {/* Doanh số tháng */}
       <div className="bg-slate-900/40 border border-slate-800/50 p-4 rounded-xl flex items-center justify-between">
            <div className="flex items-center gap-3">
                <div className="p-3 bg-slate-800 rounded-lg text-purple-400"><Calendar size={20}/></div>
@@ -145,7 +187,6 @@ export const PartnerTab = ({ wallet, profile, onWithdraw, user }: any) => {
            </div>
       </div>
 
-      {/* Share Links */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
          <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem]">
             <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2 uppercase"><Share2 size={16} className="text-blue-500"/> Link Giới thiệu</h3>
@@ -160,7 +201,6 @@ export const PartnerTab = ({ wallet, profile, onWithdraw, user }: any) => {
          </div>
       </div>
 
-      {/* Table Referral Log - ĐÃ XỬ LÝ KHOẢNG TRẮNG CỰC KỲ CẨN THẬN */}
       <div className="bg-slate-900/60 border border-slate-800 rounded-[2rem] p-6 md:p-8">
           <h3 className="font-bold text-white mb-6 flex items-center gap-2 uppercase tracking-widest border-b border-slate-800 pb-4">
               <UserPlus size={18} className="text-green-500"/> NHẬT KÝ TUYỂN DỤNG

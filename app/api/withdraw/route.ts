@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-// 👇 CHỈ ĐƯỢC IMPORT CÁI NÀY (Admin SDK)
-import { adminDb } from "@/lib/firebaseAdmin"; // ⚠️ Sửa đường dẫn nếu file nằm ở chỗ khác (vd: @/lib/firebaseAdmin)
+import { adminDb } from "@/lib/firebaseAdmin"; 
 
 // Cấu hình Telegram
 const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -22,55 +21,52 @@ async function sendTelegramAlert(msg: string) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { amount, email } = body;
+    const { amount, uid, email } = body; // 👇 Nhận thêm UID để tìm doc cho nhanh
 
     // 1. Kiểm tra đầu vào
-    if (!email || !amount || isNaN(amount) || amount <= 0) {
+    if (!uid || !amount || isNaN(amount) || amount <= 0) {
       return NextResponse.json({ success: false, message: "Dữ liệu không hợp lệ" }, { status: 400 });
     }
 
-    // 2. Tìm User bằng Admin SDK
-    const usersRef = adminDb.collection("users");
-    const snapshot = await usersRef.where("email", "==", email).limit(1).get();
+    const userRef = adminDb.collection("users").doc(uid);
 
-    if (snapshot.empty) {
-      return NextResponse.json({ success: false, message: "Không tìm thấy tài khoản" }, { status: 404 });
-    }
+    // 🔥 TRANSACTION: BẮT ĐẦU KHÓA KHO ĐỂ KIỂM KÊ
+    const result = await adminDb.runTransaction(async (t) => {
+        const doc = await t.get(userRef);
+        
+        if (!doc.exists) {
+            throw new Error("Không tìm thấy tài khoản!");
+        }
 
-    const userDoc = snapshot.docs[0];
-    const userData = userDoc.data();
-    
-    // 3. Lấy ví (Xử lý trường hợp chưa có ví)
-    const currentWallet = userData.wallet || { available: 0, pending: 0, total_paid: 0 };
+        const userData = doc.data() || {};
+        const currentWallet = userData.wallet || { available: 0, pending: 0, total_paid: 0 };
 
-    // 4. Kiểm tra số dư
-    if (amount > currentWallet.available) {
-      return NextResponse.json({ success: false, message: "⚠️ Số dư không đủ!" }, { status: 400 });
-    }
+        // Kiểm tra số dư (Trong lúc transaction chạy, không ai được can thiệp)
+        if (amount > currentWallet.available) {
+            throw new Error("⚠️ Số dư không đủ!");
+        }
 
-    // 5. Tính toán ví mới (Làm tròn 2 số lẻ để tránh lỗi float)
-    const newAvailable = Number((currentWallet.available - amount).toFixed(2));
-    const newPending = Number((currentWallet.pending + amount).toFixed(2));
+        const newAvailable = Number((currentWallet.available - amount).toFixed(2));
+        const newPending = Number((currentWallet.pending + amount).toFixed(2));
 
-    const newWallet = {
-      ...currentWallet,
-      available: newAvailable,
-      pending: newPending
-    };
+        // Cập nhật ví mới
+        t.update(userRef, {
+            "wallet.available": newAvailable,
+            "wallet.pending": newPending,
+            "lastWithdrawRequest": new Date()
+        });
 
-    // 6. Cập nhật Firestore (Dùng cú pháp Admin: doc(id).update)
-    await usersRef.doc(userDoc.id).update({
-      wallet: newWallet,
-      lastWithdrawRequest: new Date()
+        return { newAvailable, newPending }; // Trả về số dư mới để báo cáo
     });
 
-    // 7. Gửi Telegram (Chạy ngầm, không await để phản hồi nhanh)
-    await sendTelegramAlert(
-        `💸 <b>CÓ LỆNH RÚT TIỀN MỚI!</b>\n\n` +
+    // 2. Gửi Telegram báo cáo (Chỉ chạy khi Transaction thành công)
+    sendTelegramAlert(
+        `💸 <b>LỆNH RÚT TIỀN MỚI! (SECURE)</b>\n\n` +
         `👤 <b>User:</b> ${email}\n` +
+        `🆔 <b>ID:</b> <code>${uid}</code>\n` +
         `💰 <b>Rút:</b> $${amount}\n` +
-        `🏦 <b>Còn lại:</b> $${newWallet.available}\n` +
-        `⏳ <b>Trạng thái:</b> Chờ duyệt`
+        `🏦 <b>Còn lại:</b> $${result.newAvailable}\n` +
+        `⏳ <b>Pending:</b> $${result.newPending}`
     ).catch(console.error);
 
     return NextResponse.json({ 
@@ -80,7 +76,9 @@ export async function POST(req: Request) {
 
   } catch (error: any) {
     console.error("🔥 WITHDRAW ERROR:", error);
-    // Trả về message lỗi cụ thể để debug
-    return NextResponse.json({ success: false, message: "Lỗi Server: " + error.message }, { status: 500 });
+    return NextResponse.json({ 
+        success: false, 
+        message: error.message || "Lỗi Server" 
+    }, { status: 500 });
   }
 }

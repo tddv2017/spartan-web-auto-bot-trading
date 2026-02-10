@@ -4,6 +4,7 @@ import {
   Radar, List, ArrowUpCircle, ArrowDownCircle, 
   Wallet, TrendingUp, Shield, Activity 
 } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import SignalFeed from '@/components/dashboard/SignalFeed';
 
 export const WarRoomTab = ({ trades, accountInfo }: { trades: any[], accountInfo: any }) => {
@@ -70,7 +71,52 @@ export const WarRoomTab = ({ trades, accountInfo }: { trades: any[], accountInfo
                 </div>
             </div>
         </div>
-
+        {/* GROWTH CHART - VẼ BIỂU ĐỒ TĂNG TRƯỞNG */}
+<div className="col-span-1 xl:col-span-3 bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem] h-[400px] relative group">
+    <div className="flex justify-between items-center mb-4">
+        <h3 className="font-bold text-slate-300 flex items-center gap-2 uppercase text-sm tracking-wider">
+            <Activity size={16} className="text-green-500"/> Growth Analysis
+        </h3>
+        <span className="text-[10px] text-green-500 bg-green-900/20 px-2 py-1 rounded border border-green-900/50 animate-pulse">
+            ● LIVE MARKET
+        </span>
+    </div>
+    
+    <div className="w-full h-[320px]">
+        <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={trades.slice().reverse()} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                <defs>
+                    <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                <XAxis dataKey="time" hide />
+                <YAxis 
+                    stroke="#475569" 
+                    fontSize={10} 
+                    tickFormatter={(val) => `$${val}`}
+                    domain={['auto', 'auto']} // Tự động scale theo giá trị
+                />
+                <Tooltip 
+                    contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px' }}
+                    itemStyle={{ color: '#fff', fontWeight: 'bold' }}
+                    formatter={(value: any) => [`$${Number(value).toFixed(2)}`, 'Profit']}
+                    labelFormatter={() => ''}
+                />
+                <Area 
+                    type="monotone" 
+                    dataKey="profit" // Lưu ý: Nếu muốn vẽ Balance, ngài cần tính cộng dồn profit vào balance ban đầu
+                    stroke="#10b981" 
+                    strokeWidth={3}
+                    fillOpacity={1} 
+                    fill="url(#colorProfit)" 
+                />
+            </AreaChart>
+        </ResponsiveContainer>
+    </div>
+</div>
         {/* MAIN GRID */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             <div className="xl:col-span-2 space-y-4">
