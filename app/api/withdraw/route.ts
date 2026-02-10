@@ -1,84 +1,98 @@
 import { NextResponse } from 'next/server';
-import { adminDb } from "@/lib/firebaseAdmin"; 
+import { adminDb, adminAuth } from "@/lib/firebaseAdmin"; 
 
-// Cấu hình Telegram
+// Cấu hình Telegram (Giữ nguyên)
 const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_ADMIN_ID;
 
-export const dynamic = 'force-dynamic'; 
-
-async function sendTelegramAlert(msg: string) {
-    if (!TELEGRAM_TOKEN || !TELEGRAM_CHAT_ID) return;
-    try {
-        await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: msg, parse_mode: "HTML" }),
-        });
-    } catch (e) { console.error("Tele Error", e); }
-}
-
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { amount, uid, email } = body; // 👇 Nhận thêm UID để tìm doc cho nhanh
-
-    // 1. Kiểm tra đầu vào
-    if (!uid || !amount || isNaN(amount) || amount <= 0) {
-      return NextResponse.json({ success: false, message: "Dữ liệu không hợp lệ" }, { status: 400 });
+    console.log("--------------- BẮT ĐẦU RÚT TIỀN ---------------");
+    
+    // 1. LẤY TOKEN TỪ HEADER
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        console.log("❌ Lỗi: Không có Header Authorization");
+        return NextResponse.json({ success: false, message: "Không có quyền truy cập!" }, { status: 401 });
     }
 
-    const userRef = adminDb.collection("users").doc(uid);
+    const token = authHeader.split('Bearer ')[1];
+    let uid = "";
+    let emailFromToken = "";
 
-    // 🔥 TRANSACTION: BẮT ĐẦU KHÓA KHO ĐỂ KIỂM KÊ
+    // 2. GIẢI MÃ TOKEN (Để lấy UID thật)
+    try {
+        const decodedToken = await adminAuth.verifyIdToken(token);
+        uid = decodedToken.uid;
+        emailFromToken = decodedToken.email || "";
+        console.log("✅ Auth OK. UID:", uid);
+    } catch (e) {
+        console.log("❌ Lỗi verify token:", e);
+        return NextResponse.json({ success: false, message: "Token không hợp lệ!" }, { status: 403 });
+    }
+
+    // 3. ĐỌC DỮ LIỆU GỬI LÊN
+    const body = await req.json();
+    console.log("📦 Body nhận được:", body);
+    
+    const { amount } = body; // Chỉ cần lấy amount, không cần uid từ body nữa
+
+    // 4. KIỂM TRA DỮ LIỆU
+    if (!amount || isNaN(amount) || amount <= 0) {
+        console.log("❌ Lỗi: Số tiền không hợp lệ. Amount =", amount);
+        return NextResponse.json({ success: false, message: "Số tiền không hợp lệ!" }, { status: 400 });
+    }
+
+    // 5. THỰC HIỆN GIAO DỊCH (TRANSACTION)
+    const userRef = adminDb.collection("users").doc(uid); // Dùng UID từ Token
+
     const result = await adminDb.runTransaction(async (t) => {
         const doc = await t.get(userRef);
         
-        if (!doc.exists) {
-            throw new Error("Không tìm thấy tài khoản!");
-        }
+        if (!doc.exists) { throw new Error("Tài khoản không tồn tại!"); }
 
         const userData = doc.data() || {};
         const currentWallet = userData.wallet || { available: 0, pending: 0, total_paid: 0 };
+        console.log("💰 Số dư hiện tại:", currentWallet.available, "| Muốn rút:", amount);
 
-        // Kiểm tra số dư (Trong lúc transaction chạy, không ai được can thiệp)
         if (amount > currentWallet.available) {
-            throw new Error("⚠️ Số dư không đủ!");
+            throw new Error("Số dư không đủ!");
         }
 
         const newAvailable = Number((currentWallet.available - amount).toFixed(2));
         const newPending = Number((currentWallet.pending + amount).toFixed(2));
 
-        // Cập nhật ví mới
         t.update(userRef, {
             "wallet.available": newAvailable,
             "wallet.pending": newPending,
             "lastWithdrawRequest": new Date()
         });
 
-        return { newAvailable, newPending }; // Trả về số dư mới để báo cáo
+        return { newAvailable, newPending };
     });
 
-    // 2. Gửi Telegram báo cáo (Chỉ chạy khi Transaction thành công)
-    sendTelegramAlert(
-        `💸 <b>LỆNH RÚT TIỀN MỚI! (SECURE)</b>\n\n` +
-        `👤 <b>User:</b> ${email}\n` +
-        `🆔 <b>ID:</b> <code>${uid}</code>\n` +
-        `💰 <b>Rút:</b> $${amount}\n` +
-        `🏦 <b>Còn lại:</b> $${result.newAvailable}\n` +
-        `⏳ <b>Pending:</b> $${result.newPending}`
-    ).catch(console.error);
+    console.log("✅ RÚT TIỀN THÀNH CÔNG!");
+
+    // 6. GỬI TELEGRAM (Optional)
+    if (TELEGRAM_TOKEN && TELEGRAM_CHAT_ID) {
+        await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+                chat_id: TELEGRAM_CHAT_ID, 
+                text: `💸 <b>RÚT TIỀN:</b> ${emailFromToken}\n💰 <b>$${amount}</b>\n✅ <b>Còn:</b> $${result.newAvailable}`, 
+                parse_mode: "HTML" 
+            }),
+        }).catch(err => console.error("Tele Error:", err));
+    }
 
     return NextResponse.json({ 
       success: true, 
-      message: `✅ Lệnh rút $${amount} thành công! Vui lòng chờ duyệt.` 
+      message: `✅ Lệnh rút $${amount} thành công! Đang chờ duyệt.` 
     });
 
   } catch (error: any) {
-    console.error("🔥 WITHDRAW ERROR:", error);
-    return NextResponse.json({ 
-        success: false, 
-        message: error.message || "Lỗi Server" 
-    }, { status: 500 });
+    console.error("🔥 LỖI SERVER:", error.message);
+    return NextResponse.json({ success: false, message: error.message || "Lỗi Server" }, { status: 500 }); // Đổi thành 500 nếu lỗi code
   }
 }
