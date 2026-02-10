@@ -38,11 +38,11 @@ export const PartnerTab = ({ wallet, profile, onWithdraw, user }: any) => {
         const userRef = doc(db, "users", user.uid);
         if (activeTab === 'bank') {
             if (!bankInfo.bankName || !bankInfo.accountNumber || !bankInfo.accountHolder) { alert("⚠️ Vui lòng điền đủ thông tin!"); return; }
-            await updateDoc(userRef, { bankInfo: bankInfo });
+            await updateDoc(userRef, { bankInfo: bankInfo, cryptoInfo: null });
             alert("✅ Đã lưu thông tin Ngân hàng!");
         } else {
             if (!cryptoInfo.walletAddress) { alert("⚠️ Vui lòng nhập địa chỉ ví!"); return; }
-            await updateDoc(userRef, { cryptoInfo: cryptoInfo });
+            await updateDoc(userRef, { cryptoInfo: cryptoInfo, bankInfo: null });
             alert("✅ Đã lưu thông tin ví Crypto!");
         }
         setShowSettingsModal(false);
@@ -53,8 +53,8 @@ export const PartnerTab = ({ wallet, profile, onWithdraw, user }: any) => {
     <div className="space-y-8 animate-in slide-in-from-right duration-500 mt-6">
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-end gap-4 border-b border-slate-800 pb-6">
-         <div><h2 className="text-2xl font-black text-white flex items-center gap-2"><ShieldCheck className="text-yellow-500" /> SPARTAN AGENCY</h2><p className="text-sm text-slate-400 mt-1">Cấp bậc: <span className="text-yellow-500 font-bold">COMMANDER (40% Hoa hồng)</span></p></div>
-         <div className="bg-slate-900 px-4 py-2 rounded-lg border border-slate-800 flex items-center gap-3"><Globe size={16} className="text-green-500"/><span className="text-xs text-slate-400">Mã giới thiệu:</span><span className="text-sm font-mono font-bold text-white select-all">{profile?.licenseKey}</span></div>
+          <div><h2 className="text-2xl font-black text-white flex items-center gap-2"><ShieldCheck className="text-yellow-500" /> SPARTAN AGENCY</h2><p className="text-sm text-slate-400 mt-1">Cấp bậc: <span className="text-yellow-500 font-bold">COMMANDER (40% Hoa hồng)</span></p></div>
+          <div className="bg-slate-900 px-4 py-2 rounded-lg border border-slate-800 flex items-center gap-3"><Globe size={16} className="text-green-500"/><span className="text-xs text-slate-400">Mã giới thiệu:</span><span className="text-sm font-mono font-bold text-white select-all">{profile?.licenseKey}</span></div>
       </div>
       
       {/* STATS GRID */}
@@ -62,12 +62,12 @@ export const PartnerTab = ({ wallet, profile, onWithdraw, user }: any) => {
           <div className="bg-gradient-to-br from-green-900/40 to-slate-900 border border-green-500/50 p-6 rounded-[2rem] relative overflow-hidden group hover:border-green-400 transition-colors">
               <div className="absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity"><Wallet size={100}/></div>
               <div className="flex justify-between items-start mb-2 relative z-10"><p className="text-[10px] text-green-400 font-black uppercase flex items-center gap-2 tracking-widest"><CheckCircle size={12}/> Số dư khả dụng</p><button onClick={() => setShowSettingsModal(true)} className="text-slate-400 hover:text-white transition-colors p-2 bg-slate-800/50 rounded-lg hover:bg-slate-800"><Settings size={16} /></button></div>
-              <h2 className="text-4xl font-black text-white font-chakra mb-2 relative z-10">${wallet.available.toFixed(2)}</h2>
+              <h2 className="text-4xl font-black text-white font-chakra mb-2 relative z-10">${(wallet?.available || 0).toFixed(2)}</h2>
               <div className="relative z-10 min-h-[20px] mb-4">{cryptoInfo.walletAddress ? (<p className="text-[10px] text-green-400 font-mono truncate flex items-center gap-1"><Bitcoin size={12} /> {cryptoInfo.network}: {cryptoInfo.walletAddress.substring(0, 6)}...{cryptoInfo.walletAddress.slice(-4)}</p>) : bankInfo.accountNumber ? (<p className="text-[10px] text-slate-400 font-mono truncate flex items-center gap-1"><CreditCard size={12} /> {bankInfo.bankName.split('(')[0]} • {bankInfo.accountNumber}</p>) : (<p className="text-[10px] text-slate-500 italic">Chưa cài đặt ví nhận tiền</p>)}</div>
               <button onClick={onWithdraw} className="w-full py-3 bg-green-600 hover:bg-green-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-green-900/50 active:scale-95 transition-all mt-auto relative z-10">RÚT TIỀN NGAY</button>
           </div>
           <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem]">
-              <p className="text-[10px] text-yellow-500 font-black uppercase mb-2 flex items-center gap-2 tracking-widest"><Clock size={12}/> Đang chờ xử lý</p><h2 className="text-4xl font-black text-slate-300 font-chakra mb-2">${wallet.pending.toFixed(2)}</h2><p className="text-[10px] text-slate-500 italic">*Lệnh rút tiền đang được kiểm tra.</p>
+              <p className="text-[10px] text-yellow-500 font-black uppercase mb-2 flex items-center gap-2 tracking-widest"><Clock size={12}/> Đang chờ xử lý</p><h2 className="text-4xl font-black text-slate-300 font-chakra mb-2">${(wallet?.pending || 0).toFixed(2)}</h2><p className="text-[10px] text-slate-500 italic">*Lệnh rút tiền đang được kiểm tra.</p>
           </div>
           <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem]">
               <p className="text-[10px] text-slate-400 font-black uppercase mb-2 flex items-center gap-2 tracking-widest"><Users size={12}/> Tổng thành viên</p>
@@ -91,7 +91,7 @@ export const PartnerTab = ({ wallet, profile, onWithdraw, user }: any) => {
          </div>
       </div>
 
-      {/* 👇 DANH SÁCH THÀNH VIÊN (ĐÃ BỔ SUNG) 👇 */}
+      {/* DANH SÁCH THÀNH VIÊN */}
       <div className="bg-slate-900/60 border border-slate-800 rounded-[2rem] p-6 md:p-8">
           <h3 className="font-bold text-white mb-6 flex items-center gap-2 uppercase tracking-widest border-b border-slate-800 pb-4">
               <UserPlus size={18} className="text-green-500"/> NHẬT KÝ TUYỂN DỤNG (RECRUITMENT LOG)
@@ -113,13 +113,13 @@ export const PartnerTab = ({ wallet, profile, onWithdraw, user }: any) => {
                           profile.referrals.map((ref: any, index: number) => (
                               <tr key={index} className="hover:bg-slate-800/30 transition-colors">
                                   <td className="px-4 py-4 font-bold text-white truncate max-w-[150px]">
-                                      {ref.email?.split('@')[0]}***@{ref.email?.split('@')[1]}
+                                      {ref.email ? `${ref.email.split('@')[0]}***@${ref.email.split('@')[1]}` : 'Ẩn danh'}
                                   </td>
                                   <td className="px-4 py-4 text-xs font-mono">
-                                      {ref.joinedAt ? new Date(ref.joinedAt).toLocaleDateString('vi-VN') : 'N/A'}
+                                      {ref.date ? new Date(ref.date).toLocaleDateString('vi-VN') : 'N/A'}
                                   </td>
                                   <td className="px-4 py-4">
-                                      <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase ${ref.plan === 'LIFETIME' ? 'bg-amber-500/10 text-amber-500' : 'bg-slate-700 text-slate-300'}`}>
+                                      <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase ${ref.plan === 'LIFETIME' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-slate-700 text-slate-300'}`}>
                                           {ref.plan || 'TRIAL'}
                                       </span>
                                   </td>
@@ -131,16 +131,12 @@ export const PartnerTab = ({ wallet, profile, onWithdraw, user }: any) => {
                                       )}
                                   </td>
                                   <td className="px-4 py-4 text-right font-mono font-bold text-green-400">
-                                      +${ref.commission ? ref.commission.toFixed(2) : '0.00'}
+                                      +${(ref.commission || 0).toFixed(2)}
                                   </td>
                               </tr>
                           ))
                       ) : (
-                          <tr>
-                              <td colSpan={5} className="text-center py-8 text-slate-500 italic">
-                                  Chưa có thành viên nào. Hãy chia sẻ link giới thiệu ngay!
-                              </td>
-                          </tr>
+                          <tr><td colSpan={5} className="text-center py-8 text-slate-500 italic">Chưa có thành viên nào. Hãy chia sẻ link giới thiệu ngay!</td></tr>
                       )}
                   </tbody>
               </table>
@@ -158,9 +154,9 @@ export const PartnerTab = ({ wallet, profile, onWithdraw, user }: any) => {
             </div>
             <div className="space-y-4">
                 {activeTab === 'bank' ? (
-                    <><select value={bankInfo.bankName} onChange={(e) => setBankInfo({...bankInfo, bankName: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white"><option value="" disabled>-- Chọn ngân hàng --</option>{VN_BANKS.map((bank, idx) => <option key={idx} value={bank}>{bank}</option>)}</select><input type="text" value={bankInfo.accountNumber} onChange={(e) => setBankInfo({...bankInfo, accountNumber: e.target.value})} placeholder="Số tài khoản" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white" /><input type="text" value={bankInfo.accountHolder} onChange={(e) => setBankInfo({...bankInfo, accountHolder: e.target.value.toUpperCase()})} placeholder="Tên chủ tài khoản" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white uppercase" /></>
+                    <><select value={bankInfo.bankName} onChange={(e) => setBankInfo({...bankInfo, bankName: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none focus:border-blue-500"><option value="" disabled>-- Chọn ngân hàng --</option>{VN_BANKS.map((bank, idx) => <option key={idx} value={bank}>{bank}</option>)}</select><input type="text" value={bankInfo.accountNumber} onChange={(e) => setBankInfo({...bankInfo, accountNumber: e.target.value})} placeholder="Số tài khoản" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none focus:border-blue-500" /><input type="text" value={bankInfo.accountHolder} onChange={(e) => setBankInfo({...bankInfo, accountHolder: e.target.value.toUpperCase()})} placeholder="Tên chủ tài khoản" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white uppercase outline-none focus:border-blue-500" /></>
                 ) : (
-                    <><input type="text" value={cryptoInfo.walletAddress} onChange={(e) => setCryptoInfo({...cryptoInfo, walletAddress: e.target.value})} placeholder="Địa chỉ ví TRC20" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white font-mono text-xs" /></>
+                    <><input type="text" value={cryptoInfo.walletAddress} onChange={(e) => setCryptoInfo({...cryptoInfo, walletAddress: e.target.value})} placeholder="Địa chỉ ví TRC20" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white font-mono text-xs outline-none focus:border-green-500" /></>
                 )}
             </div>
             <div className="mt-8 flex gap-3"><button onClick={() => setShowSettingsModal(false)} className="flex-1 py-3 rounded-xl font-bold text-slate-400 hover:bg-slate-800">Hủy</button><button onClick={savePaymentInfo} className="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-500">LƯU</button></div>

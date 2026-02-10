@@ -9,6 +9,7 @@ import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from
 
 export interface UserProfile {
   id: string; 
+  uid: string;
   licenseKey: string;
   plan: string;
   mt5Account: string;
@@ -17,7 +18,17 @@ export interface UserProfile {
   displayName?: string;
   photoURL?: string;
   accountStatus: 'new' | 'pending' | 'active' | 'rejected';
-  referredBy?: string;
+  role?: 'user' | 'admin';
+  referredBy?: string | null;
+  referrals: Array<{ 
+    uid: string; 
+    email: string; 
+    date: string; 
+    plan: string;
+    commission: number;
+    status: 'pending' | 'approved' | 'rejected' 
+  }>;
+  createdAt: any;
   wallet: { available: number; pending: number; total_paid: number; };
 }
 
@@ -31,7 +42,6 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
 const ADMIN_EMAILS = ["tddv2017@gmail.com", "itcrazy2021pro@gmail.com"];
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -46,7 +56,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (currentUser) {
         setUser(currentUser);
         setIsAdmin(ADMIN_EMAILS.includes(currentUser.email || ""));
-
         const userRef = doc(db, "users", currentUser.uid);
         const userSnap = await getDoc(userRef);
 
@@ -77,21 +86,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                   uid: currentUser.uid,
                   email: currentUser.email,
                   date: new Date().toISOString(),
+                  plan: "free",
+                  commission: 0,
                   status: "pending"
                 })
               });
             }
           }
         }
-
         const unsubProfile = onSnapshot(userRef, (docSnap) => {
-          if (docSnap.exists()) {
-            setProfile({ id: docSnap.id, ...docSnap.data() } as UserProfile);
-          }
+          if (docSnap.exists()) setProfile({ id: docSnap.id, ...docSnap.data() } as UserProfile);
           setLoading(false);
         });
         return () => unsubProfile();
-
       } else {
         setUser(null); setProfile(null); setIsAdmin(false); setLoading(false);
       }
@@ -100,15 +107,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const login = async () => {
-    try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-    } catch (e) { console.error(e); }
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    await signInWithPopup(auth, provider);
   };
 
   const logout = async () => {
     await signOut(auth);
-    localStorage.removeItem("spartan_referrer");
+    if (typeof window !== 'undefined') localStorage.removeItem("spartan_referrer");
     window.location.href = "/";
   };
 
