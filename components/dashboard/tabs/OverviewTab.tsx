@@ -98,7 +98,7 @@ export const OverviewTab = ({ profile, botData, isExpired, formatExpiryDate, onO
 
         {/* Download & Guide Area */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-800/50">
-            <a href="https://docs.google.com/uc?export=download&id=1BGtSMioGSIk-kkSrhmvipGW1gTg4LHTQ" className="bg-slate-900/50 hover:bg-slate-800 p-6 rounded-[2rem] border border-slate-800 flex items-center gap-4 group transition-all hover:border-green-500/50 cursor-pointer shadow-xl">
+            <a href="https://docs.google.com/uc?export=download&id=1shBbyi97q9danrZaWY9vCQtv8OOqR4op" className="bg-slate-900/50 hover:bg-slate-800 p-6 rounded-[2rem] border border-slate-800 flex items-center gap-4 group transition-all hover:border-green-500/50 cursor-pointer shadow-xl">
                 <div className="bg-green-500/10 p-4 rounded-2xl text-green-500 group-hover:bg-green-500/20 group-hover:scale-110 transition-all border border-green-500/20"><Download size={28}/></div>
                 <div><h4 className="font-black text-white text-lg tracking-tight uppercase">Tải Bot V7.3.3</h4><p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Phiên bản Auto-update</p></div>
             </a>
