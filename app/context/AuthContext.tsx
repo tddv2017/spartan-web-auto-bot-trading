@@ -7,7 +7,7 @@ import {
 } from "firebase/firestore";
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
 
-// 👇 Cập nhật Interface: Thêm dòng role
+// 👇 KHAI BÁO KIỂU DỮ LIỆU CHUẨN (Đã thêm role)
 export interface UserProfile {
   id: string; 
   uid: string;
@@ -19,10 +19,7 @@ export interface UserProfile {
   displayName?: string;
   photoURL?: string;
   accountStatus: 'new' | 'pending' | 'active' | 'rejected';
-  
-  // 🔥 QUAN TRỌNG: Thêm dòng này để fix lỗi TypeScript
-  role?: 'admin' | 'user'; 
-
+  role?: 'user' | 'admin'; // ✅ Đã thêm
   referredBy?: string | null;
   referrals: Array<{ 
     uid: string; 
@@ -34,6 +31,8 @@ export interface UserProfile {
   }>;
   createdAt: any;
   wallet: { available: number; pending: number; total_paid: number; };
+  bankInfo?: { bankName: string; accountNumber: string; accountHolder: string };
+  cryptoInfo?: { network: string; walletAddress: string };
 }
 
 interface AuthContextType {
@@ -46,7 +45,7 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-const ADMIN_EMAILS = ["tddv2017@gmail.com", "itcrazy2021pro@gmail.com"];
+const ADMIN_EMAILS = ["tddv2017@gmail.com", "itcrazy2021pro@gmail.com"]; // Thay email của Đại tá vào đây
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<any>(null);
@@ -59,8 +58,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setLoading(true);
       if (currentUser) {
         setUser(currentUser);
-        
-        // Check Admin dựa trên Email cứng
         const isSystemAdmin = ADMIN_EMAILS.includes(currentUser.email || "");
         setIsAdmin(isSystemAdmin);
 
@@ -77,7 +74,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             licenseKey: "SPARTAN-" + Math.random().toString(36).substring(2, 10).toUpperCase(),
             accountStatus: 'new', 
             plan: "free",
-            role: isSystemAdmin ? 'admin' : 'user', // Lưu role vào DB luôn
+            role: isSystemAdmin ? 'admin' : 'user',
             createdAt: serverTimestamp(),
             expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
             wallet: { available: 0, pending: 0, total_paid: 0 },
@@ -86,6 +83,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           };
           await setDoc(userRef, newUserData);
 
+          // Cập nhật danh sách lính cho Sếp (nếu có)
           if (referrerCode) {
             const q = query(collection(db, "users"), where("licenseKey", "==", referrerCode));
             const qSnap = await getDocs(q);
@@ -106,9 +104,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         const unsubProfile = onSnapshot(userRef, (docSnap) => {
           if (docSnap.exists()) {
-             // Ép kiểu dữ liệu về UserProfile để TypeScript không báo lỗi
-             const data = docSnap.data();
-             setProfile({ id: docSnap.id, ...data } as UserProfile);
+             setProfile({ id: docSnap.id, ...docSnap.data() } as UserProfile);
           }
           setLoading(false);
         });
