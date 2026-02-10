@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '@/lib/firebase'; 
 import { doc, getDoc, updateDoc } from 'firebase/firestore'; 
-import { ShieldCheck, Globe, Wallet, CheckCircle, Settings, Bitcoin, CreditCard, Clock, UserPlus, Share2, FileText, Check, Copy, Calendar } from 'lucide-react';
+import { ShieldCheck, Globe, Wallet, CheckCircle, Settings, Bitcoin, CreditCard, Clock, UserPlus, Share2, FileText, Check, Copy, Calendar, DollarSign, ArrowUpRight } from 'lucide-react';
 
 const VN_BANKS = ["Vietcombank (VCB)", "MBBank (Quân Đội)", "Techcombank (TCB)", "ACB (Á Châu)", "VietinBank (CTG)", "BIDV (Đầu tư & PT)", "VPBank", "TPBank", "Sacombank", "VIB", "HDBank", "MSB", "OCB", "SHB", "Eximbank", "SeABank", "ABBank", "Nam A Bank", "Agribank"];
 
@@ -17,15 +17,14 @@ export const PartnerTab = ({ wallet, profile, onWithdraw, user }: any) => {
   const refLink = `https://spartan-web-auto-bot-trading.vercel.app/?ref=${profile?.licenseKey}`;
   const adText = `🔥 SPARTAN BOT V7.3 - CỖ MÁY IN TIỀN XAUUSD 🔥\n✅ Lợi nhuận 15-30%/tháng\n✅ Tự động 100%, Không gồng lỗ\n✅ Bảo hiểm vốn 100%\n👉 Nhận Bot miễn phí tại: ${refLink}`;
 
-  // --- 🔥 LOGIC TÍNH HOA HỒNG THEO THÁNG ---
+  // --- LOGIC TÍNH TOÁN ---
   const { monthlyCommission, currentMonthLabel } = useMemo(() => {
     const now = new Date();
-    const currentMonth = now.getMonth(); // 0-11
+    const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
     const total = profile?.referrals?.reduce((sum: number, item: any) => {
         if (!item.date || item.status !== 'approved') return sum;
-        
         const itemDate = new Date(item.date);
         if (itemDate.getMonth() === currentMonth && itemDate.getFullYear() === currentYear) {
             return sum + (item.commission || 0);
@@ -33,13 +32,10 @@ export const PartnerTab = ({ wallet, profile, onWithdraw, user }: any) => {
         return sum;
     }, 0) || 0;
 
-    return {
-        monthlyCommission: total,
-        currentMonthLabel: `Tháng ${currentMonth + 1}/${currentYear}`
-    };
+    return { monthlyCommission: total, currentMonthLabel: `Tháng ${currentMonth + 1}/${currentYear}` };
   }, [profile?.referrals]);
 
-  // --- LOGIC LẤY THÔNG TIN NGÂN HÀNG ---
+  // Lấy thông tin ngân hàng
   useEffect(() => {
     if (!user) return;
     const fetchData = async () => {
@@ -73,16 +69,15 @@ export const PartnerTab = ({ wallet, profile, onWithdraw, user }: any) => {
   };
 
   return (
-    <div className="space-y-8 animate-in slide-in-from-right duration-500 mt-6">
+    <div className="space-y-8 animate-in slide-in-from-right duration-500 mt-6 pb-20">
+      
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-end gap-4 border-b border-slate-800 pb-6">
           <div>
             <h2 className="text-2xl font-black text-white flex items-center gap-2">
                 <ShieldCheck className="text-yellow-500" /> SPARTAN AGENCY
             </h2>
-            <p className="text-sm text-slate-400 mt-1">
-                Cấp bậc: <span className="text-yellow-500 font-bold">COMMANDER (40% Hoa hồng)</span>
-            </p>
+            <p className="text-sm text-slate-400 mt-1">Cấp bậc: <span className="text-yellow-500 font-bold">COMMANDER (40% Hoa hồng)</span></p>
           </div>
           <div className="bg-slate-900 px-4 py-2 rounded-lg border border-slate-800 flex items-center gap-3">
             <Globe size={16} className="text-green-500"/>
@@ -91,41 +86,63 @@ export const PartnerTab = ({ wallet, profile, onWithdraw, user }: any) => {
           </div>
       </div>
       
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Card 1 */}
-          <div className="bg-gradient-to-br from-green-900/40 to-slate-900 border border-green-500/50 p-6 rounded-[2rem] relative overflow-hidden group hover:border-green-400 transition-colors">
+      {/* 💰 KHU VỰC TÀI CHÍNH */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          
+          {/* Card 1: VÍ KHẢ DỤNG */}
+          <div className="md:col-span-2 bg-gradient-to-br from-green-900/40 to-slate-900 border border-green-500/50 p-6 rounded-[2rem] relative overflow-hidden group hover:border-green-400 transition-colors">
               <div className="absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity"><Wallet size={100}/></div>
               <div className="flex justify-between items-start mb-2 relative z-10"><p className="text-[10px] text-green-400 font-black uppercase flex items-center gap-2 tracking-widest"><CheckCircle size={12}/> Số dư khả dụng</p><button onClick={() => setShowSettingsModal(true)} className="text-slate-400 hover:text-white transition-colors p-2 bg-slate-800/50 rounded-lg hover:bg-slate-800"><Settings size={16} /></button></div>
-              <h2 className="text-4xl font-black text-white font-chakra mb-2 relative z-10">${(wallet?.available || 0).toFixed(2)}</h2>
-              <div className="relative z-10 min-h-[20px] mb-4">{cryptoInfo.walletAddress ? (<p className="text-[10px] text-green-400 font-mono truncate flex items-center gap-1"><Bitcoin size={12} /> {cryptoInfo.network}: {cryptoInfo.walletAddress.substring(0, 6)}...{cryptoInfo.walletAddress.slice(-4)}</p>) : bankInfo.accountNumber ? (<p className="text-[10px] text-slate-400 font-mono truncate flex items-center gap-1"><CreditCard size={12} /> {bankInfo.bankName.split('(')[0]} • {bankInfo.accountNumber}</p>) : (<p className="text-[10px] text-slate-500 italic">Chưa cài đặt ví nhận tiền</p>)}</div>
-              <button onClick={onWithdraw} className="w-full py-3 bg-green-600 hover:bg-green-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-green-900/50 active:scale-95 transition-all mt-auto relative z-10">RÚT TIỀN NGAY</button>
+              <h2 className="text-5xl font-black text-white font-chakra mb-2 relative z-10">${(wallet?.available || 0).toFixed(2)}</h2>
+              <div className="relative z-10 min-h-[20px] mb-6">
+                  {cryptoInfo.walletAddress ? (<p className="text-[10px] text-green-400 font-mono truncate flex items-center gap-1"><Bitcoin size={12} /> {cryptoInfo.network}: {cryptoInfo.walletAddress.substring(0, 6)}...{cryptoInfo.walletAddress.slice(-4)}</p>) : 
+                   bankInfo.accountNumber ? (<p className="text-[10px] text-slate-400 font-mono truncate flex items-center gap-1"><CreditCard size={12} /> {bankInfo.bankName.split('(')[0]} • {bankInfo.accountNumber}</p>) : 
+                   (<p className="text-[10px] text-red-500 italic animate-pulse">⚠ Chưa cài đặt ví nhận tiền</p>)}
+              </div>
+              <button onClick={onWithdraw} className="w-full py-4 bg-green-600 hover:bg-green-500 text-white text-sm font-bold rounded-xl shadow-lg shadow-green-900/50 active:scale-95 transition-all mt-auto relative z-10 uppercase tracking-widest flex items-center justify-center gap-2">
+                 <ArrowUpRight size={18}/> Rút tiền ngay
+              </button>
           </div>
 
-          {/* Card 2 */}
-          <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem]">
-              <p className="text-[10px] text-yellow-500 font-black uppercase mb-2 flex items-center gap-2 tracking-widest"><Clock size={12}/> Đang chờ xử lý</p>
-              <h2 className="text-4xl font-black text-slate-300 font-chakra mb-2">${(wallet?.pending || 0).toFixed(2)}</h2>
-              <p className="text-[10px] text-slate-500 italic">*Lệnh rút tiền đang được kiểm tra.</p>
+          {/* Card 2: TRẠNG THÁI RÚT TIỀN (Pending) */}
+          <div className={`bg-slate-900/60 border p-6 rounded-[2rem] flex flex-col justify-center ${wallet?.pending > 0 ? 'border-yellow-500/50 shadow-[0_0_20px_rgba(234,179,8,0.1)]' : 'border-slate-800'}`}>
+              <p className="text-[10px] text-yellow-500 font-black uppercase mb-2 flex items-center gap-2 tracking-widest"><Clock size={12}/> Đang xử lý</p>
+              <h2 className={`text-3xl font-black font-chakra mb-2 ${wallet?.pending > 0 ? 'text-yellow-400' : 'text-slate-600'}`}>${(wallet?.pending || 0).toFixed(2)}</h2>
+              {wallet?.pending > 0 ? (
+                  <div className="bg-yellow-500/10 text-yellow-500 text-[10px] p-2 rounded border border-yellow-500/20 mt-2 animate-pulse">
+                      ⏳ Admin đang kiểm tra lệnh rút của bạn...
+                  </div>
+              ) : (
+                  <p className="text-[10px] text-slate-500 italic">Không có lệnh đang chờ.</p>
+              )}
           </div>
 
-          {/* Card 3 */}
-          <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem]">
-              <p className="text-[10px] text-slate-400 font-black uppercase mb-2 flex items-center gap-2 tracking-widest"><Calendar size={12}/> Doanh số {currentMonthLabel}</p>
-              <div className="flex items-baseline gap-2">
-                 <h2 className="text-4xl font-black text-white font-chakra mb-2">+${monthlyCommission.toFixed(2)}</h2>
-              </div>
-              <div className="mt-2 pt-2 border-t border-slate-800/50 flex justify-between items-center">
-                  <span className="text-[10px] text-slate-500">Tổng F1 tháng này:</span>
-                  <span className="text-sm font-bold text-green-500">
-                     {profile?.referrals?.filter((r:any) => {
-                         const d = new Date(r.date);
-                         const now = new Date();
-                         return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-                     }).length || 0} người
-                  </span>
-              </div>
+          {/* Card 3: ĐÃ RÚT THÀNH CÔNG (Total Paid) */}
+          <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem] flex flex-col justify-center">
+              <p className="text-[10px] text-blue-400 font-black uppercase mb-2 flex items-center gap-2 tracking-widest"><CheckCircle size={12}/> Tổng đã rút</p>
+              <h2 className="text-3xl font-black text-white font-chakra mb-2">${(wallet?.total_paid || 0).toFixed(2)}</h2>
+              <p className="text-[10px] text-slate-500">Tiền đã về tài khoản của bạn.</p>
           </div>
+      </div>
+
+      {/* Doanh số tháng */}
+      <div className="bg-slate-900/40 border border-slate-800/50 p-4 rounded-xl flex items-center justify-between">
+           <div className="flex items-center gap-3">
+               <div className="p-3 bg-slate-800 rounded-lg text-purple-400"><Calendar size={20}/></div>
+               <div>
+                   <p className="text-xs text-slate-400 font-bold uppercase">Doanh số {currentMonthLabel}</p>
+                   <p className="text-xl font-black text-white">+${monthlyCommission.toFixed(2)}</p>
+               </div>
+           </div>
+           <div className="text-right">
+                <p className="text-xs text-slate-500">F1 Mới</p>
+                <p className="text-xl font-bold text-green-500">
+                    {profile?.referrals?.filter((r:any) => {
+                        const d = new Date(r.date); const now = new Date();
+                        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+                    }).length || 0}
+                </p>
+           </div>
       </div>
 
       {/* Share Links */}
@@ -143,62 +160,29 @@ export const PartnerTab = ({ wallet, profile, onWithdraw, user }: any) => {
          </div>
       </div>
 
-      {/* Table Referral Log - ĐÃ FIX LỖI WHITESPACE */}
+      {/* Table Referral Log - ĐÃ XỬ LÝ KHOẢNG TRẮNG CỰC KỲ CẨN THẬN */}
       <div className="bg-slate-900/60 border border-slate-800 rounded-[2rem] p-6 md:p-8">
           <h3 className="font-bold text-white mb-6 flex items-center gap-2 uppercase tracking-widest border-b border-slate-800 pb-4">
-              <UserPlus size={18} className="text-green-500"/> NHẬT KÝ TUYỂN DỤNG (TOÀN BỘ LỊCH SỬ)
+              <UserPlus size={18} className="text-green-500"/> NHẬT KÝ TUYỂN DỤNG
           </h3>
           <div className="overflow-x-auto">
               <table className="w-full text-sm text-left text-slate-400">
                   <thead className="text-slate-500 uppercase font-black text-xs bg-slate-950/50">
-                      <tr>
-                          <th className="px-4 py-3 rounded-l-lg">Thành viên (F1)</th>
-                          <th className="px-4 py-3">Ngày tham gia</th>
-                          <th className="px-4 py-3">Gói</th>
-                          <th className="px-4 py-3">Trạng thái</th>
-                          <th className="px-4 py-3 text-right rounded-r-lg">Hoa hồng</th>
-                      </tr>
+                      <tr><th className="px-4 py-3 rounded-l-lg">Thành viên (F1)</th><th className="px-4 py-3">Ngày tham gia</th><th className="px-4 py-3">Gói</th><th className="px-4 py-3">Trạng thái</th><th className="px-4 py-3 text-right rounded-r-lg">Hoa hồng</th></tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800">
                       {profile?.referrals && profile.referrals.length > 0 ? (
                           [...profile.referrals].reverse().map((ref: any, index: number) => (
-                              <tr key={index} className="hover:bg-slate-800/30 transition-colors">
-                                  <td className="px-4 py-4 font-bold text-white truncate max-w-[150px]">
-                                      {ref.email ? `${ref.email.split('@')[0]}***@${ref.email.split('@')[1]}` : 'Ẩn danh'}
-                                  </td>
-                                  <td className="px-4 py-4 text-xs font-mono">
-                                      {ref.date ? new Date(ref.date).toLocaleDateString('vi-VN') : 'N/A'}
-                                  </td>
-                                  <td className="px-4 py-4">
-                                      <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase ${ref.plan === 'LIFETIME' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-slate-700 text-slate-300'}`}>
-                                          {ref.plan || 'TRIAL'}
-                                      </span>
-                                  </td>
-                                  <td className="px-4 py-4">
-                                      {ref.status === 'approved' ? (
-                                          <span className="flex items-center gap-1 text-green-500 text-xs font-bold"><CheckCircle size={12}/> Active</span>
-                                      ) : (
-                                          <span className="flex items-center gap-1 text-yellow-500 text-xs font-bold"><Clock size={12}/> Pending</span>
-                                      )}
-                                  </td>
-                                  <td className="px-4 py-4 text-right font-mono font-bold text-green-400">
-                                      +${(ref.commission || 0).toFixed(2)}
-                                  </td>
-                              </tr>
+                              <tr key={index} className="hover:bg-slate-800/30 transition-colors"><td className="px-4 py-4 font-bold text-white truncate max-w-[150px]">{ref.email ? `${ref.email.split('@')[0]}***@${ref.email.split('@')[1]}` : 'Ẩn danh'}</td><td className="px-4 py-4 text-xs font-mono">{ref.date ? new Date(ref.date).toLocaleDateString('vi-VN') : 'N/A'}</td><td className="px-4 py-4"><span className={`text-[10px] font-bold px-2 py-1 rounded uppercase ${ref.plan === 'LIFETIME' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-slate-700 text-slate-300'}`}>{ref.plan || 'TRIAL'}</span></td><td className="px-4 py-4">{ref.status === 'approved' ? (<span className="flex items-center gap-1 text-green-500 text-xs font-bold"><CheckCircle size={12}/> Active</span>) : (<span className="flex items-center gap-1 text-yellow-500 text-xs font-bold"><Clock size={12}/> Pending</span>)}</td><td className="px-4 py-4 text-right font-mono font-bold text-green-400">+${(ref.commission || 0).toFixed(2)}</td></tr>
                           ))
                       ) : (
-                          <tr>
-                              <td colSpan={5} className="text-center py-8 text-slate-500 italic">
-                                  Chưa có thành viên nào. Hãy chia sẻ link giới thiệu ngay!
-                              </td>
-                          </tr>
+                          <tr><td colSpan={5} className="text-center py-8 text-slate-500 italic">Chưa có thành viên nào. Hãy chia sẻ link giới thiệu ngay!</td></tr>
                       )}
                   </tbody>
               </table>
           </div>
       </div>
       
-      {/* Settings Modal */}
       {showSettingsModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-md p-6 shadow-2xl relative">
@@ -209,22 +193,10 @@ export const PartnerTab = ({ wallet, profile, onWithdraw, user }: any) => {
             </div>
             <div className="space-y-4">
                 {activeTab === 'bank' ? (
-                    <>
-                        <select value={bankInfo.bankName} onChange={(e) => setBankInfo({...bankInfo, bankName: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none">
-                            <option value="" disabled>-- Chọn ngân hàng --</option>
-                            {VN_BANKS.map((bank, idx) => <option key={idx} value={bank}>{bank}</option>)}
-                        </select>
-                        <input type="text" value={bankInfo.accountNumber} onChange={(e) => setBankInfo({...bankInfo, accountNumber: e.target.value})} placeholder="Số tài khoản" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
-                        <input type="text" value={bankInfo.accountHolder} onChange={(e) => setBankInfo({...bankInfo, accountHolder: e.target.value.toUpperCase()})} placeholder="Tên chủ tài khoản" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white uppercase outline-none" />
-                    </>
-                ) : ( 
-                    <input type="text" value={cryptoInfo.walletAddress} onChange={(e) => setCryptoInfo({...cryptoInfo, walletAddress: e.target.value})} placeholder="Địa chỉ ví TRC20" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white font-mono text-xs outline-none" />
-                )}
+                    <><select value={bankInfo.bankName} onChange={(e) => setBankInfo({...bankInfo, bankName: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none"><option value="" disabled>-- Chọn ngân hàng --</option>{VN_BANKS.map((bank, idx) => <option key={idx} value={bank}>{bank}</option>)}</select><input type="text" value={bankInfo.accountNumber} onChange={(e) => setBankInfo({...bankInfo, accountNumber: e.target.value})} placeholder="Số tài khoản" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" /><input type="text" value={bankInfo.accountHolder} onChange={(e) => setBankInfo({...bankInfo, accountHolder: e.target.value.toUpperCase()})} placeholder="Tên chủ tài khoản" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white uppercase outline-none" /></>
+                ) : ( <input type="text" value={cryptoInfo.walletAddress} onChange={(e) => setCryptoInfo({...cryptoInfo, walletAddress: e.target.value})} placeholder="Địa chỉ ví TRC20" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white font-mono text-xs outline-none" /> )}
             </div>
-            <div className="mt-8 flex gap-3">
-                <button onClick={() => setShowSettingsModal(false)} className="flex-1 py-3 rounded-xl font-bold text-slate-400 hover:bg-slate-800">Hủy</button>
-                <button onClick={savePaymentInfo} className="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold">LƯU</button>
-            </div>
+            <div className="mt-8 flex gap-3"><button onClick={() => setShowSettingsModal(false)} className="flex-1 py-3 rounded-xl font-bold text-slate-400 hover:bg-slate-800">Hủy</button><button onClick={savePaymentInfo} className="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold">LƯU</button></div>
           </div>
         </div>
       )}

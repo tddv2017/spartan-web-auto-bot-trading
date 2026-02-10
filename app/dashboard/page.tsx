@@ -6,13 +6,13 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { useAuth } from '@/app/context/AuthContext';
 import { useLanguage } from '@/app/context/LanguageContext';
 import { db } from '@/lib/firebase'; 
-import { doc, onSnapshot, collection, query, orderBy, limit } from 'firebase/firestore'; 
+// 👇 Bổ sung updateDoc
+import { doc, onSnapshot, collection, query, orderBy, limit, updateDoc } from 'firebase/firestore'; 
 import { 
   LogOut, LayoutGrid, Radar, Users, 
   Shield, Swords, Medal, Crown
 } from 'lucide-react';
 
-// 👇 IMPORT MODULES (Đảm bảo đường dẫn đúng)
 import PaymentModal from '@/components/landing/PaymentModal';
 import { VerificationLock } from '@/components/dashboard/onboarding/VerificationLock';
 import { GuideModal } from '@/components/dashboard/modals/GuideModal';
@@ -20,7 +20,7 @@ import { OverviewTab } from '@/components/dashboard/tabs/OverviewTab';
 import { WarRoomTab } from '@/components/dashboard/tabs/WarRoomTab';
 import { PartnerTab } from '@/components/dashboard/tabs/PartnerTab';
 
-// --- 🎖️ HỆ THỐNG QUÂN HÀM (RANK SYSTEM) ---
+// ... (Giữ nguyên getRankInfo và TabButton) ...
 const getRankInfo = (profile: any) => {
   if (!profile) return { title: 'UNIDENTIFIED', icon: Shield, color: 'text-slate-500', border: 'border-slate-800' };
   if (profile.role === 'admin') return { title: 'SUPREME LEADER', icon: Crown, color: 'text-yellow-400', border: 'border-yellow-600' };
@@ -29,7 +29,6 @@ const getRankInfo = (profile: any) => {
   return { title: 'SOLDIER', icon: Swords, color: 'text-emerald-400', border: 'border-emerald-600' };
 };
 
-// --- 🔘 TAB BUTTON STYLE ---
 const TabButton = ({ active, onClick, icon, label, hasLiveBadge }: any) => (
   <button 
     onClick={onClick}
@@ -42,17 +41,8 @@ const TabButton = ({ active, onClick, icon, label, hasLiveBadge }: any) => (
       }
     `}
   >
-    {/* Icon */}
-    <div className={`transition-transform duration-300 ${active ? 'scale-110 text-green-500' : 'group-hover:scale-110'}`}>
-      {icon}
-    </div>
-
-    {/* Label */}
-    <span className={`text-sm md:text-base font-black uppercase tracking-widest ${active ? 'text-white' : 'text-slate-500 group-hover:text-green-400'}`}>
-      {label}
-    </span>
-    
-    {/* 🔴 LIVE BADGE */}
+    <div className={`transition-transform duration-300 ${active ? 'scale-110 text-green-500' : 'group-hover:scale-110'}`}>{icon}</div>
+    <span className={`text-sm md:text-base font-black uppercase tracking-widest ${active ? 'text-white' : 'text-slate-500 group-hover:text-green-400'}`}>{label}</span>
     {hasLiveBadge && (
       <div className="flex h-2.5 w-2.5 ml-1 relative">
          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
@@ -74,13 +64,10 @@ function DashboardContent() {
   const [trades, setTrades] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'overview' | 'war-room' | 'partner'>('overview');
 
-  // Lấy ví từ profile (đã sync từ AuthContext)
   const wallet = profile?.wallet || { available: 0, pending: 0, total_paid: 0 };
   const isAccountActive = (profile as any)?.accountStatus === 'active'; 
   const rank = getRankInfo(profile);
   const RankIcon = rank.icon;
-
-  // 🔒 KIỂM TRA QUYỀN LIFETIME (HOẶC ADMIN)
   const isLifetime = profile?.plan === 'LIFETIME' || profile?.role === 'admin';
 
   const isExpired = useMemo(() => {
@@ -97,19 +84,42 @@ function DashboardContent() {
     return new Date(seconds * 1000).toLocaleDateString('vi-VN');
   };
 
+  // 🔥 ĐÃ FIX: Logic rút tiền thực sự cập nhật vào DB
   const handleWithdrawRequest = async () => {
+    // 1. Kiểm tra đầu vào
     const amountStr = prompt(`Nhập số tiền muốn rút (Tối đa: $${wallet.available.toFixed(2)}):`); 
     if (!amountStr) return;
     const amount = parseFloat(amountStr);
-    if (isNaN(amount) || amount <= 0) { alert("Số tiền không hợp lệ"); return; }
-    if (amount > wallet.available) { alert("Số dư không đủ!"); return; }
+
+    if (isNaN(amount) || amount <= 0) { alert("⚠️ Số tiền không hợp lệ"); return; }
+    if (amount < 10) { alert("⚠️ Số tiền rút tối thiểu là $10"); return; } // Thêm điều kiện min rút
+    if (amount > wallet.available) { alert("⚠️ Số dư không đủ!"); return; }
     
-    // Gọi API rút tiền (cần backend xử lý trừ tiền tạm thời)
-    // Tạm thời alert demo
-    alert(`Đã gửi yêu cầu rút $${amount}. Vui lòng chờ Admin duyệt.`);
+    // 2. Kiểm tra thông tin nhận tiền
+    if (!profile?.bankInfo && !profile?.cryptoInfo) {
+        alert("⚠️ Vui lòng cập nhật Ví nhận tiền trong phần Cài đặt trước!");
+        return;
+    }
+
+    if(!confirm(`Xác nhận rút $${amount} về ví của bạn?`)) return;
+
+    try {
+        // 3. Cập nhật ví trong Firestore
+        const userRef = doc(db, "users", user.uid);
+        await updateDoc(userRef, {
+            "wallet.available": Number((wallet.available - amount).toFixed(2)), // Trừ tiền khả dụng
+            "wallet.pending": Number((wallet.pending + amount).toFixed(2))      // Cộng vào pending
+        });
+
+        alert("✅ Yêu cầu rút tiền đã được gửi! Admin sẽ duyệt trong 24h.");
+        
+    } catch (e) {
+        console.error(e);
+        alert("❌ Lỗi kết nối! Vui lòng thử lại sau.");
+    }
   };
 
-  // Lấy dữ liệu Bot
+  // ... (Giữ nguyên các useEffect khác) ...
   useEffect(() => {
     if (!profile?.mt5Account || !isAccountActive) return; 
     const unsub = onSnapshot(doc(db, "bots", profile.mt5Account.toString()), (doc) => {
@@ -118,7 +128,6 @@ function DashboardContent() {
     return () => unsub(); 
   }, [profile?.mt5Account, isAccountActive]);
 
-  // Lấy lịch sử lệnh
   useEffect(() => {
     if (!profile?.mt5Account || !isAccountActive) return;
     const q = query(collection(db, "bots", profile.mt5Account.toString(), "trades"), orderBy("timestamp", "desc"), limit(50));
@@ -126,7 +135,6 @@ function DashboardContent() {
     return () => unsub();
   }, [profile?.mt5Account, isAccountActive]);
 
-  // Xử lý khi bấm nút thanh toán từ Landing page chuyển qua
   useEffect(() => {
     if (searchParams.get("action") === "checkout") {
       if (searchParams.get("plan")) setSelectedPlan(searchParams.get("plan")!);
@@ -139,16 +147,11 @@ function DashboardContent() {
 
   return (
     <div className="min-h-screen bg-[#050b14] text-white font-sans selection:bg-green-500/30 pb-20 relative overflow-x-hidden">
-      
-      {/* 1. BACKGROUND GRID EFFECT */}
       <div className="fixed inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none"></div>
       <div className="fixed inset-0 bg-[radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none"></div>
 
-      {/* --- 2. TOP COMMAND BAR --- */}
       <nav className="border-b border-white/5 bg-[#050b14]/80 backdrop-blur-md px-4 md:px-8 py-4 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
-            
-            {/* Logo & Rank */}
             <div className="flex items-center gap-6">
                  <Link href="/" className="group flex items-center gap-3">
                     <div className="h-10 w-10 bg-green-600 text-black flex items-center justify-center font-black italic text-xl clip-path-polygon group-hover:bg-white transition-colors rounded">S</div>
@@ -157,15 +160,11 @@ function DashboardContent() {
                         <div className="text-[9px] text-green-500/60 tracking-[0.4em] font-bold uppercase">Trading Bot V7</div>
                     </div>
                  </Link>
-
-                 {/* 🎖️ Rank Badge */}
                  <div className={`hidden sm:flex items-center gap-2 px-3 py-1 rounded border bg-black/50 backdrop-blur-sm ${rank.border}`}>
                     <RankIcon size={14} className={rank.color} />
                     <span className={`text-[10px] font-bold uppercase tracking-widest ${rank.color}`}>{rank.title}</span>
                  </div>
             </div>
-
-            {/* User Stats & Logout */}
             <div className="flex items-center gap-4">
                 {profile?.mt5Account && isAccountActive && (
                     <div className="hidden lg:flex items-center gap-6 mr-4">
@@ -182,7 +181,6 @@ function DashboardContent() {
                         </div>
                     </div>
                 )}
-                
                 <button onClick={() => logout()} className="group flex items-center gap-2 text-slate-500 hover:text-red-500 transition-colors">
                     <span className="hidden md:inline text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">Disconnect</span>
                     <LogOut size={20} />
@@ -191,7 +189,6 @@ function DashboardContent() {
         </div>
       </nav>
 
-      {/* --- 3. MAIN DASHBOARD CONTENT --- */}
       <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8 animate-in fade-in duration-700 relative z-10">
         {!isAccountActive ? (
              <div className="mt-10 max-w-2xl mx-auto">
@@ -199,52 +196,15 @@ function DashboardContent() {
              </div>
         ) : (
             <>
-                {/* --- NAVIGATION TABS --- */}
                 <div className="flex flex-col md:flex-row border-b border-white/10 mb-8 sticky top-[72px] bg-[#050b14]/95 backdrop-blur z-40 md:static md:bg-transparent">
-                    <TabButton 
-                        active={activeTab === 'overview'} 
-                        onClick={() => setActiveTab('overview')} 
-                        icon={<LayoutGrid size={18}/>} 
-                        label="TỔNG QUAN" 
-                    />
-                    <TabButton 
-                        active={activeTab === 'war-room'} 
-                        onClick={() => setActiveTab('war-room')} 
-                        icon={<Radar size={18}/>} 
-                        label="CHIẾN TRƯỜNG" 
-                        hasLiveBadge={true} 
-                    />
-                    
-                    {/* 🔒 CHỈ HIỆN TAB ĐỐI TÁC NẾU LÀ LIFETIME */}
-                    {isLifetime && (
-                      <TabButton 
-                          active={activeTab === 'partner'} 
-                          onClick={() => setActiveTab('partner')} 
-                          icon={<Users size={18}/>} 
-                          label="ĐỐI TÁC" 
-                      />
-                    )}
+                    <TabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} icon={<LayoutGrid size={18}/>} label="TỔNG QUAN" />
+                    <TabButton active={activeTab === 'war-room'} onClick={() => setActiveTab('war-room')} icon={<Radar size={18}/>} label="CHIẾN TRƯỜNG" hasLiveBadge={true} />
+                    {isLifetime && ( <TabButton active={activeTab === 'partner'} onClick={() => setActiveTab('partner')} icon={<Users size={18}/>} label="ĐỐI TÁC" /> )}
                 </div>
-
-                {/* --- TAB CONTENT --- */}
                 <div className="min-h-[500px]">
-                    {activeTab === 'overview' && (
-                        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                             <OverviewTab profile={profile} botData={botData} isExpired={isExpired} formatExpiryDate={formatExpiryDate} onOpenPay={(plan: string) => { setSelectedPlan(plan); setIsPayOpen(true); }} onOpenGuide={() => setIsGuideOpen(true)} />
-                        </div>
-                    )}
-                    {activeTab === 'war-room' && (
-                        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                            <WarRoomTab trades={trades} accountInfo={botData} />
-                        </div>
-                    )}
-                    
-                    {/* 🔒 CHỈ RENDER NỘI DUNG NẾU LÀ LIFETIME */}
-                    {activeTab === 'partner' && isLifetime && (
-                        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                            <PartnerTab wallet={wallet} profile={profile} onWithdraw={handleWithdrawRequest} user={user} />
-                        </div>
-                    )}
+                    {activeTab === 'overview' && ( <div className="animate-in fade-in slide-in-from-bottom-4 duration-500"> <OverviewTab profile={profile} botData={botData} isExpired={isExpired} formatExpiryDate={formatExpiryDate} onOpenPay={(plan: string) => { setSelectedPlan(plan); setIsPayOpen(true); }} onOpenGuide={() => setIsGuideOpen(true)} /> </div> )}
+                    {activeTab === 'war-room' && ( <div className="animate-in fade-in slide-in-from-bottom-4 duration-500"> <WarRoomTab trades={trades} accountInfo={botData} /> </div> )}
+                    {activeTab === 'partner' && isLifetime && ( <div className="animate-in fade-in slide-in-from-bottom-4 duration-500"> <PartnerTab wallet={wallet} profile={profile} onWithdraw={handleWithdrawRequest} user={user} /> </div> )}
                 </div>
             </>
         )}
