@@ -1,57 +1,31 @@
 "use client";
 import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, query, orderBy, doc, deleteDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, where, doc, deleteDoc, getDocs } from 'firebase/firestore';
 import { 
-  Activity, Users, DollarSign, TrendingUp, 
-  Server, ShieldAlert, Wifi, WifiOff, Search, Crosshair, 
-  Target, Radio, ShieldCheck, Zap, Sword, Lock,
-  Trash2, X, ArrowUpCircle, ArrowDownCircle
+  Activity, ShieldAlert, WifiOff, Target, Radio, Sword, Lock,
+  Trash2, X, History
 } from 'lucide-react';
 import { useAuth } from '@/app/context/AuthContext';
 
-// --- TYPE DEFINITION ---
-interface Order {
-  ticket: number;
-  symbol: string;
-  type: 'BUY' | 'SELL';
-  volume: number;
-  openPrice: number;
-  currentPrice: number;
-  profit: number;
-  comment?: string;
-  time?: string;
-}
-
-interface BotData {
-  id: string;
-  mt5Account: number;
-  botName?: string;
-  balance: number;
-  equity: number;
-  floatingProfit: number;
-  profit?: number; 
-  lastHeartbeat: string;
-  symbol: string;
-  orders?: Order[];
-}
-
 export default function BattlefieldDashboard() {
   const { isAdmin, loading: authLoading } = useAuth();
-  const [bots, setBots] = useState<BotData[]>([]);
+  const [bots, setBots] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('ALL');
-  const [selectedBot, setSelectedBot] = useState<BotData | null>(null);
+  
+  // ✅ STATE QUẢN LÝ POP-UP & TRADES LỊCH SỬ
+  const [selectedBot, setSelectedBot] = useState<any | null>(null);
+  const [tradeHistory, setTradeHistory] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
+  // 🔒 KIỂM TRA QUYỀN TRUY CẬP
   if (authLoading) return <div className="min-h-screen bg-black flex items-center justify-center text-green-800 font-mono animate-pulse">:: CHECKING CLEARANCE ::</div>;
-
   if (!isAdmin) {
       return (
           <div className="min-h-screen bg-[#050b14] flex flex-col items-center justify-center relative overflow-hidden">
               <div className="relative z-10 flex flex-col items-center text-center p-8">
                   <ShieldAlert size={80} className="text-red-600 animate-pulse mb-8" />
                   <h2 className="text-4xl font-black text-white uppercase mb-4">TOP SECRET</h2>
-                  <p className="text-red-500 font-bold tracking-[0.5em] text-xs mb-8 uppercase">:: SPARTAN BATTLEFIELD // EYES ONLY ::</p>
                   <div className="px-6 py-3 bg-red-950/30 border border-red-900/50 rounded-lg text-red-400 font-mono text-xs">
                       <Lock size={14} className="inline mr-2" /> SECURITY_PROTOCOL_403_ENFORCED
                   </div>
@@ -60,10 +34,11 @@ export default function BattlefieldDashboard() {
       );
   }
 
+  // 🎧 LẮNG NGHE BOT REAL-TIME
   useEffect(() => {
     const q = query(collection(db, "bots"), orderBy("lastHeartbeat", "desc"));
     const unsub = onSnapshot(q, (snapshot) => {
-      setBots(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as BotData[]);
+      setBots(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       setLoading(false);
     });
     return () => unsub();
@@ -74,17 +49,36 @@ export default function BattlefieldDashboard() {
       try { await deleteDoc(doc(db, "bots", botId)); } catch (e) { alert("Lỗi: " + e); }
   };
 
+  // ✅ HÀM TRUY LỤC TRADES TỪ KHO 'trades'
+ // ✅ HÀM TRUY LỤC TRADES TỪ ĐÚNG KHO CON (SUBCOLLECTION: bots/{botId}/trades)
+  const openBotDetail = async (bot: any) => {
+    setSelectedBot(bot);
+    setLoadingHistory(true);
+    try {
+      // Đã nắn lại nòng súng: Chui thẳng vào kho 'trades' của riêng con Bot này
+      const q = query(
+        collection(db, "bots", bot.id, "trades"), // 👈 Tọa độ chuẩn xác 100%
+        orderBy("timestamp", "desc") 
+      );
+      const querySnapshot = await getDocs(q);
+      const history = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setTradeHistory(history);
+    } catch (e) {
+      console.error("Lỗi truy lục trades:", e);
+      alert("❌ Firebase chặn quyền hoặc chưa có dữ liệu/Index!");
+    }
+    setLoadingHistory(false);
+  };
+
   const stats = useMemo(() => {
     const now = Date.now();
-    let totalBalance = 0; let totalEquity = 0; let totalFloating = 0;
-    let onlineCount = 0; let offlineCount = 0; let potentialCommission = 0; 
+    let totalBalance = 0; let totalEquity = 0; let totalFloating = 0; let potentialCommission = 0; 
+    let onlineCount = 0; let offlineCount = 0; 
 
     const processedBots = bots.map(bot => {
-      const lastSeen = bot.lastHeartbeat ? new Date(bot.lastHeartbeat).getTime() : 0;
-      const isOnline = (now - lastSeen) < 120000; 
+      const isOnline = (now - (bot.lastHeartbeat ? new Date(bot.lastHeartbeat).getTime() : 0)) < 120000; 
       if (isOnline) onlineCount++; else offlineCount++;
 
-      // ✅ BỌC THÉP STATS: Tránh lỗi toLocaleString
       totalBalance += (Number(bot.balance) || 0);
       totalEquity += (Number(bot.equity) || 0);
       totalFloating += (Number(bot.floatingProfit) || 0);
@@ -99,12 +93,6 @@ export default function BattlefieldDashboard() {
     return { totalBots: bots.length, onlineCount, offlineCount, totalBalance, totalEquity, totalFloating, potentialCommission, processedBots };
   }, [bots]);
 
-  const displayBots = stats.processedBots.filter(bot => {
-    if (filter === 'ONLINE') return bot.isOnline;
-    if (filter === 'OFFLINE') return !bot.isOnline;
-    return true;
-  });
-
   if (loading) return <div className="min-h-screen bg-black flex items-center justify-center text-green-500 font-mono animate-pulse">LOADING BATTLEFIELD...</div>;
 
   return (
@@ -117,11 +105,10 @@ export default function BattlefieldDashboard() {
             <h1 className="text-3xl md:text-5xl font-black text-white italic flex items-center gap-3">
                 <Target className="animate-pulse text-red-500" /> SPARTAN <span className="text-green-600">WAR ROOM</span>
             </h1>
-            <p className="text-green-800 text-xs font-bold tracking-[0.3em] uppercase mt-2">System Status: ONLINE</p>
         </div>
         <div className="text-right">
             <p className="text-[10px] text-green-600 font-bold">TOTAL EQUITY</p>
-            <p className="text-2xl font-black text-white">${(stats.totalEquity || 0).toLocaleString()}</p>
+            <p className="text-2xl font-black text-white">${stats.totalEquity.toLocaleString()}</p>
         </div>
       </div>
 
@@ -133,17 +120,17 @@ export default function BattlefieldDashboard() {
         </div>
         <div className="bg-black border border-green-800 p-4">
             <p className="text-yellow-700 text-[10px] font-bold uppercase mb-1">WAR CHEST</p>
-            <h3 className="text-3xl font-black text-white">${(stats.totalBalance || 0).toLocaleString()}</h3>
+            <h3 className="text-3xl font-black text-white">${stats.totalBalance.toLocaleString()}</h3>
         </div>
         <div className="bg-black border border-green-800 p-4">
             <p className="text-blue-700 text-[10px] font-bold uppercase mb-1">COMBAT P/L</p>
             <h3 className={`text-3xl font-black ${stats.totalFloating >= 0 ? 'text-green-400' : 'text-red-500'}`}>
-                {stats.totalFloating > 0 ? '+' : ''}{(stats.totalFloating || 0).toFixed(2)}
+                {stats.totalFloating > 0 ? '+' : ''}{stats.totalFloating.toFixed(2)}
             </h3>
         </div>
         <div className="bg-green-900/20 border border-green-500/50 p-4">
              <p className="text-green-400 text-[10px] font-bold uppercase flex items-center gap-2"><Sword size={12}/> COMMANDER CUT</p>
-             <h3 className="text-3xl font-black text-white mt-1">${(stats.potentialCommission || 0).toFixed(2)}</h3>
+             <h3 className="text-3xl font-black text-white mt-1">${stats.potentialCommission.toFixed(2)}</h3>
         </div>
       </div>
 
@@ -151,9 +138,6 @@ export default function BattlefieldDashboard() {
       <div className="border border-green-900 bg-black/90 relative z-10">
         <div className="p-4 border-b border-green-900 flex justify-between items-center bg-green-950/30">
             <h3 className="font-bold text-green-500 flex items-center gap-2 text-sm tracking-widest"><Radio size={16} className="animate-pulse"/> LIVE FEED (CLICK TO SCAN)</h3>
-            <div className="flex gap-1">
-                {['ALL', 'ONLINE', 'OFFLINE'].map(f => <button key={f} onClick={() => setFilter(f)} className={`px-3 py-1 text-[10px] font-bold border ${filter === f ? 'bg-green-600 border-green-600 text-black' : 'border-green-900 text-green-700'}`}>{f}</button>)}
-            </div>
         </div>
         <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
@@ -161,32 +145,26 @@ export default function BattlefieldDashboard() {
                     <tr><th className="p-3">SIGNAL</th><th className="p-3">OPERATOR</th><th className="p-3 text-right">AMMO (BAL)</th><th className="p-3 text-right">COMBAT (P/L)</th><th className="p-3 text-right text-white">LOOT (20%)</th><th className="p-3 text-center">LAST COMMS</th><th className="p-3 text-right">ACTION</th></tr>
                 </thead>
                 <tbody className="divide-y divide-green-900/30">
-                    {displayBots.map(bot => (
+                    {stats.processedBots.map(bot => (
                         <tr 
                           key={bot.id} 
-                          onClick={() => setSelectedBot(bot)}
+                          onClick={() => openBotDetail(bot)} // ✅ GỌI HÀM LỤC LỊCH SỬ KHI CLICK
                           className="hover:bg-green-900/20 cursor-crosshair transition-all group"
                         >
                             <td className="p-3 font-bold">{bot.isOnline ? <span className="text-green-400 flex items-center gap-2"><Target size={14} className="animate-spin-slow"/> ONLINE</span> : <span className="text-red-600 flex items-center gap-2"><WifiOff size={14}/> LOST</span>}</td>
                             <td className="p-3">
                                 <div className="font-black text-white text-sm uppercase">{bot.botName || "SPARTAN UNIT"}</div>
-                                <div className="text-[10px] text-slate-400">ID: {bot.mt5Account} | {bot.symbol}</div>
+                                <div className="text-[10px] text-slate-400">ID: {bot.mt5Account} | {bot.symbol || "UNK"}</div>
                             </td>
                             <td className="p-3 text-right text-green-300 font-mono">${(bot.balance || 0).toLocaleString()}</td>
                             <td className="p-3 text-right font-mono">
-                                <div className={`font-black ${(bot.profit ?? 0) >= 0 ? 'text-green-400' : 'text-red-500'}`}>
-                                    {(bot.profit ?? 0).toFixed(2)}
-                                </div>
-                                <div className={`text-[10px] ${bot.floatingProfit >= 0 ? 'text-green-600' : 'text-red-700'}`}>
-                                    ({(bot.floatingProfit || 0).toFixed(2)} Float)
-                                </div>
+                                <div className={`font-black ${(bot.profit ?? 0) >= 0 ? 'text-green-400' : 'text-red-500'}`}>{(bot.profit ?? 0).toFixed(2)}</div>
+                                <div className={`text-[10px] ${bot.floatingProfit >= 0 ? 'text-green-600' : 'text-red-700'}`}>({(bot.floatingProfit || 0).toFixed(2)} Float)</div>
                             </td>
                             <td className="p-3 text-right font-black font-mono text-white bg-green-900/20">+${(bot.commission || 0).toFixed(2)}</td>
                             <td className="p-3 text-center text-[10px] text-green-700">{bot.lastHeartbeat ? new Date(bot.lastHeartbeat).toLocaleTimeString('vi-VN') : 'NEVER'}</td>
                             <td className="p-3 text-right">
-                                <button onClick={(e) => { e.stopPropagation(); handleDeleteBot(bot.id); }} className="text-green-900 hover:text-red-500 p-1">
-                                    <Trash2 size={14} />
-                                </button>
+                                <button onClick={(e) => { e.stopPropagation(); handleDeleteBot(bot.id); }} className="text-green-900 hover:text-red-500 p-1"><Trash2 size={14} /></button>
                             </td>
                         </tr>
                     ))}
@@ -195,20 +173,15 @@ export default function BattlefieldDashboard() {
         </div>
       </div>
 
-      {/* ✅ 2. MODAL HUD: CHI TIẾT LỆNH CHIẾN BINH (FIXED TOFIXED ERROR) */}
+      {/* ✅ MODAL HUD: TẬN DỤNG KHO DỮ LIỆU TRADES */}
       {selectedBot && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="w-full max-w-4xl bg-black border-2 border-green-500 shadow-[0_0_50px_rgba(34,197,94,0.2)] overflow-hidden flex flex-col max-h-[90vh]">
-            
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
+          <div className="w-full max-w-4xl bg-black border-2 border-green-500 flex flex-col max-h-[90vh] shadow-[0_0_50px_rgba(34,197,94,0.2)]">
             <div className="p-4 border-b-2 border-green-500 bg-green-500/10 flex justify-between items-center">
-              <div className="flex items-center gap-4">
-                <div className="p-2 bg-green-500 text-black rounded-full animate-pulse"><Crosshair size={24} /></div>
-                <div>
-                  <h2 className="text-xl font-black text-white uppercase italic">Scanning Unit: {selectedBot.botName}</h2>
-                  <p className="text-[10px] font-bold text-green-400 tracking-widest uppercase">Operator ID: {selectedBot.mt5Account} // System Status: Active Scan</p>
-                </div>
-              </div>
-              <button onClick={() => setSelectedBot(null)} className="p-2 hover:bg-red-500 hover:text-white transition-all text-green-500 border border-green-500"><X size={20} /></button>
+              <h2 className="text-xl font-black text-white italic uppercase flex items-center gap-2">
+                <History size={20} className="animate-pulse"/> COMMAND ARCHIVE: {selectedBot.botName}
+              </h2>
+              <button onClick={() => setSelectedBot(null)} className="p-2 text-green-500 hover:text-red-500 border border-green-500 hover:bg-red-500/20 transition-all"><X size={20} /></button>
             </div>
 
             <div className="p-6 overflow-y-auto">
@@ -223,57 +196,48 @@ export default function BattlefieldDashboard() {
                 </div>
                 <div className="border border-green-900 p-3 bg-green-950/10">
                   <p className="text-[10px] text-green-700 font-bold uppercase">Floating P/L</p>
-                  <p className={`text-xl font-black ${selectedBot.floatingProfit >= 0 ? 'text-green-400' : 'text-red-500'}`}>
-                    ${(selectedBot.floatingProfit || 0).toFixed(2)}
-                  </p>
+                  <p className={`text-xl font-black ${selectedBot.floatingProfit >= 0 ? 'text-green-400' : 'text-red-500'}`}>${(selectedBot.floatingProfit || 0).toFixed(2)}</p>
                 </div>
                 <div className="border border-green-900 p-3 bg-green-950/10">
-                  <p className="text-[10px] text-green-700 font-bold uppercase">Symbol</p>
-                  <p className="text-xl font-black text-blue-400">{selectedBot.symbol || "N/A"}</p>
+                  <p className="text-[10px] text-green-700 font-bold uppercase">Operator ID</p>
+                  <p className="text-xl font-black text-blue-400">{selectedBot.mt5Account}</p>
                 </div>
               </div>
 
-              <h3 className="text-sm font-black text-green-500 mb-4 flex items-center gap-2">
-                <Activity size={16} /> MISSION LOG ({selectedBot.orders?.length || 0})
-              </h3>
-
-              <div className="border border-green-900 rounded overflow-hidden">
-                <table className="w-full text-left text-[11px]">
-                  <thead className="bg-green-950/50 text-green-600 font-black uppercase">
-                    <tr>
-                      <th className="p-3">Ticket</th>
-                      <th className="p-3">Type</th>
-                      <th className="p-3 text-right">Volume</th>
-                      <th className="p-3 text-right">Price</th>
-                      <th className="p-3 text-right">Profit</th>
-                      <th className="p-3 text-center">Time</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-green-900/30">
-                    {(!selectedBot.orders || selectedBot.orders.length === 0) ? (
-                      <tr><td colSpan={6} className="p-10 text-center text-green-800 italic uppercase font-bold">No Records Found.</td></tr>
-                    ) : (
-                      selectedBot.orders.map((order) => (
-                        <tr key={order.ticket} className="hover:bg-green-900/10 transition-colors">
-                          <td className="p-3 text-slate-400">#{order.ticket}</td>
-                          <td className="p-3">
-                            <span className={`flex items-center gap-1 font-black ${order.type === 'BUY' ? 'text-blue-400' : 'text-red-400'}`}>
-                              {order.type === 'BUY' ? <ArrowUpCircle size={12}/> : <ArrowDownCircle size={12}/>}
-                              {order.type}
-                            </span>
-                          </td>
-                          <td className="p-3 text-right font-bold text-white">{(order.volume || 0).toFixed(2)}</td>
-                          <td className="p-3 text-right text-slate-400">{(order.openPrice || 0).toFixed(5)}</td>
-                          <td className={`p-3 text-right font-black ${order.profit >= 0 ? 'text-green-400' : 'text-red-500'}`}>
-                            {order.profit > 0 ? '+' : ''}{(order.profit || 0).toFixed(2)}
-                          </td>
-                          <td className="p-3 text-center text-slate-500">{order.time || "N/A"}</td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+              <h3 className="text-sm font-black text-green-500 mb-4 flex items-center gap-2">📂 KHO LỊCH SỬ TÁC CHIẾN (TỪ DATABASE TRADES)</h3>
+              
+              {loadingHistory ? (
+                <div className="p-20 text-center animate-pulse text-green-800 font-black italic">DANG TRUY LỤC HỒ SƠ...</div>
+              ) : (
+                <div className="border border-green-900 rounded overflow-hidden">
+                  <table className="w-full text-left text-[11px]">
+                    <thead className="bg-green-950/50 text-green-600 font-black">
+                      <tr><th className="p-3">TICKET</th><th className="p-3">TYPE</th><th className="p-3 text-right">LOTS</th><th className="p-3 text-right text-white">PROFIT (NET)</th><th className="p-3 text-center">TIME</th></tr>
+                    </thead>
+                    <tbody className="divide-y divide-green-900/30">
+                      {tradeHistory.length === 0 ? (
+                        <tr><td colSpan={5} className="p-10 text-center text-green-800 italic uppercase">Chưa có dữ liệu lệnh đã chốt trong kho.</td></tr>
+                      ) : (
+                        tradeHistory.map((trade: any) => (
+                          <tr key={trade.id} className="hover:bg-green-900/10">
+                            <td className="p-3 text-slate-500">#{trade.ticket}</td>
+                            <td className={`p-3 font-bold ${trade.type === 'BUY' ? 'text-blue-400' : 'text-red-400'}`}>{trade.type}</td>
+                            <td className="p-3 text-right text-white">{(trade.volume || trade.lots || 0).toFixed(2)}</td>
+                            <td className={`p-3 text-right font-black ${trade.profit >= 0 ? 'text-green-400' : 'text-red-500'}`}>
+                              ${(trade.profit || 0).toFixed(2)}
+                            </td>
+                            <td className="p-3 text-center text-slate-500">{trade.timestamp ? new Date(trade.timestamp).toLocaleString('vi-VN') : '---'}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-4 border-t-2 border-green-500 bg-green-500/5 text-center">
+                <p className="text-[9px] text-green-800 font-black tracking-[0.4em] uppercase">:: Dữ liệu được trích xuất từ sổ cái trung tâm ::</p>
             </div>
           </div>
         </div>
