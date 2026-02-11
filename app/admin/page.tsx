@@ -1,12 +1,12 @@
 "use client";
 import React, { useEffect, useState, useMemo } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, updateDoc, doc, Timestamp, query, where, getDoc, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, updateDoc, doc, Timestamp, deleteDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { 
   ShieldAlert, Crown, Zap, RefreshCw, Infinity, Search, Wallet, 
-  CheckCircle, XCircle, CreditCard, Bitcoin, UserPlus, Clock, 
-  LayoutDashboard, Users, Banknote, Activity, Server, Radio,
+  CheckCircle, XCircle, CreditCard, Bitcoin, UserPlus, 
+  LayoutDashboard, Users, Banknote, Activity, Server,
   Trash2 
 } from 'lucide-react';
 
@@ -39,7 +39,9 @@ const AdminTabButton = ({ active, onClick, icon: Icon, label, alertCount }: any)
 );
 
 export default function AdminPage() {
-  const { isAdmin } = useAuth();
+  // ✅ FIX 1: Lấy adminUser ngay đầu hàm để dùng chung cho mọi Action
+  const { isAdmin, user: adminUser } = useAuth(); 
+  
   const [users, setUsers] = useState<any[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'overview' | 'members' | 'finance'>('overview');
@@ -88,10 +90,10 @@ export default function AdminPage() {
 
   // --- ACTIONS ---
 
+  // ✅ FIX 2: Cập nhật hàm nâng cấp - Lấy token từ adminUser chuẩn
   const updateUserSoldier = async (userId: string, currentExpiry: any, days: number, plan: string) => {
     if(!confirm(`Xác nhận nâng cấp gói ${plan.toUpperCase()}?`)) return;
 
-    // Tính toán ngày hết hạn ở Client (chỉ để gửi lên làm tham số)
     let newDateStr;
     if (plan === 'LIFETIME') {
         newDateStr = "2099-12-31T23:59:59.000Z";
@@ -104,34 +106,29 @@ export default function AdminPage() {
     }
 
     try {
-        // Lấy Token Admin
-        const token = await useAuth().user?.getIdToken(); // Hoặc lấy từ context adminUser
+        if (!adminUser) return alert("❌ Lỗi: Bạn chưa đăng nhập quyền Admin!");
+        const token = await adminUser.getIdToken(); 
 
         const res = await fetch('/api/admin/update-user', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}` // 👈 BẮT BUỘC
+                'Authorization': `Bearer ${token}` 
             },
-            body: JSON.stringify({
-                userId: userId,
-                newExpiryDate: newDateStr,
-                newPlan: plan,
-                daysAdded: days
-            })
+            body: JSON.stringify({ userId, newExpiryDate: newDateStr, newPlan: plan, daysAdded: days })
         });
 
         const data = await res.json();
         if (data.success) {
             alert(data.message);
-            fetchUsers(); // Refresh lại danh sách
+            fetchUsers(); 
         } else {
             alert("❌ Lỗi: " + data.error);
         }
     } catch (e) {
         alert("❌ Lỗi kết nối Server!");
     }
-};
+  };
 
   const handleApproveUser = async (user: any) => {
      if(!confirm(`DUYỆT TÂN BINH: ${user.email}?`)) return;
@@ -159,37 +156,36 @@ export default function AdminPage() {
       try { await deleteDoc(doc(db, "users", userId)); fetchUsers(); } catch (e) { alert(e); }
   };
 
-  // ✅ CODE MỚI (Gọi qua API Bọc thép)
-const approveWithdraw = async (user: any) => {
-    const amount = user.wallet?.pending || 0;
-    if(!confirm(`XÁC NHẬN ĐÃ CHUYỂN $${amount} CHO ${user.email}?`)) return;
+  // ✅ FIX 3: Duyệt rút tiền - Dùng token Admin để ra lệnh giải ngân
+  const approveWithdraw = async (soldier: any) => {
+    const amount = soldier.wallet?.pending || 0;
+    if(!confirm(`XÁC NHẬN ĐÃ CHUYỂN $${amount} CHO ${soldier.email}?`)) return;
     
     try {
-        // Lấy token căn cước của Admin
-        // (Giả sử ngài đang dùng useAuth() có chứa 'user')
-        const token = await user.getIdToken(); 
+        if (!adminUser) return alert("❌ Lỗi: Mất quyền Admin!");
+        const token = await adminUser.getIdToken(); 
 
         const res = await fetch('/api/admin/approve-withdraw', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}` // 👈 Trình thẻ bài Admin
+                'Authorization': `Bearer ${token}` 
             },
-            body: JSON.stringify({ userId: user.id, amount: amount })
+            body: JSON.stringify({ userId: soldier.id, amount: amount })
         });
         
         const data = await res.json();
         
         if (res.ok && data.success) {
             alert("✅ Đã giải ngân và cập nhật ví thành công!");
-            fetchUsers(); // Tải lại danh sách
+            fetchUsers(); 
         } else {
             alert("❌ Lỗi Server: " + (data.error || "Không rõ nguyên nhân"));
         }
     } catch (e) { 
         alert("❌ Lỗi kết nối mạng!"); 
     }
-};
+  };
 
   const resetMT5 = async (userId: string) => {
     if(!confirm("Reset MT5 ID?")) return;
@@ -284,7 +280,7 @@ const approveWithdraw = async (user: any) => {
                                 <div key={req.id} className="bg-slate-950 border border-slate-800 p-5 rounded-xl">
                                     <div className="flex justify-between items-start mb-4">
                                         <div><p className="font-bold text-white">{req.displayName}</p><p className="text-xs text-slate-500">{req.email}</p></div>
-                                        <div className="text-right"><p className="text-2xl font-black text-green-400 font-mono">${req.wallet.pending}</p></div>
+                                        <div className="text-right"><p className="text-2xl font-black text-green-400 font-mono">${req.wallet?.pending}</p></div>
                                     </div>
                                     {renderPaymentInfo(req)}
                                     <div className="flex gap-2 mt-4 pt-4 border-t border-slate-800">
@@ -297,7 +293,6 @@ const approveWithdraw = async (user: any) => {
                 </div>
             )}
 
-            {/* 🔥 PHẦN NÀY ĐÃ ĐƯỢC FIX LỖI WHITESPACE */}
             {activeTab === 'members' && (
                 <div className="bg-slate-900/50 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
                     <div className="p-4 border-b border-slate-800 flex flex-col md:flex-row gap-4 justify-between bg-black/20">
