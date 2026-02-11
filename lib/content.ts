@@ -5,6 +5,7 @@ export const content = {
   // 🇻🇳 PHẦN TIẾNG VIỆT
   // ==============================
   vi: {
+    // ... (Các phần nav, hero, features giữ nguyên) ...
     nav: {
       features: "Tính Năng",
       performance: "Hiệu Quả",
@@ -80,7 +81,7 @@ export const content = {
         terminal: {
           init: "KHỞI ĐỘNG SPARTAN V30...",
           scan: "Đang quét XAUUSD khung M15...",
-          signal: "PHÁT HIỆN TÍN HIỆU: Breakout Cản",
+          signal: "PHÁT HIN TÍN HIỆU: Breakout Cản",
           buy: "MỞ MUA",
           trailing: "Giá đạt TP1. Kích hoạt Trailing Stop.",
           tp: "CHỐT LỜI",
@@ -117,6 +118,8 @@ export const content = {
         download: "TẢI VỀ KIỂM CHỨNG"
       }
     },
+
+    // 👇 CẬP NHẬT PHẦN BẢNG GIÁ (VIETNAMESE)
     pricing: {
       title: "BẢNG GIÁ CHIẾN LƯỢC",
       sub: "Lựa chọn gói phù hợp để tối ưu lợi nhuận của bạn.",
@@ -125,7 +128,7 @@ export const content = {
         price: "$30",
         period: "/tháng",
         btn: "Thuê Ngay",
-        features: ["Full Tính năng V7.2", "Tự động vào lệnh 100%", "Chế độ Scalp + Swing", "Hỗ trợ 1 Tài khoản Live", "Support 24/7"]
+        features: ["Full Tính năng V7.2", "Tự động vào lệnh 100%", "Chế độ Scalp + Swing", "Hỗ trợ cài đặt VPS", "Support 24/7"]
       },
       yearly: {
         name: "THUÊ 1 NĂM",
@@ -133,7 +136,7 @@ export const content = {
         period: "/năm",
         btn: "Đăng Ký Ngay",
         tag: "Khuyên Dùng",
-        features: ["Full Tính năng V7.2", "Tự động vào lệnh 100%", "Hỗ trợ 1 Tài khoản Live", "Tặng VPS 6 tháng", "Ưu tiên Support"]
+        features: ["Full Tính năng V7.2", "Tự động vào lệnh 100%", "Hỗ trợ 1 Tài khoản Live", "Tư vấn thuê VPS Low Latency", "Ưu tiên Support"]
       },
       lifetime: {
         name: "MUA TRỌN ĐỜI",
@@ -141,9 +144,10 @@ export const content = {
         period: "/vĩnh viễn",
         btn: "Trở Thành Đối Tác",
         tag: "Business VIP",
-        features: ["Sở hữu vĩnh viễn V7.2", "Free Update trọn đời", "Hỗ trợ 1 Tài khoản Live", "Tặng VPS 1 năm", "Đặc quyền: Làm Reseller (Hoa hồng 40%)"]
+        features: ["Sở hữu vĩnh viễn V7.2", "Free Update trọn đời", "Hỗ trợ 1 Tài khoản Live", "Hỗ trợ Setup VPS chuyên nghiệp", "Đặc quyền: Làm Reseller (Hoa hồng 40%)"]
       }
     },
+
     footer: {
       rights: "SPARTAN TRADING SYSTEM © 2026",
       terms: "Điều khoản sử dụng",
@@ -260,6 +264,7 @@ export const content = {
   // 🇺🇸 PHẦN TIẾNG ANH (ENGLISH)
   // ==============================
   en: {
+    // ... (Các phần nav, hero, features giữ nguyên) ...
     nav: {
       features: "Features",
       performance: "Performance",
@@ -342,7 +347,7 @@ export const content = {
           balance: "Balance updated:"
         }
       }
-    }, 
+    },
     report: {
       title: "AUDIT REPORT (VERIFIED)",
       subtitle: "Verified by MetaQuotes Strategy Tester",
@@ -372,6 +377,8 @@ export const content = {
         download: "DOWNLOAD PROOF"
       }
     },
+
+    // 👇 CẬP NHẬT PHẦN BẢNG GIÁ (ENGLISH)
     pricing: {
       title: "STRATEGIC PRICING",
       sub: "Choose the plan that fits your trading goals.",
@@ -380,7 +387,7 @@ export const content = {
         price: "$30",
         period: "/mo",
         btn: "Rent Now",
-        features: ["Full Features V7.2", "100% Auto Execution", "Scalp + Swing Modes", "1 Live Account", "24/7 Support"]
+        features: ["Full Features V7.2", "100% Auto Execution", "Scalp + Swing Modes", "VPS Setup Support", "24/7 Support"]
       },
       yearly: {
         name: "YEARLY",
@@ -388,7 +395,7 @@ export const content = {
         period: "/yr",
         btn: "Save Now",
         tag: "Best Choice",
-        features: ["Full Features V7.2", "100% Auto Execution", "1 Live Accounts", "Free VPS (6 mos)", "Priority Support"]
+        features: ["Full Features V7.2", "100% Auto Execution", "1 Live Accounts", "Low Latency VPS Advice", "Priority Support"]
       },
       lifetime: {
         name: "LIFETIME",
@@ -396,9 +403,10 @@ export const content = {
         period: "/life",
         btn: "Become Partner",
         tag: "Business VIP",
-        features: ["Lifetime License V7.2", "Free Lifetime Updates", "1 Live Accounts", "Free VPS (1 year)", "Reseller Rights (40% Commission)"]
+        features: ["Lifetime License V7.2", "Free Lifetime Updates", "1 Live Accounts", "Professional VPS Setup", "Reseller Rights (40% Commission)"]
       }
     },
+
     footer: {
       rights: "SPARTAN TRADING SYSTEM © 2026",
       terms: "Terms of Service",
