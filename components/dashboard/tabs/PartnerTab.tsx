@@ -1,8 +1,8 @@
 "use client";
 import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '@/lib/firebase'; 
-import { doc, getDoc, updateDoc } from 'firebase/firestore'; 
-import { ShieldCheck, Globe, Wallet, CheckCircle, Settings, Bitcoin, CreditCard, Clock, UserPlus, Share2, FileText, Check, Copy, Calendar, DollarSign, ArrowUpRight } from 'lucide-react';
+import { doc, getDoc, updateDoc, deleteField } from 'firebase/firestore'; 
+import { ShieldCheck, Globe, Wallet, CheckCircle, Settings, Bitcoin, CreditCard, Clock, UserPlus, Share2, FileText, Check, Copy, Calendar, ArrowUpRight } from 'lucide-react';
 
 const VN_BANKS = ["Vietcombank (VCB)", "MBBank (Quân Đội)", "Techcombank (TCB)", "ACB (Á Châu)", "VietinBank (CTG)", "BIDV (Đầu tư & PT)", "VPBank", "TPBank", "Sacombank", "VIB", "HDBank", "MSB", "OCB", "SHB", "Eximbank", "SeABank", "ABBank", "Nam A Bank", "Agribank"];
 
@@ -57,24 +57,22 @@ export const PartnerTab = ({ wallet, profile, user }: any) => {
         const userRef = doc(db, "users", user.uid);
         if (activeTab === 'bank') {
             if (!bankInfo.bankName || !bankInfo.accountNumber || !bankInfo.accountHolder) { alert("⚠️ Vui lòng điền đủ thông tin!"); return; }
-            await updateDoc(userRef, { bankInfo: bankInfo, cryptoInfo: null });
+            await updateDoc(userRef, { bankInfo: bankInfo, cryptoInfo: deleteField() });
             alert("✅ Đã lưu thông tin Ngân hàng!");
         } else {
             if (!cryptoInfo.walletAddress) { alert("⚠️ Vui lòng nhập địa chỉ ví!"); return; }
-            await updateDoc(userRef, { cryptoInfo: cryptoInfo, bankInfo: null });
+            await updateDoc(userRef, { cryptoInfo: cryptoInfo, bankInfo: deleteField() });
             alert("✅ Đã lưu thông tin ví Crypto!");
         }
         setShowSettingsModal(false);
-    } catch (error) { alert("❌ Lỗi hệ thống, thử lại sau."); }
+    } catch (error) { console.error(error); alert("❌ Lỗi hệ thống, thử lại sau."); }
   };
 
-  // 🔥 HÀM RÚT TIỀN BẢO MẬT (TOKEN VERIFICATION) 🔥
+  // 🔥 YÊU CẦU RÚT TIỀN (LÍNH CHỈ ĐƯỢC PHÉP REQUEST)
   const handleRequestWithdraw = async () => {
     if (!profile?.bankInfo && !profile?.cryptoInfo) {
-        alert("⚠️ Vui lòng cập nhật Ví nhận tiền (Nút cài đặt) trước!");
-        return;
+        alert("⚠️ Vui lòng cập nhật Ví nhận tiền (Nút cài đặt) trước!"); return;
     }
-    
     const amountStr = prompt(`Nhập số tiền muốn rút (Tối đa: $${wallet?.available?.toFixed(2) || 0}):`); 
     if (!amountStr) return;
     const amount = parseFloat(amountStr);
@@ -86,39 +84,18 @@ export const PartnerTab = ({ wallet, profile, user }: any) => {
     if(!confirm(`Xác nhận rút $${amount} về ví của bạn?`)) return;
 
     setIsWithdrawing(true);
-
     try {
-        // 1. LẤY TOKEN CĂN CƯỚC TỪ USER
         const token = await user.getIdToken();
-
-        // 2. GỬI REQUEST KÈM TOKEN
         const res = await fetch('/api/withdraw', {
             method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}` // 👈 QUAN TRỌNG: Kẹp token vào đây
-            },
-            body: JSON.stringify({ 
-                // Không cần gửi UID, Server sẽ tự soi từ Token
-                email: user.email, 
-                amount: amount 
-            }),
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ email: user.email, amount: amount, action: 'request' }),
         });
-    
         const data = await res.json();
-    
-        if (data.success) {
-            alert(data.message);
-        } else {
-            alert("❌ Thất bại: " + data.message);
-        }
-        
-    } catch (e) {
-        console.error(e);
-        alert("❌ Lỗi kết nối server!");
-    } finally {
-        setIsWithdrawing(false);
-    }
+        if (data.success) alert(data.message);
+        else alert("❌ Thất bại: " + data.message);
+    } catch (e) { alert("❌ Lỗi kết nối server!"); } 
+    finally { setIsWithdrawing(false); }
   };
 
   return (
@@ -139,40 +116,43 @@ export const PartnerTab = ({ wallet, profile, user }: any) => {
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="md:col-span-2 bg-gradient-to-br from-green-900/40 to-slate-900 border border-green-500/50 p-6 rounded-[2rem] relative overflow-hidden group hover:border-green-400 transition-colors">
+          {/* CỘT 1: SỐ DƯ */}
+          <div className="md:col-span-2 bg-gradient-to-br from-green-900/40 to-slate-900 border border-green-500/50 p-6 rounded-[2rem] relative overflow-hidden group hover:border-green-400 transition-colors flex flex-col">
               <div className="absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity"><Wallet size={100}/></div>
               <div className="flex justify-between items-start mb-2 relative z-10"><p className="text-[10px] text-green-400 font-black uppercase flex items-center gap-2 tracking-widest"><CheckCircle size={12}/> Số dư khả dụng</p><button onClick={() => setShowSettingsModal(true)} className="text-slate-400 hover:text-white transition-colors p-2 bg-slate-800/50 rounded-lg hover:bg-slate-800"><Settings size={16} /></button></div>
               <h2 className="text-5xl font-black text-white font-chakra mb-2 relative z-10">${(wallet?.available || 0).toFixed(2)}</h2>
               <div className="relative z-10 min-h-[20px] mb-6">
-                  {cryptoInfo.walletAddress ? (<p className="text-[10px] text-green-400 font-mono truncate flex items-center gap-1"><Bitcoin size={12} /> {cryptoInfo.network}: {cryptoInfo.walletAddress.substring(0, 6)}...{cryptoInfo.walletAddress.slice(-4)}</p>) : 
-                   bankInfo.accountNumber ? (<p className="text-[10px] text-slate-400 font-mono truncate flex items-center gap-1"><CreditCard size={12} /> {bankInfo.bankName.split('(')[0]} • {bankInfo.accountNumber}</p>) : 
+                  {profile?.cryptoInfo?.walletAddress ? (<p className="text-[10px] text-green-400 font-mono truncate flex items-center gap-1"><Bitcoin size={12} /> {profile.cryptoInfo.network}: {profile.cryptoInfo.walletAddress.substring(0, 6)}...{profile.cryptoInfo.walletAddress.slice(-4)}</p>) : 
+                   profile?.bankInfo?.accountNumber ? (<p className="text-[10px] text-slate-400 font-mono truncate flex items-center gap-1"><CreditCard size={12} /> {profile.bankInfo.bankName.split('(')[0]} • {profile.bankInfo.accountNumber}</p>) : 
                    (<p className="text-[10px] text-red-500 italic animate-pulse">⚠ Chưa cài đặt ví nhận tiền</p>)}
               </div>
               <button 
                 onClick={handleRequestWithdraw} 
-                disabled={isWithdrawing}
+                disabled={isWithdrawing || (wallet?.pending > 0)} 
                 className="w-full py-4 bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-bold rounded-xl shadow-lg shadow-green-900/50 active:scale-95 transition-all mt-auto relative z-10 uppercase tracking-widest flex items-center justify-center gap-2"
               >
                  {isWithdrawing ? "ĐANG GỬI YÊU CẦU..." : <><ArrowUpRight size={18}/> RÚT TIỀN NGAY</>}
               </button>
           </div>
 
-          <div className={`bg-slate-900/60 border p-6 rounded-[2rem] flex flex-col justify-center ${wallet?.pending > 0 ? 'border-yellow-500/50 shadow-[0_0_20px_rgba(234,179,8,0.1)]' : 'border-slate-800'}`}>
+          {/* CỘT 2: LỆNH ĐANG CHỜ (ĐÃ GỠ QR VÀ NÚT HỦY) */}
+          <div className={`bg-slate-900/60 border p-6 rounded-[2rem] flex flex-col justify-center relative overflow-hidden ${wallet?.pending > 0 ? 'border-yellow-500/50 shadow-[0_0_20px_rgba(234,179,8,0.1)]' : 'border-slate-800'}`}>
               <p className="text-[10px] text-yellow-500 font-black uppercase mb-2 flex items-center gap-2 tracking-widest"><Clock size={12}/> Đang xử lý</p>
               <h2 className={`text-3xl font-black font-chakra mb-2 ${wallet?.pending > 0 ? 'text-yellow-400' : 'text-slate-600'}`}>${(wallet?.pending || 0).toFixed(2)}</h2>
               {wallet?.pending > 0 ? (
-                  <div className="bg-yellow-500/10 text-yellow-500 text-[10px] p-2 rounded border border-yellow-500/20 mt-2 animate-pulse">
-                      ⏳ Admin đang kiểm tra lệnh rút của bạn...
+                  <div className="bg-yellow-500/10 text-yellow-500 text-[10px] p-2 rounded border border-yellow-500/20 text-center animate-pulse mt-2">
+                      ⏳ Yêu cầu đang được Admin chờ duyệt...
                   </div>
               ) : (
-                  <p className="text-[10px] text-slate-500 italic">Không có lệnh đang chờ.</p>
+                  <p className="text-[10px] text-slate-500 italic mt-auto">Không có lệnh đang chờ.</p>
               )}
           </div>
 
+          {/* CỘT 3: TỔNG ĐÃ RÚT */}
           <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem] flex flex-col justify-center">
               <p className="text-[10px] text-blue-400 font-black uppercase mb-2 flex items-center gap-2 tracking-widest"><CheckCircle size={12}/> Tổng đã rút</p>
               <h2 className="text-3xl font-black text-white font-chakra mb-2">${(wallet?.total_paid || 0).toFixed(2)}</h2>
-              <p className="text-[10px] text-slate-500">Tiền đã về tài khoản của bạn.</p>
+              <p className="text-[10px] text-slate-500 mt-auto">Tiền đã về tài khoản của bạn.</p>
           </div>
       </div>
 

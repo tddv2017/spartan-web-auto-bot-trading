@@ -7,8 +7,39 @@ import {
   ShieldAlert, Crown, Zap, RefreshCw, Infinity, Search, Wallet, 
   CheckCircle, XCircle, CreditCard, Bitcoin, UserPlus, 
   LayoutDashboard, Users, Banknote, Activity, Server,
-  Trash2 
+  Trash2, QrCode 
 } from 'lucide-react';
+
+// --- HÀM HỖ TRỢ LẤY MÃ NGÂN HÀNG CHO VIETQR ---
+const getVietQRBankCode = (fullName: string) => {
+    if (!fullName) return "";
+    const name = fullName.toLowerCase();
+    if (name.includes("vietinbank")) return "ICB"; 
+    if (name.includes("vietcombank")) return "VCB";
+    if (name.includes("mbbank") || name.includes("quân đội")) return "MB";
+    if (name.includes("techcombank")) return "TCB";
+    if (name.includes("acb")) return "ACB";
+    if (name.includes("bidv")) return "BIDV";
+    if (name.includes("vpbank")) return "VPB";
+    if (name.includes("tpbank")) return "TPB";
+    if (name.includes("sacombank")) return "STB";
+    if (name.includes("vib")) return "VIB";
+    if (name.includes("hdbank")) return "HDB";
+    if (name.includes("msb")) return "MSB";
+    if (name.includes("ocb")) return "OCB";
+    if (name.includes("shb")) return "SHB";
+    if (name.includes("eximbank")) return "EIB";
+    if (name.includes("seabank")) return "SEAB";
+    if (name.includes("abbank")) return "ABB";
+    if (name.includes("agribank")) return "VBA";
+    
+    const match = fullName.match(/\(([^)]+)\)/);
+    if (match && match[1]) return match[1].trim();
+    return fullName.split(' ')[0];
+};
+
+// --- ICON DỰ PHÒNG ---
+const ScanLine = ({ size }: {size:number}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/></svg>;
 
 // --- COMPONENTS HỖ TRỢ ---
 const StatCard = ({ label, value, icon: Icon, color, subValue }: any) => (
@@ -38,8 +69,175 @@ const AdminTabButton = ({ active, onClick, icon: Icon, label, alertCount }: any)
     </button>
 );
 
+// ✅ COMPONENT THẺ RÚT TIỀN CỦA ADMIN (CÓ MODAL THANH TOÁN QR)
+const AdminWithdrawCard = ({ targetUser, adminUser, onComplete }: { targetUser: any, adminUser: any, onComplete: () => void }) => {
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [showCheckoutModal, setShowCheckoutModal] = useState(false); 
+    
+    const amountUSD = targetUser.wallet?.pending || 0;
+    const amountVND = Math.round(amountUSD * 25500);
+    const isBank = !!targetUser.bankInfo?.accountNumber;
+
+    // 🟢 DUYỆT LỆNH (Gọi API sau khi xác nhận chuyển khoản)
+    const handleApprove = async () => {
+        setIsProcessing(true);
+        try {
+            const token = await adminUser.getIdToken();
+            const res = await fetch('/api/withdraw', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ userId: targetUser.id, amount: amountUSD, action: 'approve' }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert("✅ Đã ghi nhận thanh toán thành công!");
+                setShowCheckoutModal(false);
+                onComplete(); 
+            } else { alert("❌ Thất bại: " + data.message); }
+        } catch (e) { alert("❌ Lỗi Server!"); } 
+        finally { setIsProcessing(false); }
+    };
+
+    // 🔴 TỪ CHỐI / HOÀN TIỀN LẠI CHO LÍNH
+    const handleReject = async () => {
+        const reason = prompt("Lý do từ chối (Hoàn tiền lại cho lính)?");
+        if (reason === null) return; 
+        
+        setIsProcessing(true);
+        try {
+            const token = await adminUser.getIdToken();
+            const res = await fetch('/api/withdraw', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                // ✅ ĐÃ BƠM BIẾN AMOUNT VÀO ĐỂ VƯỢT QUA ZOD/BACKEND VALIDATION
+                body: JSON.stringify({ 
+                    userId: targetUser.id, 
+                    action: 'cancel_by_admin', 
+                    reason: reason,
+                    amount: amountUSD 
+                }),
+            });
+            
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                alert("✅ Đã hủy lệnh và hoàn tiền lại vào ví khả dụng!");
+                onComplete();
+            } else { 
+                alert("❌ Lỗi từ Server: " + (data.message || "Không xác định")); 
+            }
+        } catch (e: any) { 
+            console.error("Lỗi Hủy Lệnh:", e);
+            alert("❌ Lỗi Mạng hoặc Code: " + e.message); 
+        } 
+        finally { setIsProcessing(false); }
+    };
+
+    return (
+        <>
+            {/* THẺ BÊN NGOÀI */}
+            <div className="bg-slate-950 border border-slate-800 p-5 rounded-xl flex flex-col gap-4">
+                <div className="flex justify-between items-start">
+                    <div>
+                        <p className="font-bold text-white">{targetUser.displayName}</p>
+                        <p className="text-xs text-slate-500">{targetUser.email}</p>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-2xl font-black text-yellow-400 font-mono">${amountUSD.toFixed(2)}</p>
+                    </div>
+                </div>
+
+                <div className="bg-black/40 p-3 rounded border border-slate-700 text-xs font-mono">
+                    {isBank ? (
+                        <>
+                            <div className="flex items-center gap-2 text-blue-400 mb-1"><CreditCard size={12}/> {targetUser.bankInfo.bankName}</div>
+                            <div className="text-lg font-bold text-white select-all">{targetUser.bankInfo.accountNumber}</div>
+                            <div className="text-slate-400 uppercase">{targetUser.bankInfo.accountHolder}</div>
+                        </>
+                    ) : targetUser.cryptoInfo?.walletAddress ? (
+                        <>
+                            <div className="flex items-center gap-2 text-yellow-500 mb-1"><Bitcoin size={12}/> {targetUser.cryptoInfo.network}</div>
+                            <div className="break-all select-all text-white">{targetUser.cryptoInfo.walletAddress}</div>
+                        </>
+                    ) : <div className="text-red-500 italic">Chưa có thông tin nhận tiền!</div>}
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                    <button 
+                        onClick={() => setShowCheckoutModal(true)} 
+                        disabled={isProcessing} 
+                        className="flex-1 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded flex justify-center items-center gap-2 transition-all shadow-[0_0_15px_rgba(37,99,235,0.3)]"
+                    >
+                        <QrCode size={16}/> THANH TOÁN (PAID)
+                    </button>
+                    <button onClick={handleReject} disabled={isProcessing} className="px-4 py-2.5 text-xs font-bold text-red-400 bg-red-900/20 border border-red-500/30 hover:bg-red-600 hover:text-white rounded flex justify-center items-center transition-all">
+                        <XCircle size={16}/> HỦY
+                    </button>
+                </div>
+            </div>
+
+            {/* MODAL CHECKOUT (QR CODE TO RÕ) */}
+            {showCheckoutModal && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+                    <div className="bg-slate-900 border border-blue-500/50 rounded-3xl w-full max-w-sm p-6 shadow-2xl relative flex flex-col items-center">
+                        <button onClick={() => setShowCheckoutModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors">
+                            <XCircle size={24}/>
+                        </button>
+                        
+                        <h3 className="text-xl font-black text-blue-400 mb-6 flex items-center gap-2 uppercase tracking-widest">
+                            <ShieldAlert size={20}/> THI HÀNH LỆNH
+                        </h3>
+
+                        {isBank ? (
+                            <>
+                                {/* HÌNH ẢNH QR CODE LỚN */}
+                                <div className="bg-white p-3 rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.1)] mb-6 w-56 h-56 flex items-center justify-center relative group">
+                                    <img 
+                                        src={`https://img.vietqr.io/image/${getVietQRBankCode(targetUser.bankInfo.bankName)}-${targetUser.bankInfo.accountNumber}-compact2.png?amount=${amountVND}&addInfo=Thanh toan hoa hong Spartan&accountName=${targetUser.bankInfo.accountHolder}`} 
+                                        alt="VietQR" 
+                                        className="w-full h-full object-contain"
+                                    />
+                                    <div className="absolute inset-0 border-2 border-blue-500 rounded-2xl animate-pulse pointer-events-none"></div>
+                                </div>
+                                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mb-1 flex items-center gap-1"><ScanLine size={14}/> QUÉT ĐỂ CHUYỂN NGAY</p>
+                            </>
+                        ) : (
+                            <div className="bg-yellow-500/10 border border-yellow-500/30 p-6 rounded-2xl mb-6 w-full text-center">
+                                <Bitcoin size={48} className="text-yellow-500 mx-auto mb-3 animate-bounce"/>
+                                <p className="text-yellow-500 font-bold uppercase text-xs mb-1">Chuyển Crypto Qua Mạng</p>
+                                <p className="text-white font-black">{targetUser.cryptoInfo?.network}</p>
+                            </div>
+                        )}
+
+                        {/* BẢNG TÓM TẮT TÀI CHÍNH */}
+                        <div className="w-full space-y-3 text-sm font-mono bg-slate-950 p-4 rounded-xl border border-slate-800 mb-6">
+                            <div className="flex justify-between items-center"><span className="text-slate-500">Mục tiêu:</span><span className="text-white font-bold">{targetUser.email}</span></div>
+                            {isBank && (
+                                <>
+                                    <div className="flex justify-between items-center"><span className="text-slate-500">STK:</span><span className="text-blue-400 font-bold select-all">{targetUser.bankInfo.accountNumber}</span></div>
+                                    <div className="flex justify-between items-center"><span className="text-slate-500">Tên:</span><span className="text-white font-bold uppercase truncate max-w-[150px]">{targetUser.bankInfo.accountHolder}</span></div>
+                                </>
+                            )}
+                            <div className="flex justify-between items-center pt-3 border-t border-slate-800"><span className="text-slate-500">Hoa hồng (USD):</span><span className="text-yellow-500 font-black text-lg">${amountUSD.toFixed(2)}</span></div>
+                            <div className="flex justify-between items-center"><span className="text-slate-500">Quy đổi (VNĐ):</span><span className="text-green-400 font-black text-xl">{amountVND.toLocaleString('vi-VN')} đ</span></div>
+                        </div>
+
+                        {/* NÚT BẤM XÁC NHẬN */}
+                        <button 
+                            onClick={handleApprove} 
+                            disabled={isProcessing} 
+                            className="w-full py-4 bg-green-600 hover:bg-green-500 text-white font-black rounded-xl uppercase tracking-widest flex justify-center items-center gap-2 shadow-[0_0_20px_rgba(34,197,94,0.4)] transition-all active:scale-95"
+                        >
+                            {isProcessing ? "ĐANG XỬ LÝ..." : <><CheckCircle size={20}/> TÔI ĐÃ CHUYỂN TIỀN</>}
+                        </button>
+                    </div>
+                </div>
+            )}
+        </>
+    );
+};
+
 export default function AdminPage() {
-  // ✅ FIX 1: Lấy adminUser ngay đầu hàm để dùng chung cho mọi Action
   const { isAdmin, user: adminUser } = useAuth(); 
   
   const [users, setUsers] = useState<any[]>([]);
@@ -89,8 +287,6 @@ export default function AdminPage() {
   }, [searchTerm, filterPlan, users, activeTab]);
 
   // --- ACTIONS ---
-
-  // ✅ FIX 2: Cập nhật hàm nâng cấp - Lấy token từ adminUser chuẩn
   const updateUserSoldier = async (userId: string, currentExpiry: any, days: number, plan: string) => {
     if(!confirm(`Xác nhận nâng cấp gói ${plan.toUpperCase()}?`)) return;
 
@@ -111,10 +307,7 @@ export default function AdminPage() {
 
         const res = await fetch('/api/admin/update-user', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}` 
-            },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ userId, newExpiryDate: newDateStr, newPlan: plan, daysAdded: days })
         });
 
@@ -122,12 +315,8 @@ export default function AdminPage() {
         if (data.success) {
             alert(data.message);
             fetchUsers(); 
-        } else {
-            alert("❌ Lỗi: " + data.error);
-        }
-    } catch (e) {
-        alert("❌ Lỗi kết nối Server!");
-    }
+        } else { alert("❌ Lỗi: " + data.error); }
+    } catch (e) { alert("❌ Lỗi kết nối Server!"); }
   };
 
   const handleApproveUser = async (user: any) => {
@@ -156,58 +345,10 @@ export default function AdminPage() {
       try { await deleteDoc(doc(db, "users", userId)); fetchUsers(); } catch (e) { alert(e); }
   };
 
-  // ✅ FIX 3: Duyệt rút tiền - Dùng token Admin để ra lệnh giải ngân
-  const approveWithdraw = async (soldier: any) => {
-    const amount = soldier.wallet?.pending || 0;
-    if(!confirm(`XÁC NHẬN ĐÃ CHUYỂN $${amount} CHO ${soldier.email}?`)) return;
-    
-    try {
-        if (!adminUser) return alert("❌ Lỗi: Mất quyền Admin!");
-        const token = await adminUser.getIdToken(); 
-
-        const res = await fetch('/api/admin/approve-withdraw', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}` 
-            },
-            body: JSON.stringify({ userId: soldier.id, amount: amount })
-        });
-        
-        const data = await res.json();
-        
-        if (res.ok && data.success) {
-            alert("✅ Đã giải ngân và cập nhật ví thành công!");
-            fetchUsers(); 
-        } else {
-            alert("❌ Lỗi Server: " + (data.error || "Không rõ nguyên nhân"));
-        }
-    } catch (e) { 
-        alert("❌ Lỗi kết nối mạng!"); 
-    }
-  };
-
   const resetMT5 = async (userId: string) => {
     if(!confirm("Reset MT5 ID?")) return;
     await updateDoc(doc(db, "users", userId), { mt5Account: "" });
     fetchUsers();
-  };
-
-  const renderPaymentInfo = (user: any) => {
-      if (user.cryptoInfo?.walletAddress) return (
-          <div className="bg-black/40 p-3 rounded border border-slate-700 mt-2 text-xs font-mono">
-              <div className="flex items-center gap-2 text-yellow-500 mb-1"><Bitcoin size={12}/> {user.cryptoInfo.network}</div>
-              <div className="break-all select-all text-white">{user.cryptoInfo.walletAddress}</div>
-          </div>
-      );
-      if (user.bankInfo?.accountNumber) return (
-          <div className="bg-black/40 p-3 rounded border border-slate-700 mt-2 text-xs font-mono">
-              <div className="flex items-center gap-2 text-blue-400 mb-1"><CreditCard size={12}/> {user.bankInfo.bankName}</div>
-              <div className="text-lg font-bold text-white select-all">{user.bankInfo.accountNumber}</div>
-              <div className="text-slate-400 uppercase">{user.bankInfo.accountHolder}</div>
-          </div>
-      );
-      return <div className="text-xs text-red-500 mt-2 italic">Chưa cài đặt thông tin nhận tiền</div>;
   };
 
   if (!isAdmin) return <div className="min-h-screen bg-[#050b14] flex items-center justify-center text-red-500 font-black animate-pulse">:: ACCESS DENIED ::</div>;
@@ -271,24 +412,26 @@ export default function AdminPage() {
                 </div>
             )}
 
+            {/* ✅ KHU VỰC TÀI CHÍNH ĐƯỢC TÍCH HỢP ADMIN WITHDRAW CARD */}
             {activeTab === 'finance' && (
                 <div className="space-y-6">
                     <div className="bg-yellow-900/10 border border-yellow-500/20 rounded-2xl p-6">
                         <h3 className="text-xl font-black text-yellow-500 uppercase mb-6 flex items-center gap-2"><Wallet/> Withdrawal Requests</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {withdrawRequests.map(req => (
-                                <div key={req.id} className="bg-slate-950 border border-slate-800 p-5 rounded-xl">
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div><p className="font-bold text-white">{req.displayName}</p><p className="text-xs text-slate-500">{req.email}</p></div>
-                                        <div className="text-right"><p className="text-2xl font-black text-green-400 font-mono">${req.wallet?.pending}</p></div>
-                                    </div>
-                                    {renderPaymentInfo(req)}
-                                    <div className="flex gap-2 mt-4 pt-4 border-t border-slate-800">
-                                        <button onClick={() => approveWithdraw(req)} className="flex-1 py-2 text-xs font-bold text-black bg-green-500 hover:bg-green-400 rounded">PAID</button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                        
+                        {withdrawRequests.length === 0 ? (
+                            <div className="text-center py-10 text-slate-500 italic">Không có yêu cầu rút tiền nào đang chờ.</div>
+                        ) : (
+                            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                                {withdrawRequests.map(req => (
+                                    <AdminWithdrawCard 
+                                      key={req.id} 
+                                      targetUser={req} 
+                                      adminUser={adminUser} 
+                                      onComplete={fetchUsers} 
+                                    />
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

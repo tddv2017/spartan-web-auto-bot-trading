@@ -12,7 +12,7 @@ export const VerificationLock = ({ user, profile }: { user: any, profile: any })
   // Nếu profile chưa load xong thì mặc định là 'new'
   const status = profile?.accountStatus || 'new';
 
-  const REG_LINK = "https://one.exnessonelink.com/a/t7uxs4x192/?campaign=38979"; 
+  const REG_LINK = "https://one.exnessonelink.com/a/skd31a2pdu"; // Link đăng ký Exness với mã đối tác
   const TELEGRAM_ADMIN = "https://t.me/MyGold_M15_Bot"; 
 
   // Hàm Reset lại trạng thái (Dành cho trường hợp bị từ chối muốn nhập lại)
@@ -110,7 +110,7 @@ export const VerificationLock = ({ user, profile }: { user: any, profile: any })
             <div className="text-sm text-red-200">
                 <strong>Lý do phổ biến:</strong>
                 <ul className="list-disc pl-4 mt-1 space-y-1 text-red-300/80">
-                    <li>Chưa nhập mã giới thiệu <strong>t7uxs4x192</strong></li>
+                    <li>Chưa nhập mã giới thiệu <strong>skd31a2pdu</strong></li>
                     <li>Tài khoản không phải loại <strong>Standard/Raw/Zero</strong></li>
                     <li>Sai số ID MT5</li>
                 </ul>
