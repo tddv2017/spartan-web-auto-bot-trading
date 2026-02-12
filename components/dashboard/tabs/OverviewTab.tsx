@@ -2,6 +2,8 @@
 import React, { useState } from 'react';
 import { ShieldCheck, Wallet, Activity, CreditCard, Download, Terminal, Medal, Copy, Check } from 'lucide-react';
 import { StatBox } from '../shared/StatBox';
+// 🔥 IMPORT COMPONENT ĐIỀU KHIỂN
+import { BotControlPanel } from '@/components/BotControlPanel';
 
 export const OverviewTab = ({ profile, botData, isExpired, formatExpiryDate, onOpenPay, onOpenGuide }: any) => {
   const [copied, setCopied] = useState(false);
@@ -34,7 +36,6 @@ export const OverviewTab = ({ profile, botData, isExpired, formatExpiryDate, onO
                     <p className="text-slate-400 text-sm flex items-center gap-2">
                         MT5 ID: <span className="text-white font-mono font-bold">{profile?.mt5Account || 'N/A'}</span>
                     </p>
-                    {/* 👇 MÃ LICENSE KEY ĐÃ TRỞ LẠI 👇 */}
                     <div 
                         onClick={handleCopy}
                         className="group flex items-center gap-2 bg-slate-900/80 border border-slate-800 px-3 py-1.5 rounded-lg cursor-pointer hover:border-green-500/50 transition-all w-fit"
@@ -78,6 +79,13 @@ export const OverviewTab = ({ profile, botData, isExpired, formatExpiryDate, onO
                 color={rankInfo.color} 
             />
         </div>
+
+        {/* 🔥 VỊ TRÍ MỚI: BỘ ĐIỀU KHIỂN BOT TỪ XA */}
+        {profile && (
+            <div className="animate-in zoom-in-95 duration-500">
+                <BotControlPanel userData={profile} />
+            </div>
+        )}
         
         {/* Renewal Banner */}
         <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-6 rounded-[2rem] border border-slate-700 flex flex-col md:flex-row justify-between items-center gap-4 shadow-2xl">

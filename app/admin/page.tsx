@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState, useMemo } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, updateDoc, doc, Timestamp, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, updateDoc, doc, Timestamp, deleteDoc, writeBatch, deleteField } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { 
   ShieldAlert, Crown, Zap, RefreshCw, Infinity, Search, Wallet, 
@@ -9,6 +9,7 @@ import {
   LayoutDashboard, Users, Banknote, Activity, Server,
   Trash2, QrCode 
 } from 'lucide-react';
+import { setDoc } from 'firebase/firestore'; // For setting documents
 
 // --- HÀM HỖ TRỢ LẤY MÃ NGÂN HÀNG CHO VIETQR ---
 const getVietQRBankCode = (fullName: string) => {
@@ -68,6 +69,101 @@ const AdminTabButton = ({ active, onClick, icon: Icon, label, alertCount }: any)
       )}
     </button>
 );
+
+// ==================================================================
+// ☢️ COMPONENT: BẢNG ĐIỀU KHIỂN KHẨN CẤP (ĐÃ UPDATE API BACKUP)
+// ==================================================================
+const EmergencyPanel = ({ onRefresh, adminUser }: { onRefresh: () => void, adminUser: any }) => {
+  const [loading, setLoading] = useState(false);
+
+  // 🔵 1. BACKUP (GỌI API)
+  const handleBackup = async () => {
+    if (!confirm("💾 SAO LƯU DỮ LIỆU?\n\nToàn bộ dữ liệu sẽ được copy sang bảng 'users_backup_YYYYMMDD'.")) return;
+    setLoading(true);
+    try {
+      const token = await adminUser.getIdToken(); 
+      const res = await fetch('/api/admin/backup', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      alert(data.success ? data.message : "❌ Lỗi: " + data.message);
+    } catch (e: any) { alert("❌ Lỗi mạng: " + e.message); }
+    setLoading(false);
+  };
+
+  // 🔴 2. PAUSE (DỪNG TOÀN BỘ)
+  const handleEmergencyStop = async () => {
+    if (!confirm("⚠️ DỪNG TOÀN BỘ BOT?\nKey của mọi người sẽ đổi thành 'STOP'.")) return;
+    setLoading(true);
+    try {
+      const batch = writeBatch(db); 
+      const querySnapshot = await getDocs(collection(db, "users"));
+      let count = 0;
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.licenseKey && data.licenseKey !== "STOP") {
+          batch.update(doc.ref, {
+            licenseKey: "STOP",          
+            backupKey: data.licenseKey,  
+            lastPausedAt: new Date().toISOString()
+          });
+          count++;
+        }
+      });
+      if (count > 0) { await batch.commit(); alert(`✅ ĐÃ DỪNG ${count} BOT!`); } 
+      else { alert("Không có Bot nào đang chạy."); }
+      onRefresh(); 
+    } catch (e) { alert("❌ Lỗi: " + e); }
+    setLoading(false);
+  };
+
+  // 🟢 3. RESUME (KHÔI PHỤC)
+  const handleRestore = async () => {
+    if (!confirm("✅ KHÔI PHỤC HOẠT ĐỘNG?")) return;
+    setLoading(true);
+    try {
+      const batch = writeBatch(db);
+      const querySnapshot = await getDocs(collection(db, "users"));
+      let count = 0;
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.licenseKey === "STOP" && data.backupKey) {
+          batch.update(doc.ref, { licenseKey: data.backupKey, backupKey: deleteField() });
+          count++;
+        }
+      });
+      if (count > 0) { await batch.commit(); alert(`✅ ĐÃ KHÔI PHỤC ${count} BOT!`); }
+      else { alert("Không có Bot nào cần khôi phục."); }
+      onRefresh();
+    } catch (e) { alert("❌ Lỗi: " + e); }
+    setLoading(false);
+  };
+
+  return (
+    <div className="bg-red-900/10 border border-red-500/30 rounded-2xl p-6 mb-8 animate-in fade-in slide-in-from-top-4">
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+        <div>
+          <h3 className="text-xl font-black text-red-500 flex items-center gap-2">
+            <ShieldAlert className="animate-pulse"/> EMERGENCY CONTROL (CPI/NEWS)
+          </h3>
+          <p className="text-slate-400 text-sm mt-1">Khu vực điều khiển khẩn cấp bảo vệ tài khoản khách hàng.</p>
+        </div>
+        <div className="flex gap-4">
+          <button onClick={handleBackup} disabled={loading} className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl shadow-lg flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50">
+            {loading ? "..." : <><span className="text-xl">💾</span> BACKUP</>}
+          </button>
+          <button onClick={handleEmergencyStop} disabled={loading} className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl shadow-lg flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50">
+            {loading ? "..." : <><span className="text-xl">🛑</span> PAUSE</>}
+          </button>
+          <button onClick={handleRestore} disabled={loading} className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-black rounded-xl shadow-lg flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50">
+             {loading ? "..." : <><RefreshCw size={20}/> RESUME</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // ✅ COMPONENT THẺ RÚT TIỀN CỦA ADMIN (CÓ MODAL THANH TOÁN QR)
 const AdminWithdrawCard = ({ targetUser, adminUser, onComplete }: { targetUser: any, adminUser: any, onComplete: () => void }) => {
@@ -371,6 +467,10 @@ export default function AdminPage() {
       </header>
 
       <div className="max-w-[1600px] mx-auto p-6 relative z-10 space-y-8">
+        
+        {/* 🔥 TÍCH HỢP BẢNG ĐIỀU KHIỂN KHẨN CẤP (CHỈ ADMIN MỚI THẤY) */}
+        {isAdmin && <EmergencyPanel onRefresh={fetchUsers} adminUser={adminUser} />}
+
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 animate-in slide-in-from-top duration-500">
             <StatCard label="Total Users" value={users.length} icon={Users} color="blue" subValue={`${activeUsers.length} Active MT5`} />
             <StatCard label="Pending Approval" value={pendingUsers.length} icon={UserPlus} color="red" subValue={pendingUsers.length > 0 ? "Requires Action" : "All Clear"} />
@@ -412,7 +512,6 @@ export default function AdminPage() {
                 </div>
             )}
 
-            {/* ✅ KHU VỰC TÀI CHÍNH ĐƯỢC TÍCH HỢP ADMIN WITHDRAW CARD */}
             {activeTab === 'finance' && (
                 <div className="space-y-6">
                     <div className="bg-yellow-900/10 border border-yellow-500/20 rounded-2xl p-6">
