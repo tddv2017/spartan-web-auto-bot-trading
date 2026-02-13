@@ -12,40 +12,56 @@ export async function POST(req: Request) {
         return NextResponse.json({ valid: false, success: false, error: 'Missing Info' }, { status: 400 });
     }
 
-    // 1. Chỉ tìm bằng LicenseKey (Bỏ where mt5Account đi để tránh lỗi kiểu dữ liệu Firebase)
+    // 1. Tìm thông tin User qua License Key
     const usersRef = adminDb.collection("users");
     const snapshot = await usersRef.where("licenseKey", "==", licenseKey).limit(1).get();
 
+    // Trường hợp Key bị xóa hoặc đổi thành STOP
     if (snapshot.empty) {
-        return NextResponse.json({ valid: false, success: false, error: 'Unauthorized Key' }, { status: 401 });
+        return NextResponse.json({ 
+            valid: false, 
+            remoteCommand: "STOP_IMMEDIATELY", 
+            error: 'UNAUTHORIZED' 
+        }, { status: 401 });
     }
 
     const userData = snapshot.docs[0].data();
-
-    // 2. Ép cả 2 về String và gọt khoảng trắng để so sánh (Tuyệt đối không trượt)
     const dbMT5 = String(userData.mt5Account || "").trim();
     const botMT5 = String(mt5Account).trim();
 
+    // Kiểm tra khớp số tài khoản MT5
     if (dbMT5 !== botMT5) {
-        console.warn(`⛔ [SYNC BLOCK] Key ${licenseKey} đúng, nhưng MT5 lệch! DB: ${dbMT5} | Bot: ${botMT5}`);
-        return NextResponse.json({ valid: false, success: false, error: 'Wrong MT5 Account' }, { status: 401 });
+        return NextResponse.json({ valid: false, error: 'Wrong MT5' }, { status: 401 });
     }
 
-    // 3. Khớp rồi thì ghi đè Heartbeat
+    // 2. XÁC ĐỊNH LỆNH ĐIỀU KHIỂN
+    // Nếu remoteCommand trên Web là "PAUSE", ta gửi lệnh PAUSE xuống Bot
+    const isPaused = userData.remoteCommand === "PAUSE";
+
+    // 3. Cập nhật Heartbeat để Dashboard Web báo Online
     await adminDb.collection('bots').doc(botMT5).set({
       ...data,
       mt5Account: Number(botMT5),
       lastHeartbeat: new Date().toISOString(),
-      updatedAt: new Date()
+      status: isPaused ? "PAUSED" : "RUNNING"
     }, { merge: true });
 
-    return NextResponse.json({ valid: true, success: true }, { status: 200 });
+    // 4. TRẢ VỀ PHẢN HỒI CHO BOT
+    return NextResponse.json({ 
+        valid: true, 
+        success: true, 
+        remoteCommand: isPaused ? "PAUSE" : "RUN" 
+    }, { status: 200 });
 
   } catch (error: any) {
-    return NextResponse.json({ valid: false, success: false }, { status: 500 });
+    return NextResponse.json({ valid: false }, { status: 500 });
   }
 }
 
 export async function OPTIONS() {
-  return new NextResponse(null, { status: 200, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, Authorization', } });
+  return new NextResponse(null, { status: 200, headers: { 
+      'Access-Control-Allow-Origin': '*', 
+      'Access-Control-Allow-Methods': 'POST, OPTIONS', 
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization', 
+  } });
 }
