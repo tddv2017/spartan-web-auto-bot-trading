@@ -18,8 +18,8 @@ const DEFENSE_CONFIG = {
 
 
 export async function checkAndExecuteAutoDefense() {
-    // 🚩 DÒNG LỆNH DIỄN TẬP (Xóa sau khi test xong)
-return await broadcastCommand("PAUSE", "🚨 diễn tập: BÃO TIN CẤP 3!");
+//     // 🚩 DÒNG LỆNH DIỄN TẬP (Xóa sau khi test xong)
+// return await broadcastCommand("PAUSE", "🚨 diễn tập: BÃO TIN CẤP 3!");
   console.log("📡 [INTEL] Đang quét radar Forex Factory...");
   
   const allNews = await fetchLiveEconomicCalendar();
