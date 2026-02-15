@@ -2,28 +2,19 @@
 import { adminDb } from '@/lib/firebaseAdmin'; 
 import { fetchLiveEconomicCalendar } from './newsProvider';
 
-// ⚙️ CẤU HÌNH "THIẾT QUÂN LUẬT" ĐỒNG BỘ VỚI MT5
+// ⚙️ THIẾT QUÂN LUẬT: 60p (Đỏ) - 30p (Cam)
 const DEFENSE_CONFIG = {
-  HIGH_IMPACT: { 
-    minutesBefore: 60, // 🔴 Tin Đỏ: Dừng trước 60p
-    minutesAfter: 60   // 🔴 Tin Đỏ: Chạy lại sau 60p
-  },
-  MEDIUM_IMPACT: { 
-    minutesBefore: 30, // 🟠 Tin Cam: Dừng trước 30p
-    minutesAfter: 30   // 🟠 Tin Cam: Chạy lại sau 30p
-  },
-  TARGET_CURRENCY: ['USD'] // 💵 Chỉ theo dõi USD
+  HIGH_IMPACT: { before: 60, after: 60 },
+  MEDIUM_IMPACT: { before: 30, after: 30 },
+  TARGET_CURRENCY: ['USD']
 };
 
-
-
 export async function checkAndExecuteAutoDefense() {
-//     // 🚩 DÒNG LỆNH DIỄN TẬP (Xóa sau khi test xong)
-// return await broadcastCommand("PAUSE", "🚨 diễn tập: BÃO TIN CẤP 3!");
-  console.log("📡 [INTEL] Đang quét radar Forex Factory...");
+  console.log("📡 [RADAR] Đang quét tin tức Forex Factory...");
   
   const allNews = await fetchLiveEconomicCalendar();
-  const now = new Date();
+  // 🔥 LẤY GIỜ CHUẨN UTC CỦA SERVER
+  const nowUTC = new Date(); 
   
   let dangerDetected = false;
   let dangerReason = "";
@@ -31,43 +22,48 @@ export async function checkAndExecuteAutoDefense() {
   for (const news of allNews) {
     if (!DEFENSE_CONFIG.TARGET_CURRENCY.includes(news.symbol)) continue;
 
+    // 🕵️‍♂️ XỬ LÝ MÚI GIỜ: Forex Factory trả về ISO string chuẩn UTC
     const newsTime = new Date(news.date);
-    const diffMinutes = (newsTime.getTime() - now.getTime()) / 1000 / 60;
+    
+    // Tính khoảng cách phút (Chính xác theo miligiây)
+    const diffMinutes = (newsTime.getTime() - nowUTC.getTime()) / 1000 / 60;
 
-    // 🌪️ PHÂN LOẠI VÀ QUÉT VÙNG NGUY HIỂM
     let isDangerous = false;
 
-    // 1. Kiểm tra Tin Đỏ (High Impact)
+    // 1. Phân loại Tin Đỏ
     if (news.impact === "High") {
-      if (diffMinutes <= DEFENSE_CONFIG.HIGH_IMPACT.minutesBefore && 
-          diffMinutes >= -DEFENSE_CONFIG.HIGH_IMPACT.minutesAfter) {
+      if (diffMinutes <= DEFENSE_CONFIG.HIGH_IMPACT.before && 
+          diffMinutes >= -DEFENSE_CONFIG.HIGH_IMPACT.after) {
         isDangerous = true;
       }
     }
-    // 2. Kiểm tra Tin Cam (Medium Impact)
+    // 2. Phân loại Tin Cam
     else if (news.impact === "Medium") {
-      if (diffMinutes <= DEFENSE_CONFIG.MEDIUM_IMPACT.minutesBefore && 
-          diffMinutes >= -DEFENSE_CONFIG.MEDIUM_IMPACT.minutesAfter) {
+      if (diffMinutes <= DEFENSE_CONFIG.MEDIUM_IMPACT.before && 
+          diffMinutes >= -DEFENSE_CONFIG.MEDIUM_IMPACT.after) {
         isDangerous = true;
       }
     }
 
     if (isDangerous) {
       dangerDetected = true;
-      dangerReason = `⚠️ NEWS: ${news.event} (${news.impact})`;
-      console.log(`🚨 PHÁT HIỆN BÃO: ${news.event} [${news.impact}] | Còn ${diffMinutes.toFixed(0)} phút`);
+      const timeRemaining = diffMinutes > 0 ? `trong ${Math.round(diffMinutes)}p tới` : `vừa ra ${Math.abs(Math.round(diffMinutes))}p trước`;
+      dangerReason = `⚠️ NEWS: ${news.event} (${news.impact}) ${timeRemaining}`;
+      console.log(`🚨 BÁO ĐỘNG: ${news.event} [${news.impact}] | ${timeRemaining}`);
       break; 
     }
   }
 
-  // 3. PHÁT LỆNH TOÀN QUÂN
+  // 📡 PHÁT LỆNH CHỈ HUY
   if (dangerDetected) {
     await broadcastCommand("PAUSE", dangerReason);
   } else {
-    console.log("✅ [INTEL] Bầu trời trong xanh. Thị trường ổn định.");
+    console.log("✅ [SAFE] Thị trường ổn định. Không có bão tin.");
     await broadcastCommand("RUN", "MARKET STABLE");
   }
 }
+
+// ... (Hàm broadcastCommand Đại tá giữ nguyên như cũ)
 
 async function broadcastCommand(command: "PAUSE" | "RUN", intelMsg: string) {
   const batch = adminDb.batch();
