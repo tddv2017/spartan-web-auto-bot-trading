@@ -8,6 +8,7 @@ import Pricing from "@/components/landing/Pricing";
 import Footer from "@/components/landing/Footer";
 import Performance from "@/components/landing/Performance";
 import VerifiedReport from "@/components/landing/VerifiedReport";
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 // --- COMPONENT CON: CHUYÊN ĐI BẮT KHÁCH (TRACKER) ---
 // Tách ra để bọc Suspense, giúp trang web không bị lỗi khi build

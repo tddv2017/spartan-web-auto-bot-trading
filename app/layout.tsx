@@ -5,6 +5,7 @@ import { LanguageProvider } from './context/LanguageContext';
 import { AuthProvider } from './context/AuthContext';
 import { ChatProvider } from './context/ChatContext'; // 👈 1. QUAN TRỌNG: Thêm ChatProvider
 import ChatWidget from '@/components/ChatWidget'; // 👈 1. Import mới
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 // 1. Cấu hình Font
 const beVietnam = Be_Vietnam_Pro({ 
@@ -36,7 +37,7 @@ export default function RootLayout({
               
               {/* 👇 2. ĐẶT CHAT WIDGET Ở ĐÂY (Nằm ngoài cùng để phủ sóng toàn bộ) */}
               <ChatWidget />
-
+              <SpeedInsights />
             </ChatProvider>
           </LanguageProvider>
         </AuthProvider>
