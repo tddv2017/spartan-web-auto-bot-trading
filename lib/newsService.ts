@@ -15,7 +15,11 @@ const DEFENSE_CONFIG = {
   TARGET_CURRENCY: ['USD'] // 💵 Chỉ theo dõi USD
 };
 
+
+
 export async function checkAndExecuteAutoDefense() {
+    // 🚩 DÒNG LỆNH DIỄN TẬP (Xóa sau khi test xong)
+return await broadcastCommand("PAUSE", "🚨 diễn tập: BÃO TIN CẤP 3!");
   console.log("📡 [INTEL] Đang quét radar Forex Factory...");
   
   const allNews = await fetchLiveEconomicCalendar();
