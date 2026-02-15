@@ -1,59 +1,54 @@
 // lib/newsProvider.ts
 
-// Định nghĩa cấu trúc tin tức
 export interface NewsEvent {
-  date: string;      // Thời gian diễn ra (YYYY-MM-DD HH:mm:ss)
-  symbol: string;    // Đồng tiền (USD, EUR...)
-  impact: string;    // Mức độ: Low, Medium, High
-  event: string;     // Tên tin (Non-Farm, CPI...)
+  date: string;
+  symbol: string;
+  impact: string;
+  event: string;
 }
-
-// // 🔴 HÀM GIẢ LẬP (DÙNG ĐỂ TEST)
-// export async function fetchLiveEconomicCalendar(): Promise<NewsEvent[]> {
-//   console.log("⚠️ ĐANG CHẠY CHẾ ĐỘ DIỄN TẬP (SIMULATION MODE)");
-
-//   const now = new Date();
-//   const future = new Date(now.getTime() + 5 * 60000); // 5 phút nữa
-
-//   return [
-//     {
-//       // ✅ SỬA LẠI: Dùng chuẩn ISO gốc để đảm bảo khớp giờ 100%
-//       date: future.toISOString(),  
-//       symbol: "USD",
-//       impact: "High",
-//       event: "🔥 TEST: FAKE NON-FARM PAYROLL 🔥"
-//     }
-//   ];
-// }  
-
-// 🔑 API KEY (Đại tá đăng ký free tại financialmodelingprep.com để lấy key xịn)
-// Đây là key demo, nếu hết hạn Đại tá thay key của mình vào nhé.
-const FMP_API_KEY = "j0sM7MKhWBuYtTyl4J5yuAUSjd68ks2J"; 
 
 export async function fetchLiveEconomicCalendar(): Promise<NewsEvent[]> {
   try {
-    // Lấy ngày hôm nay
-    const today = new Date().toISOString().split('T')[0];
-    const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
-
-    // Gọi API lấy lịch kinh tế
-    const url = `https://financialmodelingprep.com/api/v3/economic_calendar?from=${today}&to=${tomorrow}&apikey=${FMP_API_KEY}`;
+    // 🕵️‍♂️ ĐƯỜNG DẪN BÍ MẬT CỦA FOREX FACTORY (JSON)
+    // Đây là file dữ liệu mà các Widget của ForexFactory sử dụng
+    const url = "https://nfs.faireconomy.media/ff_calendar_thisweek.json";
     
-    const response = await fetch(url, { next: { revalidate: 300 } }); // Cache 5 phút
+    // Gọi lệnh lấy dữ liệu (Không cần API Key gì cả)
+    const response = await fetch(url, { 
+        next: { revalidate: 300 }, // Cache 5 phút
+        headers: {
+            // Giả danh trình duyệt để không bị chặn
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
+    });
+
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
     const data = await response.json();
 
     if (!Array.isArray(data)) return [];
 
-    // Chuẩn hóa dữ liệu về format chung của Spartan
-    return data.map((item: any) => ({
-      date: item.date, // Format trả về: "2026-02-14 19:30:00"
-      symbol: item.currency,
-      impact: item.impact, // Low, Medium, High
-      event: item.event
-    }));
+    // Lọc và chuẩn hóa dữ liệu
+    const formattedNews = data
+      .filter((item: any) => item.country === "USD") // Chỉ lấy tin USD (cho nhẹ)
+      .map((item: any) => {
+        // ForexFactory Impact: "Low", "Medium", "High", "Holiday"
+        // Chúng ta giữ nguyên để newsService xử lý
+        return {
+          date: item.date,   // Format của FF: "2026-02-15T19:30:00-04:00" (Rất chuẩn ISO)
+          symbol: "USD",     // FF dùng field 'country' là 'USD'
+          impact: item.impact, 
+          event: item.title
+        };
+      });
+
+    return formattedNews;
 
   } catch (error) {
-    console.error("❌ [NEWS PROVIDER] Lỗi lấy tin:", error);
+    console.error("❌ [NEWS PROVIDER] Không lấy được dữ liệu ForexFactory:", error);
+    // Nếu lỗi, trả về mảng rỗng để hệ thống không crash
     return [];
   }
 }
