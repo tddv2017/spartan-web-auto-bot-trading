@@ -4,8 +4,8 @@ import { fetchLiveEconomicCalendar } from './newsProvider';
 
 // ⚙️ CẤU HÌNH PHÒNG THỦ (ĐÃ CẬP NHẬT 45 PHÚT)
 const DEFENSE_CONFIG = {
-  PAUSE_MINUTES_BEFORE: 45, // ⛔ Dừng trước tin 45 phút
-  RESUME_MINUTES_AFTER: 45, // ✅ Chạy lại sau tin 45 phút
+  PAUSE_MINUTES_BEFORE: 60, // ⛔ Dừng trước tin 45 phút
+  RESUME_MINUTES_AFTER: 60, // ✅ Chạy lại sau tin 45 phút
   TARGET_CURRENCY: ['USD'], // 💵 Chỉ quan tâm USD
   TARGET_IMPACT: ['High', 'Medium'] // 🌪️ Chỉ bão cấp 2 và cấp 3 (ForexFactory viết hoa chữ cái đầu)
 };
