@@ -4,17 +4,22 @@ import { adminDb } from '@/lib/firebaseAdmin';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    let { licenseKey, mt5Account, ticket, symbol, type, profit } = body;
+    
+    // 1. Nhận dữ liệu (Quan trọng nhất là TIME từ Bot gửi lên)
+    let { licenseKey, mt5Account, ticket, symbol, type, profit, time, timestamp } = body;
 
+    // Chuẩn hóa loại lệnh
     let strType = "UNKNOWN";
-    if (type === 0 || type === "0" || type === "BUY") strType = "BUY";
-    else if (type === 1 || type === "1" || type === "SELL") strType = "SELL";
+    const rawType = String(type).toUpperCase();
+    if (rawType === "0" || rawType.includes("BUY")) strType = "BUY";
+    else if (rawType === "1" || rawType.includes("SELL")) strType = "SELL";
 
+    // Validate cơ bản
     if (!licenseKey || !mt5Account) {
       return NextResponse.json({ valid: false, error: 'Key & MT5 Required' }, { status: 400 });
     }
 
-    // 1. Chỉ tìm bằng LicenseKey
+    // 2. Xác thực License (Vẫn phải check để đảm bảo bảo mật)
     const usersRef = adminDb.collection("users");
     const snapshot = await usersRef.where("licenseKey", "==", licenseKey).limit(1).get();
 
@@ -23,21 +28,25 @@ export async function POST(request: Request) {
     }
 
     const userDoc = snapshot.docs[0];
-    const userData = userDoc.data();
     const userId = userDoc.id;
+    const userData = userDoc.data();
 
-    // 2. Ép kiểu String để so sánh an toàn
+    // Check MT5 (Chống sai tài khoản)
     const dbMT5 = String(userData.mt5Account || "").trim();
     const botMT5 = String(mt5Account).trim();
 
-    if (dbMT5 !== botMT5) {
+    if (dbMT5 !== botMT5 && dbMT5 !== "") { 
         return NextResponse.json({ valid: false, error: 'Wrong MT5 Account' }, { status: 401 });
     }
 
-    // 3. Lưu Trade vào Database
+    // 3. Ghi vào sổ cái (Firestore)
     if (ticket) {
       const numTicket = Number(ticket);
       const tradeRef = adminDb.collection("users").doc(userId).collection("trades").doc(String(numTicket));
+
+      // 🔥 ƯU TIÊN DÙNG THỜI GIAN TỪ BOT (Để vẽ chart đúng quá khứ)
+      const finalTime = time || new Date().toISOString(); 
+      const finalTimestamp = timestamp || Date.now();
 
       await tradeRef.set({
         mt5Account: Number(botMT5),
@@ -46,14 +55,24 @@ export async function POST(request: Request) {
         symbol: symbol || "XAUUSD",
         type: strType,
         profit: Number(profit) || 0,
-        closeTime: new Date().toISOString(),
-        createdAt: new Date() 
+        
+        // Cặp thông số quan trọng cho Chart
+        time: finalTime,           
+        timestamp: finalTimestamp, 
+        
+        updatedAt: new Date()      
       }, { merge: true });
     }
 
-    return NextResponse.json({ valid: true, success: true, message: 'Spartan: Synced' }, { status: 200 });
+    // 4. Trả về thành công (Không cần gửi kèm remoteCommand nữa)
+    return NextResponse.json({ 
+        valid: true, 
+        success: true, 
+        message: 'Trade Recorded' 
+    }, { status: 200 });
 
   } catch (error: any) {
+    console.error("Trade API Error:", error);
     return NextResponse.json({ valid: false, error: error.message }, { status: 500 });
   }
 }
