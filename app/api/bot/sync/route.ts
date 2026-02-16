@@ -1,67 +1,82 @@
-import { adminDb } from "@/lib/firebaseAdmin";
-import { NextResponse } from "next/server";
+import { NextResponse } from 'next/server';
+import { adminDb } from '@/lib/firebaseAdmin'; 
 
-export const dynamic = 'force-dynamic';
-
-export async function POST(req: Request) {
+export async function POST(request: Request) {
   try {
-    const data = await req.json(); 
-    const { licenseKey, mt5Account } = data;
+    const body = await request.json();
+    
+    // 1. Nhận dữ liệu (Quan trọng nhất là TIME từ Bot gửi lên)
+    let { licenseKey, mt5Account, ticket, symbol, type, profit, time, timestamp } = body;
 
-    if (!mt5Account || !licenseKey) {
-        return NextResponse.json({ valid: false, success: false, error: 'Missing Info' }, { status: 400 });
+    // Chuẩn hóa loại lệnh
+    let strType = "UNKNOWN";
+    const rawType = String(type).toUpperCase();
+    if (rawType === "0" || rawType.includes("BUY")) strType = "BUY";
+    else if (rawType === "1" || rawType.includes("SELL")) strType = "SELL";
+
+    // Validate cơ bản
+    if (!licenseKey || !mt5Account) {
+      return NextResponse.json({ valid: false, error: 'Key & MT5 Required' }, { status: 400 });
     }
 
-    // 1. Tìm thông tin User qua License Key
+    // 2. Xác thực License (Vẫn phải check để đảm bảo bảo mật)
     const usersRef = adminDb.collection("users");
     const snapshot = await usersRef.where("licenseKey", "==", licenseKey).limit(1).get();
 
-    // Trường hợp Key bị xóa hoặc đổi thành STOP
     if (snapshot.empty) {
-        return NextResponse.json({ 
-            valid: false, 
-            remoteCommand: "STOP_IMMEDIATELY", 
-            error: 'UNAUTHORIZED' 
-        }, { status: 401 });
+      return NextResponse.json({ valid: false, error: 'Invalid Key' }, { status: 401 });
     }
 
-    const userData = snapshot.docs[0].data();
+    const userDoc = snapshot.docs[0];
+    const userId = userDoc.id;
+    const userData = userDoc.data();
+
+    // Check MT5 (Chống sai tài khoản)
     const dbMT5 = String(userData.mt5Account || "").trim();
     const botMT5 = String(mt5Account).trim();
 
-    // Kiểm tra khớp số tài khoản MT5
-    if (dbMT5 !== botMT5) {
-        return NextResponse.json({ valid: false, error: 'Wrong MT5' }, { status: 401 });
+    if (dbMT5 !== botMT5 && dbMT5 !== "") { 
+        return NextResponse.json({ valid: false, error: 'Wrong MT5 Account' }, { status: 401 });
     }
 
-    // 2. XÁC ĐỊNH LỆNH ĐIỀU KHIỂN
-    // Nếu remoteCommand trên Web là "PAUSE", ta gửi lệnh PAUSE xuống Bot
-    const isPaused = userData.remoteCommand === "PAUSE";
+    // 3. Ghi vào sổ cái (Firestore)
+    if (ticket) {
+      const numTicket = Number(ticket);
+      const tradeRef = adminDb.collection("users").doc(userId).collection("trades").doc(String(numTicket));
 
-    // 3. Cập nhật Heartbeat để Dashboard Web báo Online
-    await adminDb.collection('bots').doc(botMT5).set({
-      ...data,
-      mt5Account: Number(botMT5),
-      lastHeartbeat: new Date().toISOString(),
-      status: isPaused ? "PAUSED" : "RUNNING"
-    }, { merge: true });
+      // 🔥 ƯU TIÊN DÙNG THỜI GIAN TỪ BOT (Để vẽ chart đúng quá khứ)
+      const finalTime = time || new Date().toISOString(); 
+      const finalTimestamp = timestamp || Date.now();
 
-    // 4. TRẢ VỀ PHẢN HỒI CHO BOT
+      await tradeRef.set({
+        mt5Account: Number(botMT5),
+        licenseKey: licenseKey,
+        ticket: numTicket,
+        symbol: symbol || "XAUUSD",
+        type: strType,
+        profit: Number(profit) || 0,
+        
+        // Cặp thông số quan trọng cho Chart
+        time: finalTime,           
+        timestamp: finalTimestamp, 
+        
+        updatedAt: new Date()      
+      }, { merge: true });
+    }
+
+    // 4. Trả về thành công (Không cần gửi kèm remoteCommand nữa)
     return NextResponse.json({ 
         valid: true, 
         success: true, 
-        remoteCommand: isPaused ? "PAUSE" : "RUN" 
+        message: 'Trade Recorded' 
     }, { status: 200 });
 
   } catch (error: any) {
-    return NextResponse.json({ valid: false }, { status: 500 });
+    console.error("Trade API Error:", error);
+    return NextResponse.json({ valid: false, error: error.message }, { status: 500 });
   }
 }
 
 export async function OPTIONS() {
-  return new NextResponse(null, { status: 200, headers: { 
-      'Access-Control-Allow-Origin': '*', 
-      'Access-Control-Allow-Methods': 'POST, OPTIONS', 
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization', 
-  } });
+  return new NextResponse(null, { status: 200, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, Authorization', } });
 }
