@@ -48,11 +48,12 @@ export const WarRoomTab = ({ trades: initialTrades, accountInfo: initialAccountI
     }
   }, [isAdmin]);
 
-  // 4. HÀM SOI TÀI KHOẢN (INSPECT)
+  // 4. HÀM SOI TÀI KHOẢN (INSPECT) - PHIÊN BẢN CHỐNG TREO
   const handleInspect = async (mt5Account: string) => {
     setSelectedMT5(mt5Account);
+    setCurrentPage(1); // 🚩 QUAN TRỌNG: Reset về trang 1 khi đổi người soi
+
     if (!mt5Account) {
-        // Reset về dữ liệu gốc
         setDisplayTrades(initialTrades || []);
         setDisplayAccountInfo(initialAccountInfo || {});
         return;
@@ -62,15 +63,29 @@ export const WarRoomTab = ({ trades: initialTrades, accountInfo: initialAccountI
     try {
       // Gọi API Sync để lấy dữ liệu mới nhất của member đó
       const res = await fetch(`/api/bot/sync?mt5Account=${mt5Account}`);
+      
+      if (!res.ok) throw new Error("Không thể kết nối sở chỉ huy");
+      
       const data = await res.json();
-      if (data) {
+      
+      // Chỉ cập nhật khi có dữ liệu hợp lệ
+      if (data && data.accountInfo) {
+        // Cập nhật cả 2 cùng lúc
+        setDisplayAccountInfo(data.accountInfo);
         setDisplayTrades(data.trades || []);
-        setDisplayAccountInfo(data.accountInfo || {});
+        console.log(`✅ [TRINH SÁT] Đã lấy xong hồ sơ tài khoản: ${mt5Account}`);
+      } else {
+        console.warn("⚠️ Dữ liệu trống hoặc tài khoản chưa có lịch sử");
+        setDisplayTrades([]);
+        setDisplayAccountInfo({ status: "NO_DATA" });
       }
     } catch (e) {
-      console.error("❌ Lỗi soi hồ sơ:", e);
+      console.error("❌ LỖI TRUY QUÉT HỒ SƠ:", e);
+      // Có thể thêm một thông báo Toast ở đây cho Đại tá biết
+    } finally {
+      // 🚩 LUÔN LUÔN tắt loading dù thành công hay thất bại
+      setLoading(false); 
     }
-    setLoading(false);
   };
 
   // 5. CÁC HÀM TÍNH TOÁN (Logic HUD & Chart)
@@ -184,11 +199,11 @@ export const WarRoomTab = ({ trades: initialTrades, accountInfo: initialAccountI
                 </div>
             </div>
 
-            {/* PnL Card */}
+            {/* PnL Card - Đổi từ tính toán thủ công sang lấy số thực từ API */}
             <div className="bg-slate-900/80 border border-slate-700 p-5 rounded-3xl">
-                <p className="text-[10px] text-yellow-500 uppercase tracking-widest font-black">PnL Today</p>
-                <p className={`text-2xl font-black font-mono mt-1 ${dailyProfit >= 0 ? 'text-yellow-400' : 'text-red-400'}`}>
-                    {dailyProfit > 0 ? '+' : ''}{formatMoney(dailyProfit)}
+                <p className="text-[10px] text-yellow-500 uppercase tracking-widest font-black">Realized Profit</p>
+                <p className={`text-2xl font-black font-mono mt-1 ${displayAccountInfo?.realizedProfit >= 0 ? 'text-yellow-400' : 'text-red-400'}`}>
+                    {displayAccountInfo?.realizedProfit > 0 ? '+' : ''}{formatMoney(displayAccountInfo?.realizedProfit)}
                 </p>
             </div>
 
