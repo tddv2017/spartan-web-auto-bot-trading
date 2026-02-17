@@ -49,34 +49,27 @@ export async function POST(request: Request) {
 
     // 4. 🔥 THỰC THI GHI DỮ LIỆU ĐỒNG BỘ
     if (ticket) {
+      const ticketId = String(ticket);
       const botDocRef = adminDb.collection("bots").doc(botMT5);
       const tradeRef = botDocRef.collection("trades").doc(ticketId);
+      const cleanProfit = Number(parseFloat(String(profit)).toFixed(2));
 
-      // A. Ghi vào Lịch sử lệnh chi tiết (Sub-collection)
+      // 1. Lưu lịch sử (Trades History)
       await tradeRef.set({
-        mt5Account: Number(botMT5),
         ticket: ticketId,
         symbol: symbol || "XAUUSD",
         type: strType,
-        profit: cleanProfit, // 🔥 ĐÃ FIX: Lưu đúng số lãi của riêng ticket này
+        profit: cleanProfit, // Lưu số lãi thực vào đây
         time: finalTime,           
         timestamp: admin.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
 
-      // B. Cập nhật Document mẹ (Hạch toán tổng lực)
+      // 2. Cập nhật Last Profit cho Document mẹ
       await botDocRef.set({
-          lastTradeTime: finalTime,
-          // 🔥 QUAN TRỌNG: lastProfit chỉ lưu số của lệnh VỪA đóng
-          lastProfit: cleanProfit, 
-          // 🔥 QUAN TRỌNG: realizedProfit sẽ tự cộng dồn lãi mới vào lãi cũ
-          realizedProfit: admin.firestore.FieldValue.increment(cleanProfit),
-          profit: cleanProfit, // Giữ để tương thích Dashboard cũ
-          mt5Account: Number(botMT5),
-          status: "RUNNING",
-          lastHeartbeat: new Date().toISOString()
+          lastProfit: cleanProfit, // 🔥 ĐÃ THÔNG: Chỉ lưu số của lệnh vừa đóng
+          realizedProfit: admin.firestore.FieldValue.increment(cleanProfit), // Cộng dồn
+          lastTradeTime: finalTime
       }, { merge: true });
-
-      console.log(`✅ [TRADE SYNC] MT5: ${botMT5} | Ticket: ${ticketId} | LastProfit: ${cleanProfit}`);
     }
 
     return NextResponse.json({ 
