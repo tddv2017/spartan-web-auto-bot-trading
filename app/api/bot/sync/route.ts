@@ -16,16 +16,14 @@ export async function GET(req: Request) {
             return NextResponse.json({ message: "Thiếu số MT5" }, { status: 400 });
         }
 
-        // 1. LẤY THÔNG TIN TRẠNG THÁI BOT (Heartbeat & Balance) TỪ COLLECTION 'BOTS'
-        // Vì hàm POST bên dưới lưu vào 'bots', nên ta lấy ra từ 'bots' luôn cho chuẩn
         const botDocRef = adminDb.collection("bots").doc(mt5Account);
         const botSnap = await botDocRef.get();
 
         let accountInfo = { 
             balance: 0, 
             equity: 0, 
-            floatingProfit: 0, // Lợi nhuận lệnh đang chạy
-            realizedProfit: 0, // Lợi nhuận tổng đã chốt (Cái Đại tá cần)
+            floatingProfit: 0, 
+            realizedProfit: 0, // 🎯 Đồng bộ hóa với hạch toán của Bot
             status: "OFFLINE" 
         };
         
@@ -35,16 +33,13 @@ export async function GET(req: Request) {
                 balance: data.balance || 0,
                 equity: data.equity || 0,
                 floatingProfit: data.floatingProfit || 0, 
-                realizedProfit: data.profit || 0, // 👈 ĐÂY RỒI! Lấy từ trường 'profit' mà Bot gửi về
+                // 🔥 SỬA TẠI ĐÂY: Lấy đúng trường 'profit' mà hàm POST của bot/trade/route.ts đã lưu
+                realizedProfit: data.profit || data.lastProfit || 0, 
                 status: data.status || "UNKNOWN"
             };
         }
 
-        // 2. LẤY LỊCH SỬ GIAO DỊCH (TRADE HISTORY)
-        // Đường dẫn: bots -> [MT5] -> trades (Sub-collection)
         const tradesRef = botDocRef.collection("trades");
-        
-        // Lấy 50 lệnh mới nhất để vẽ biểu đồ
         const tradesSnap = await tradesRef.orderBy("time", "desc").limit(50).get();
 
         const trades = tradesSnap.docs.map(doc => {
@@ -52,13 +47,12 @@ export async function GET(req: Request) {
             return {
                 ticket: d.ticket,
                 symbol: d.symbol,
-                type: d.type,     // BUY/SELL
-                profit: d.profit,
-                time: d.time      // Thời gian đóng lệnh
+                type: d.type,
+                profit: Number(d.profit) || 0, // Đảm bảo luôn là số
+                time: d.time
             };
         });
 
-        // 3. TRẢ VỀ GÓI TIN TỔNG HỢP CHO WAR ROOM
         return NextResponse.json({
             accountInfo: accountInfo,
             trades: trades

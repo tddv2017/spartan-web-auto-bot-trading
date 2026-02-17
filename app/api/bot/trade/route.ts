@@ -59,28 +59,31 @@ export async function POST(request: Request) {
       const botDocRef = adminDb.collection("bots").doc(botMT5);
       const tradeRef = botDocRef.collection("trades").doc(ticketId);
 
+      // Ghi vào lịch sử lệnh chi tiết
       await tradeRef.set({
         mt5Account: Number(botMT5),
         licenseKey: licenseKey,
         ticket: ticketId,
         symbol: symbol || "XAUUSD",
         type: strType,
-        profit: cleanProfit, // Số đã làm sạch
+        profit: cleanProfit, 
         time: finalTime,           
-        timestamp: admin.firestore.FieldValue.serverTimestamp(), // Dùng server time để sắp xếp chuẩn
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
 
-      // Cập nhật thông tin nhanh cho Bot Document mẹ
+      // 🔥 ĐỒNG BỘ VÀO DOCUMENT MẸ: 
+      // Cập nhật trường 'profit' để hàm GET bên kia lấy được số chuẩn
       await botDocRef.set({
           lastTradeTime: finalTime,
-          lastProfit: cleanProfit,
+          profit: cleanProfit, // Ghi đè lợi nhuận của lệnh vừa đóng vào đây
+          lastProfit: cleanProfit, // Dự phòng cho các logic cũ
           mt5Account: Number(botMT5),
           status: "RUNNING",
           lastHeartbeat: new Date().toISOString()
       }, { merge: true });
 
-      console.log(`✅ [FIREBASE] Saved Trade: ${botMT5} | Ticket: ${ticketId} | PnL: ${cleanProfit}`);
+      console.log(`✅ [ĐÃ ĐỒNG BỘ] MT5: ${botMT5} | Lệnh: ${ticketId} | Lợi nhuận: ${cleanProfit}`);
     }
 
     return NextResponse.json({ 
