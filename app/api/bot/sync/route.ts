@@ -1,11 +1,10 @@
 import { adminDb } from "@/lib/firebaseAdmin";
 import { NextResponse } from "next/server";
 
-// 🛑 BẮT BUỘC: Không cache để dữ liệu luôn tươi mới
 export const dynamic = 'force-dynamic';
 
 // ==============================================================================
-// 👇 PHẦN MỚI THÊM VÀO: HÀM GET (ĐỂ DASHBOARD SOI DỮ LIỆU)
+// 👇 HÀM GET: LẤY DỮ LIỆU HIỂN THỊ LÊN DASHBOARD
 // ==============================================================================
 export async function GET(req: Request) {
     try {
@@ -23,7 +22,7 @@ export async function GET(req: Request) {
             balance: 0, 
             equity: 0, 
             floatingProfit: 0, 
-            realizedProfit: 0, // 🎯 Đồng bộ hóa với hạch toán của Bot
+            realizedProfit: 0, 
             status: "OFFLINE" 
         };
         
@@ -33,8 +32,8 @@ export async function GET(req: Request) {
                 balance: data.balance || 0,
                 equity: data.equity || 0,
                 floatingProfit: data.floatingProfit || 0, 
-                // 🔥 SỬA TẠI ĐÂY: Lấy đúng trường 'profit' mà hàm POST của bot/trade/route.ts đã lưu
-                realizedProfit: data.profit || data.lastProfit || 0, 
+                // 🔥 ĐỒNG BỘ: Ưu tiên lấy 'realizedProfit' để khớp với lệnh trade mới nhất
+                realizedProfit: data.realizedProfit || data.profit || data.lastProfit || 0, 
                 status: data.status || "UNKNOWN"
             };
         }
@@ -48,15 +47,12 @@ export async function GET(req: Request) {
                 ticket: d.ticket,
                 symbol: d.symbol,
                 type: d.type,
-                profit: Number(d.profit) || 0, // Đảm bảo luôn là số
+                profit: Number(d.profit) || 0,
                 time: d.time
             };
         });
 
-        return NextResponse.json({
-            accountInfo: accountInfo,
-            trades: trades
-        });
+        return NextResponse.json({ accountInfo, trades });
 
     } catch (error: any) {
         console.error("🔥 Lỗi GET Sync:", error);
@@ -65,7 +61,7 @@ export async function GET(req: Request) {
 }
 
 // ==============================================================================
-// 👇 PHẦN CŨ (GIỮ NGUYÊN 100%): HÀM POST (NHẬN TIN TỪ BOT PYTHON)
+// 👇 HÀM POST: NHẬN HEARTBEAT TỪ BOT (CẬP NHẬT BALANCE/EQUITY)
 // ==============================================================================
 export async function POST(req: Request) {
   try {
@@ -73,14 +69,12 @@ export async function POST(req: Request) {
     const { licenseKey, mt5Account } = data;
 
     if (!mt5Account || !licenseKey) {
-        return NextResponse.json({ valid: false, success: false, error: 'Missing Info' }, { status: 400 });
+        return NextResponse.json({ valid: false, error: 'Missing Info' }, { status: 400 });
     }
 
-    // 1. Tìm thông tin User qua License Key
     const usersRef = adminDb.collection("users");
     const snapshot = await usersRef.where("licenseKey", "==", licenseKey).limit(1).get();
 
-    // Trường hợp Key bị xóa hoặc đổi thành STOP
     if (snapshot.empty) {
         return NextResponse.json({ 
             valid: false, 
@@ -90,27 +84,26 @@ export async function POST(req: Request) {
     }
 
     const userData = snapshot.docs[0].data();
-    const dbMT5 = String(userData.mt5Account || "").trim();
     const botMT5 = String(mt5Account).trim();
 
-    // Kiểm tra khớp số tài khoản MT5
-    if (dbMT5 !== botMT5) {
+    if (String(userData.mt5Account).trim() !== botMT5) {
         return NextResponse.json({ valid: false, error: 'Wrong MT5' }, { status: 401 });
     }
 
-    // 2. XÁC ĐỊNH LỆNH ĐIỀU KHIỂN
-    // Nếu remoteCommand trên Web là "PAUSE", ta gửi lệnh PAUSE xuống Bot
     const isPaused = userData.remoteCommand === "PAUSE";
 
-    // 3. Cập nhật Heartbeat để Dashboard Web báo Online
+    // 🎯 CẬP NHẬT CHIẾN THUẬT: 
+    // Chỉ cập nhật các thông số biến động, KHÔNG ghi đè toàn bộ 'data' 
+    // để tránh việc biến 'profit' bị xóa bởi gói tin heartbeat không có profit.
     await adminDb.collection('bots').doc(botMT5).set({
-      ...data,
+      balance: Number(data.balance) || 0,
+      equity: Number(data.equity) || 0,
+      floatingProfit: Number(data.floatingProfit) || 0,
       mt5Account: Number(botMT5),
       lastHeartbeat: new Date().toISOString(),
       status: isPaused ? "PAUSED" : "RUNNING"
-    }, { merge: true });
+    }, { merge: true }); // Sử dụng merge để bảo vệ trường 'realizedProfit' từ api/trade
 
-    // 4. TRẢ VỀ PHẢN HỒI CHO BOT
     return NextResponse.json({ 
         valid: true, 
         success: true, 
@@ -122,13 +115,10 @@ export async function POST(req: Request) {
   }
 }
 
-// ==============================================================================
-// 👇 HÀM OPTIONS (GIỮ NGUYÊN ĐỂ KHÔNG BỊ LỖI CORS)
-// ==============================================================================
 export async function OPTIONS() {
   return new NextResponse(null, { status: 200, headers: { 
       'Access-Control-Allow-Origin': '*', 
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', // Thêm GET vào đây cho chắc
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 
       'Access-Control-Allow-Headers': 'Content-Type, Authorization', 
   } });
 }

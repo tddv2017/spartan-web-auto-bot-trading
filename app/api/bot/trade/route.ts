@@ -40,17 +40,17 @@ export async function POST(request: Request) {
     if (rawType === "0" || rawType.includes("BUY")) strType = "BUY";
     else if (rawType === "1" || rawType.includes("SELL")) strType = "SELL";
 
-    // 🎯 FIX PROFIT: Ép kiểu số thực cẩn thận
+    // 🎯 FIX PROFIT: Ép kiểu số thực cẩn thận để Dashboard tính toán được
     const cleanProfit = Number(parseFloat(String(profit)).toFixed(2)) || 0;
 
-    // 🎯 FIX TICKET: Ép kiểu chuỗi để làm ID Document (Tránh tràn số 32-bit)
+    // 🎯 FIX TICKET: Ép kiểu chuỗi để làm ID Document (Tránh lỗi số nguyên 64-bit của MT5)
     const ticketId = String(ticket);
 
     // 🎯 FIX TIME: Chuyển đổi Unix Time từ MT5 sang định dạng ISO
     let finalTime = new Date().toISOString();
     if (time) {
         const t = Number(time);
-        // MT5 trả về giây, JS cần mili giây (t * 1000)
+        // MT5 trả về giây (Unix), JS cần mili giây (t * 1000)
         finalTime = new Date(t < 10000000000 ? t * 1000 : t).toISOString();
     }
 
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
       const botDocRef = adminDb.collection("bots").doc(botMT5);
       const tradeRef = botDocRef.collection("trades").doc(ticketId);
 
-      // Ghi vào lịch sử lệnh chi tiết
+      // Ghi vào lịch sử lệnh chi tiết (Dùng cho biểu đồ Log)
       await tradeRef.set({
         mt5Account: Number(botMT5),
         licenseKey: licenseKey,
@@ -72,24 +72,25 @@ export async function POST(request: Request) {
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
 
-      // 🔥 ĐỒNG BỘ VÀO DOCUMENT MẸ: 
-      // Cập nhật trường 'profit' để hàm GET bên kia lấy được số chuẩn
+      // 🔥 ĐỒNG BỘ VÀO DOCUMENT MẸ (Cực kỳ quan trọng để Dashboard hiện số tổng)
+      // Chúng ta ghi đè vào realizedProfit để hàm GET bên kia lấy được số chuẩn ngay lập tức
       await botDocRef.set({
           lastTradeTime: finalTime,
-          profit: cleanProfit, // Ghi đè lợi nhuận của lệnh vừa đóng vào đây
-          lastProfit: cleanProfit, // Dự phòng cho các logic cũ
+          realizedProfit: cleanProfit, // 🎯 ĐÃ ĐỒNG BỘ TÊN BIẾN VỚI HÀM GET
+          profit: cleanProfit,         // Dự phòng cho các logic cũ
+          lastProfit: cleanProfit,     // Dự phòng thêm
           mt5Account: Number(botMT5),
           status: "RUNNING",
           lastHeartbeat: new Date().toISOString()
       }, { merge: true });
 
-      console.log(`✅ [ĐÃ ĐỒNG BỘ] MT5: ${botMT5} | Lệnh: ${ticketId} | Lợi nhuận: ${cleanProfit}`);
+      console.log(`✅ [TRADE SYNC] MT5: ${botMT5} | Ticket: ${ticketId} | Realized PnL: ${cleanProfit}`);
     }
 
     return NextResponse.json({ 
         valid: true, 
         success: true, 
-        message: 'Trade Recorded Successfully' 
+        message: 'Trade Recorded and Synced Successfully' 
     }, { status: 200 });
 
   } catch (error: any) {
