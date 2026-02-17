@@ -94,17 +94,15 @@ export async function POST(req: Request) {
 
     // 🎯 CẬP NHẬT CHIẾN THUẬT: 
     // Mở rộng 'đường ống' để chấp nhận cả realizedProfit và profit từ MT5 ném sang
-    await adminDb.collection('bots').doc(botMT5).set({
-      balance: Number(data.balance) || 0,
-      equity: Number(data.equity) || 0,
-      floatingProfit: Number(data.floatingProfit) || 0,
-      // 🔥 ĐỒNG BỘ: Luôn giữ lại realizedProfit và lastProfit mới nhất
-      realizedProfit: Number(data.realizedProfit || data.profit) || 0, 
-      lastProfit: Number(data.lastProfit || data.profit) || 0, 
-      mt5Account: Number(botMT5),
-      lastHeartbeat: new Date().toISOString(),
-      status: isPaused ? "PAUSED" : "RUNNING"
-    }, { merge: true }); // Merge true là "giáp trụ" bảo vệ dữ liệu không bị ghi đè thành 0
+    // api/bot/sync/route.ts -> Hàm POST
+        await adminDb.collection('bots').doc(botMT5).set({
+        balance: Number(data.balance) || 0,
+        equity: Number(data.equity) || 0,
+        floatingProfit: Number(data.floatingProfit) || 0,
+        mt5Account: Number(botMT5),
+        lastHeartbeat: new Date().toISOString(),
+        status: isPaused ? "PAUSED" : "RUNNING"
+        }, { merge: true }); // 🔥 KHÔNG CÓ TRƯỜNG PROFIT Ở ĐÂY -> CHỐNG GHI ĐÈ
 
     return NextResponse.json({ 
         valid: true, 
