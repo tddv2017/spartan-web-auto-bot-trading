@@ -18,40 +18,33 @@ const CustomizedDot = (props: any) => {
     );
 };
 
-// 🛡️ COMPONENT CHÍNH
 export const WarRoomTab = ({ trades: initialTrades, accountInfo: initialAccountInfo }: any) => {
-  // 1. LẤY QUYỀN ADMIN TỪ CONTEXT
   const { isAdmin, user } = useAuth(); 
 
-  // 2. KHAI BÁO STATE
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
-  const [memberList, setMemberList] = useState<any[]>([]); // Danh sách quân đoàn
-  const [selectedMT5, setSelectedMT5] = useState("");      // Tài khoản đang soi
+  const [memberList, setMemberList] = useState<any[]>([]); 
+  const [selectedMT5, setSelectedMT5] = useState("");      
   
-  // Dữ liệu hiển thị (Mặc định là của bản thân, nếu soi thì bị ghi đè)
   const [displayTrades, setDisplayTrades] = useState(initialTrades || []);
   const [displayAccountInfo, setDisplayAccountInfo] = useState(initialAccountInfo || {});
   const [loading, setLoading] = useState(false);
 
-  // 3. EFFECT: ADMIN LẤY DANH SÁCH QUÂN ĐOÀN
   useEffect(() => {
     if (isAdmin) {
-      console.log("📡 [Sở Chỉ Huy] Đang tải danh sách quân đoàn...");
       fetch('/api/admin/members-with-mt5')
         .then(async (res) => {
             if (res.ok) return res.json();
             throw new Error("API Lỗi");
         })
         .then(data => setMemberList(data))
-        .catch(err => console.error("⚠️ Không thể lấy danh sách quân đoàn:", err));
+        .catch(err => console.error("⚠️ Lỗi quân đoàn:", err));
     }
   }, [isAdmin]);
 
-  // 4. HÀM SOI TÀI KHOẢN (INSPECT) - PHIÊN BẢN CHỐNG TREO
   const handleInspect = async (mt5Account: string) => {
     setSelectedMT5(mt5Account);
-    setCurrentPage(1); // 🚩 QUAN TRỌNG: Reset về trang 1 khi đổi người soi
+    setCurrentPage(1); 
 
     if (!mt5Account) {
         setDisplayTrades(initialTrades || []);
@@ -61,39 +54,26 @@ export const WarRoomTab = ({ trades: initialTrades, accountInfo: initialAccountI
 
     setLoading(true);
     try {
-      // Gọi API Sync để lấy dữ liệu mới nhất của member đó
       const res = await fetch(`/api/bot/sync?mt5Account=${mt5Account}`);
-      
-      if (!res.ok) throw new Error("Không thể kết nối sở chỉ huy");
-      
+      if (!res.ok) throw new Error("Mất kết nối");
       const data = await res.json();
-      
-      // Chỉ cập nhật khi có dữ liệu hợp lệ
       if (data && data.accountInfo) {
-        // Cập nhật cả 2 cùng lúc
         setDisplayAccountInfo(data.accountInfo);
         setDisplayTrades(data.trades || []);
-        console.log(`✅ [TRINH SÁT] Đã lấy xong hồ sơ tài khoản: ${mt5Account}`);
-      } else {
-        console.warn("⚠️ Dữ liệu trống hoặc tài khoản chưa có lịch sử");
-        setDisplayTrades([]);
-        setDisplayAccountInfo({ status: "NO_DATA" });
       }
     } catch (e) {
-      console.error("❌ LỖI TRUY QUÉT HỒ SƠ:", e);
-      // Có thể thêm một thông báo Toast ở đây cho Đại tá biết
+      console.error("❌ Lỗi soi hồ sơ:", e);
     } finally {
-      // 🚩 LUÔN LUÔN tắt loading dù thành công hay thất bại
       setLoading(false); 
     }
   };
 
-  // 5. CÁC HÀM TÍNH TOÁN (Logic HUD & Chart)
   const formatMoney = (val: any) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(val || 0));
   
-  const dailyProfit = useMemo(() => {
-      return displayTrades.reduce((acc: any, t: any) => acc + Number(t.profit), 0);
-  }, [displayTrades]);
+  // 🎯 ĐỒNG BỘ: Ưu tiên lấy realizedProfit từ API để hiện số chuẩn
+  const netProfit = useMemo(() => {
+      return Number(displayAccountInfo?.realizedProfit || displayAccountInfo?.profit || 0);
+  }, [displayAccountInfo]);
 
   const getAccountStatus = () => {
       if(!displayAccountInfo || !displayAccountInfo.balance) return { label: "OFFLINE", color: "text-slate-500", icon: Activity };
@@ -110,11 +90,9 @@ export const WarRoomTab = ({ trades: initialTrades, accountInfo: initialAccountI
 
   const status = getAccountStatus();
 
-  // Tính toán lại biểu đồ dựa trên dữ liệu hiện tại
   const chartData = useMemo(() => {
-    if (!displayAccountInfo || !displayTrades) return [];
-    let currentBal = Number(displayAccountInfo.balance || 0);
-    // Copy mảng để không ảnh hưởng dữ liệu gốc và reverse để tính từ hiện tại về quá khứ
+    if (!displayAccountInfo?.balance || !displayTrades) return [];
+    let currentBal = Number(displayAccountInfo.balance);
     const history = [...displayTrades].map((trade: any) => {
         const profit = Number(trade.profit);
         const point = {
@@ -127,23 +105,18 @@ export const WarRoomTab = ({ trades: initialTrades, accountInfo: initialAccountI
         currentBal = currentBal - profit; 
         return point;
     });
-    // Thêm điểm bắt đầu
     history.push({ time: 'Start', balance: Number(currentBal.toFixed(2)), profit: 0, type: null, symbol: '' });
-    // Đảo ngược lại để hiển thị từ trái (quá khứ) sang phải (hiện tại)
     return history.reverse();
   }, [displayTrades, displayAccountInfo]);
 
-  // Style cho từng lệnh trong log
   const getTradeStyle = (type: any) => {
-      if (type === 0 || type === '0') return { color: "text-green-500", bg: "bg-green-500/10", label: "BUY" };
+      const t = type?.toString().toUpperCase();
+      if (t === '0' || t?.includes('BUY')) return { color: "text-green-500", bg: "bg-green-500/10", label: "BUY" };
       return { color: "text-red-500", bg: "bg-red-500/10", label: "SELL" };
   };
 
-  // 6. RENDER GIAO DIỆN
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        
-        {/* 🏛️ KHU VỰC ADMIN (Chỉ hiện khi isAdmin = true) */}
         {isAdmin && (
             <div className="bg-slate-900/60 border border-blue-500/30 p-4 rounded-[2rem] flex flex-col md:flex-row justify-between items-center gap-4 shadow-lg shadow-blue-500/5 backdrop-blur-sm">
                 <div className="flex items-center gap-3">
@@ -152,7 +125,7 @@ export const WarRoomTab = ({ trades: initialTrades, accountInfo: initialAccountI
                     </div>
                     <div>
                         <h2 className="text-white font-black text-lg tracking-tighter uppercase leading-none">Sở Chỉ Huy Quân Đoàn</h2>
-                        <p className="text-[10px] text-slate-500 font-mono mt-1 italic">Đại tá: {user?.email}</p>
+                        <p className="text-[10px] text-slate-500 font-mono mt-1 italic">Tài khoản Admin: {user?.email}</p>
                     </div>
                 </div>
 
@@ -177,16 +150,13 @@ export const WarRoomTab = ({ trades: initialTrades, accountInfo: initialAccountI
             </div>
         )}
 
-        {/* 📊 HUD BAR (Thanh trạng thái) */}
         <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 transition-all duration-500 ${loading ? 'opacity-50 blur-[2px]' : ''}`}>
-            {/* Balance Card */}
             <div className="bg-slate-900/80 border border-slate-700 p-5 rounded-3xl relative overflow-hidden group">
                 <div className="absolute right-2 top-2 opacity-10 group-hover:opacity-30 transition-opacity"><Wallet size={40} /></div>
                 <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black">Balance</p>
                 <p className="text-2xl font-black text-white font-mono mt-1">{formatMoney(displayAccountInfo?.balance)}</p>
             </div>
 
-            {/* Equity Card */}
             <div className="bg-green-900/10 border border-green-500/20 p-5 rounded-3xl relative overflow-hidden group">
                 <div className="absolute right-2 top-2 opacity-10 group-hover:opacity-30 transition-opacity text-green-500"><TrendingUp size={40} /></div>
                 <p className="text-[10px] text-green-500 uppercase tracking-widest font-black">Equity</p>
@@ -199,15 +169,14 @@ export const WarRoomTab = ({ trades: initialTrades, accountInfo: initialAccountI
                 </div>
             </div>
 
-            {/* PnL Card - Đổi từ tính toán thủ công sang lấy số thực từ API */}
             <div className="bg-slate-900/80 border border-slate-700 p-5 rounded-3xl">
-                <p className="text-[10px] text-yellow-500 uppercase tracking-widest font-black">Realized Profit</p>
-                <p className={`text-2xl font-black font-mono mt-1 ${displayAccountInfo?.realizedProfit >= 0 ? 'text-yellow-400' : 'text-red-400'}`}>
-                    {displayAccountInfo?.realizedProfit > 0 ? '+' : ''}{formatMoney(displayAccountInfo?.realizedProfit)}
+                <p className="text-[10px] text-yellow-500 uppercase tracking-widest font-black">Net Realized Profit</p>
+                <p className={`text-2xl font-black font-mono mt-1 ${netProfit >= 0 ? 'text-yellow-400' : 'text-red-400'}`}>
+                    {netProfit > 0 ? '+' : ''}{formatMoney(netProfit)}
                 </p>
+                <p className="text-[9px] text-slate-500 italic mt-1 font-mono">Synced from HQ</p>
             </div>
 
-            {/* Status Card */}
             <div className="bg-slate-900/80 border border-slate-700 p-5 rounded-3xl">
                 <p className={`text-[10px] uppercase tracking-widest font-black ${status.color}`}>Status</p>
                 <div className="flex items-center gap-2 mt-2">
@@ -217,13 +186,11 @@ export const WarRoomTab = ({ trades: initialTrades, accountInfo: initialAccountI
             </div>
         </div>
 
-        {/* 📈 GROWTH CHART */}
         <div className={`col-span-1 xl:col-span-3 bg-slate-900/60 border border-slate-800 p-6 rounded-[2rem] h-[400px] relative group transition-all duration-500 ${loading ? 'opacity-50 blur-[2px]' : ''}`}>
             <div className="flex justify-between items-center mb-4">
                 <h3 className="font-bold text-slate-300 flex items-center gap-2 uppercase text-sm tracking-wider">
                     <Activity size={16} className="text-green-500"/> Account Growth
                 </h3>
-                {/* Chú thích biểu đồ */}
                 <div className="flex items-center gap-3">
                     <div className="flex items-center gap-1 text-[10px] text-slate-400"><span className="w-2 h-2 rounded-full bg-green-500"></span> BUY</div>
                     <div className="flex items-center gap-1 text-[10px] text-slate-400"><span className="w-2 h-2 rounded-full bg-red-500"></span> SELL</div>
@@ -246,14 +213,6 @@ export const WarRoomTab = ({ trades: initialTrades, accountInfo: initialAccountI
                             contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px' }}
                             itemStyle={{ color: '#fff', fontWeight: 'bold' }}
                             formatter={(value: any, name: any) => name === 'balance' ? [`$${Number(value).toFixed(2)}`, 'Balance'] : [value, name]}
-                            labelFormatter={(label, payload) => {
-                                const data = payload[0]?.payload;
-                                if (data && data.symbol) {
-                                    const type = data.type === 0 || data.type === '0' || data.type?.toString().includes('BUY') ? 'BUY' : 'SELL';
-                                    return `${label} | ${type} ${data.symbol} (${data.profit > 0 ? '+' : ''}${data.profit}$)`;
-                                }
-                                return `Time: ${label}`;
-                            }}
                         />
                         <Area type="monotone" dataKey="balance" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorBalance)" dot={<CustomizedDot />} />
                     </AreaChart>
@@ -261,14 +220,11 @@ export const WarRoomTab = ({ trades: initialTrades, accountInfo: initialAccountI
             </div>
         </div>
 
-        {/* 📜 LOG GIAO DỊCH */}
         <div className={`grid grid-cols-1 xl:grid-cols-3 gap-6 transition-all duration-500 ${loading ? 'opacity-50 blur-[2px]' : ''}`}>
-            {/* Cột trái: Tín hiệu từ Bot (Component con) */}
             <div className="xl:col-span-2 space-y-4">
                 <SignalFeed />
             </div>
 
-            {/* Cột phải: Log lệnh đã đóng */}
             <div className="xl:col-span-1">
                 <div className="bg-slate-900/60 border border-slate-800 rounded-[2rem] p-4 h-full min-h-[500px] flex flex-col">
                     <div className="flex justify-between items-center mb-4 pb-4 border-b border-slate-800">
@@ -303,7 +259,6 @@ export const WarRoomTab = ({ trades: initialTrades, accountInfo: initialAccountI
                                     })}
                                 </div>
                             </div>
-                            {/* Phân trang */}
                             {displayTrades.length > itemsPerPage && (
                                 <div className="flex justify-center items-center gap-2 mt-4 pt-2 border-t border-slate-800/50">
                                     <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-[10px] font-bold text-white">Prev</button>

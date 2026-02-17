@@ -61,7 +61,7 @@ export async function GET(req: Request) {
 }
 
 // ==============================================================================
-// 👇 HÀM POST: NHẬN HEARTBEAT TỪ BOT (CẬP NHẬT BALANCE/EQUITY)
+// 👇 HÀM POST: NHẬN HEARTBEAT TỪ BOT (CẬP NHẬT TẤT CẢ BIẾN PROFIT)
 // ==============================================================================
 export async function POST(req: Request) {
   try {
@@ -93,16 +93,17 @@ export async function POST(req: Request) {
     const isPaused = userData.remoteCommand === "PAUSE";
 
     // 🎯 CẬP NHẬT CHIẾN THUẬT: 
-    // Chỉ cập nhật các thông số biến động, KHÔNG ghi đè toàn bộ 'data' 
-    // để tránh việc biến 'profit' bị xóa bởi gói tin heartbeat không có profit.
+    // Mở rộng 'đường ống' để chấp nhận cả realizedProfit và profit từ MT5 ném sang
     await adminDb.collection('bots').doc(botMT5).set({
       balance: Number(data.balance) || 0,
       equity: Number(data.equity) || 0,
       floatingProfit: Number(data.floatingProfit) || 0,
+      realizedProfit: Number(data.realizedProfit) || 0, // 🔥 THÊM DÒNG NÀY ĐỂ NHẬN LÃI THẬT
+      profit: Number(data.profit) || 0,                 // 🔥 THÊM DÒNG NÀY ĐỂ NHẬN LÃI CHỐT GẦN NHẤT
       mt5Account: Number(botMT5),
       lastHeartbeat: new Date().toISOString(),
       status: isPaused ? "PAUSED" : "RUNNING"
-    }, { merge: true }); // Sử dụng merge để bảo vệ trường 'realizedProfit' từ api/trade
+    }, { merge: true }); 
 
     return NextResponse.json({ 
         valid: true, 
