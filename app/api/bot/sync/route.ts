@@ -21,14 +21,21 @@ export async function GET(req: Request) {
         const botDocRef = adminDb.collection("bots").doc(mt5Account);
         const botSnap = await botDocRef.get();
 
-        let accountInfo = { balance: 0, equity: 0, profit: 0, status: "OFFLINE" };
+        let accountInfo = { 
+            balance: 0, 
+            equity: 0, 
+            floatingProfit: 0, // Lợi nhuận lệnh đang chạy
+            realizedProfit: 0, // Lợi nhuận tổng đã chốt (Cái Đại tá cần)
+            status: "OFFLINE" 
+        };
         
         if (botSnap.exists) {
             const data = botSnap.data() || {};
             accountInfo = {
                 balance: data.balance || 0,
                 equity: data.equity || 0,
-                profit: data.floatingProfit || 0, // Lấy lợi nhuận thả nổi (Floating PnL)
+                floatingProfit: data.floatingProfit || 0, 
+                realizedProfit: data.profit || 0, // 👈 ĐÂY RỒI! Lấy từ trường 'profit' mà Bot gửi về
                 status: data.status || "UNKNOWN"
             };
         }
