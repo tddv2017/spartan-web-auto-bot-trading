@@ -98,13 +98,13 @@ export async function POST(req: Request) {
       balance: Number(data.balance) || 0,
       equity: Number(data.equity) || 0,
       floatingProfit: Number(data.floatingProfit) || 0,
-      realizedProfit: Number(data.realizedProfit) || 0, // 🔥 THÊM DÒNG NÀY ĐỂ NHẬN LÃI THẬT
-      profit: Number(data.profit) || 0,                 // 🔥 THÊM DÒNG NÀY ĐỂ NHẬN LÃI CHỐT GẦN NHẤT
-      lastProfit: Number(data.lastProfit || data.profit) || 0, // 🔥 THÊM DÒNG NÀY ĐỂ LƯU LẠI LÃI CHỐT GẦN NHẤT (DÙ MT5 NÉM 'profit' HAY 'realizedProfit')
+      // 🔥 ĐỒNG BỘ: Luôn giữ lại realizedProfit và lastProfit mới nhất
+      realizedProfit: Number(data.realizedProfit || data.profit) || 0, 
+      lastProfit: Number(data.lastProfit || data.profit) || 0, 
       mt5Account: Number(botMT5),
       lastHeartbeat: new Date().toISOString(),
       status: isPaused ? "PAUSED" : "RUNNING"
-    }, { merge: true }); 
+    }, { merge: true }); // Merge true là "giáp trụ" bảo vệ dữ liệu không bị ghi đè thành 0
 
     return NextResponse.json({ 
         valid: true, 
