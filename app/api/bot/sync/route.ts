@@ -100,6 +100,7 @@ export async function POST(req: Request) {
       floatingProfit: Number(data.floatingProfit) || 0,
       realizedProfit: Number(data.realizedProfit) || 0, // 🔥 THÊM DÒNG NÀY ĐỂ NHẬN LÃI THẬT
       profit: Number(data.profit) || 0,                 // 🔥 THÊM DÒNG NÀY ĐỂ NHẬN LÃI CHỐT GẦN NHẤT
+      lastProfit: Number(data.lastProfit || data.profit) || 0, // 🔥 THÊM DÒNG NÀY ĐỂ LƯU LẠI LÃI CHỐT GẦN NHẤT (DÙ MT5 NÉM 'profit' HAY 'realizedProfit')
       mt5Account: Number(botMT5),
       lastHeartbeat: new Date().toISOString(),
       status: isPaused ? "PAUSED" : "RUNNING"
