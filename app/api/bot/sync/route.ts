@@ -19,6 +19,7 @@ export async function GET(req: Request) {
         const botSnap = await botDocRef.get();
 
         let accountInfo = { 
+            botName: "Unknown Bot", // 🔥 Mặc định
             balance: 0, 
             equity: 0, 
             floatingProfit: 0, 
@@ -29,10 +30,10 @@ export async function GET(req: Request) {
         if (botSnap.exists) {
             const data = botSnap.data() || {};
             accountInfo = {
+                botName: data.botName || "Spartan AI", // 🔥 LẤY TÊN BOT TỪ DB
                 balance: data.balance || 0,
                 equity: data.equity || 0,
                 floatingProfit: data.floatingProfit || 0, 
-                // 🔥 ĐỒNG BỘ: Ưu tiên lấy 'realizedProfit' để khớp với lệnh trade mới nhất
                 realizedProfit: data.realizedProfit || data.profit || data.lastProfit || 0, 
                 status: data.status || "UNKNOWN"
             };
@@ -66,7 +67,8 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const data = await req.json(); 
-    const { licenseKey, mt5Account } = data;
+    // 🔥 Lấy thêm botName từ data gửi lên
+    const { licenseKey, mt5Account, botName } = data;
 
     if (!mt5Account || !licenseKey) {
         return NextResponse.json({ valid: false, error: 'Missing Info' }, { status: 400 });
@@ -86,23 +88,21 @@ export async function POST(req: Request) {
     const userData = snapshot.docs[0].data();
     const botMT5 = String(mt5Account).trim();
 
-    if (String(userData.mt5Account).trim() !== botMT5) {
-        return NextResponse.json({ valid: false, error: 'Wrong MT5' }, { status: 401 });
-    }
+    // Check MT5 khớp với License không (Optional)
+    // if (String(userData.mt5Account).trim() !== botMT5) { ... }
 
     const isPaused = userData.remoteCommand === "PAUSE";
 
-    // 🎯 CẬP NHẬT CHIẾN THUẬT: 
-    // Mở rộng 'đường ống' để chấp nhận cả realizedProfit và profit từ MT5 ném sang
-    // api/bot/sync/route.ts -> Hàm POST
-        await adminDb.collection('bots').doc(botMT5).set({
+    // 🎯 CẬP NHẬT FIRESTORE
+    await adminDb.collection('bots').doc(botMT5).set({
+        botName: botName || "Spartan AI", // 🔥 LƯU TÊN BOT VÀO DB
         balance: Number(data.balance) || 0,
         equity: Number(data.equity) || 0,
         floatingProfit: Number(data.floatingProfit) || 0,
         mt5Account: Number(botMT5),
         lastHeartbeat: new Date().toISOString(),
         status: isPaused ? "PAUSED" : "RUNNING"
-        }, { merge: true }); // 🔥 KHÔNG CÓ TRƯỜNG PROFIT Ở ĐÂY -> CHỐNG GHI ĐÈ
+    }, { merge: true }); // Merge true để không mất các trường khác (ví dụ realizedProfit)
 
     return NextResponse.json({ 
         valid: true, 
@@ -111,6 +111,7 @@ export async function POST(req: Request) {
     }, { status: 200 });
 
   } catch (error: any) {
+    console.error("🔥 Lỗi POST Sync:", error);
     return NextResponse.json({ valid: false }, { status: 500 });
   }
 }
