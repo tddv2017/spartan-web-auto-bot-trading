@@ -68,7 +68,7 @@ export async function GET(req: Request) {
 }
 
 // ==============================================================================
-// 👇 HÀM POST: NHẬN HEARTBEAT & SYMBOL & ISO TIME
+// 👇 HÀM POST: NHẬN HEARTBEAT & TRẢ VỀ LỆNH TÁC CHIẾN + TIN TỨC
 // ==============================================================================
 export async function POST(req: Request) {
   try {
@@ -82,7 +82,7 @@ export async function POST(req: Request) {
         floatingProfit, 
         profit, 
         symbol, 
-        time, // Thời gian ISO từ MT5 gửi sang
+        time, 
         status 
     } = data;
 
@@ -105,8 +105,12 @@ export async function POST(req: Request) {
     const userData = snapshot.docs[0].data();
     const botMT5 = String(mt5Account).trim();
     const isPaused = userData.remoteCommand === "PAUSE";
+    
+    // 🔥 LẤY TRẠNG THÁI TIN TỨC TỪ FIRESTORE (Do Cron Job cập nhật)
+    // Nếu chưa có field này (lần chạy đầu tiên), mặc định là "LOW" (An toàn)
+    const currentNewsAlert = userData.newsAlert || "LOW";
 
-    // 🎯 2. CẬP NHẬT FIRESTORE (Đồng bộ trường 'time' và 'profit')
+    // 🎯 2. CẬP NHẬT TRẠNG THÁI BOT
     await adminDb.collection('bots').doc(botMT5).set({
         mt5Account: Number(botMT5),
         botName: botName || "Spartan AI",
@@ -117,16 +121,20 @@ export async function POST(req: Request) {
         symbol: symbol || "UNK",
         brainActive: data.brainActive === true,
         
-        // 🔥 Lấy time từ Bot gửi lên để khớp từng giây, nếu không có mới lấy giờ Server
         lastHeartbeat: time || new Date().toISOString(),
         
+        // Nếu Web đang PAUSE thì ghi đè trạng thái Bot thành PAUSED luôn
         status: isPaused ? "PAUSED" : (status || "RUNNING")
     }, { merge: true });
 
+    // 🎯 3. TRẢ VỀ MỆNH LỆNH CHO PYTHON
     return NextResponse.json({ 
         valid: true, 
         success: true, 
-        remoteCommand: isPaused ? "PAUSE" : "RUN" 
+        remoteCommand: isPaused ? "PAUSE" : "RUN", // <--- Đã thêm dấu phẩy ở đây
+        
+        // 👇 CỜ HIỆU BÁO ĐỘNG (Để Python V1.8 đọc)
+        newsAlert: currentNewsAlert
     }, { status: 200 });
 
   } catch (error: any) {

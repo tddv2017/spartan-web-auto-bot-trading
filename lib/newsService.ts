@@ -11,16 +11,19 @@ const DEFENSE_CONFIG = {
 export async function checkAndExecuteAutoDefense() {
   console.log("📡 [RADAR] Đang quét tin tức Forex Factory...");
   
+  // 1. Lấy dữ liệu tin tức
   const allNews = await fetchLiveEconomicCalendar();
   const nowUTC = new Date(); 
   
   let dangerDetected = false;
   let dangerReason = "";
 
+  // 2. Phân tích từng tin
   for (const news of allNews) {
     if (!DEFENSE_CONFIG.TARGET_CURRENCY.includes(news.symbol)) continue;
 
     const newsTime = new Date(news.date);
+    // Tính chênh lệch phút (Tin tương lai là dương, tin quá khứ là âm)
     const diffMinutes = (newsTime.getTime() - nowUTC.getTime()) / 1000 / 60;
 
     let isDangerous = false;
@@ -41,26 +44,35 @@ export async function checkAndExecuteAutoDefense() {
     if (isDangerous) {
       dangerDetected = true;
       const timeRemaining = diffMinutes > 0 ? `trong ${Math.round(diffMinutes)}p tới` : `vừa ra ${Math.abs(Math.round(diffMinutes))}p trước`;
-      // 🔥 Gắn nhãn nhận diện tin tức
+      
+      // 🔥 Gắn nhãn
       dangerReason = `⚠️ NEWS: ${news.event} (${news.impact}) ${timeRemaining}`;
       console.log(`🚨 BÁO ĐỘNG: ${news.event} [${news.impact}] | ${timeRemaining}`);
-      break; 
+      break; // Chỉ cần 1 tin nguy hiểm là kích hoạt phòng thủ ngay
     }
   }
 
+  // 3. Ra lệnh toàn hệ thống
   if (dangerDetected) {
-    await broadcastCommand("PAUSE", dangerReason);
+    // 🔥 SỬA LỖI 1: Thêm tham số true (Có bão)
+    await broadcastCommand("PAUSE", dangerReason, true);
   } else {
     console.log("✅ [SAFE] Thị trường ổn định. Không có bão tin.");
-    // 📡 Gửi lệnh RUN nhưng có kèm theo logic check bên dưới
-    await broadcastCommand("RUN", "MARKET STABLE");
+    // 🔥 SỬA LỖI 1: Thêm tham số false (Yên bình)
+    await broadcastCommand("RUN", "MARKET STABLE", false);
   }
 }
 
-async function broadcastCommand(command: "PAUSE" | "RUN", intelMsg: string) {
+// ==============================================================================
+// 👇 HÀM PHÁT THANH (BROADCAST)
+// ==============================================================================
+async function broadcastCommand(command: "PAUSE" | "RUN", intelMsg: string, isDanger: boolean) {
   const batch = adminDb.batch();
   const usersRef = adminDb.collection("users");
   const snapshot = await usersRef.get(); 
+
+  // Xác định cờ báo động để Python đọc (HIGH/LOW)
+  const newsAlertStatus = isDanger ? "HIGH" : "LOW";
   
   let count = 0;
   snapshot.forEach((doc) => {
@@ -77,19 +89,29 @@ async function broadcastCommand(command: "PAUSE" | "RUN", intelMsg: string) {
       return; 
     }
 
-    // Chỉ update nếu trạng thái thực sự thay đổi
-    if (userData.remoteCommand !== command && userData.licenseKey !== "STOP") {
-        batch.update(doc.ref, {
-            remoteCommand: command,
-            intelMessage: intelMsg,
-            lastAutoUpdate: new Date().toISOString()
-        });
-        count++;
+    // 🔥 SỬA LỖI 3: Update khi Command thay đổi HOẶC trạng thái Tin tức thay đổi
+    // (Ví dụ: Vẫn đang RUN, nhưng tin tức chuyển từ HIGH về LOW thì cũng phải update)
+    if (userData.remoteCommand !== command || 
+        userData.newsAlert !== newsAlertStatus || 
+        userData.intelMessage !== intelMsg) {
+        
+        // Bỏ qua user đã bị Admin chặn vĩnh viễn (STOP)
+        if (userData.licenseKey !== "STOP") {
+            batch.update(doc.ref, {
+                remoteCommand: command,
+                intelMessage: intelMsg,
+                newsAlert: newsAlertStatus, // <--- Python V1.8 cần cái này
+                lastAutoUpdate: new Date().toISOString()
+            });
+            count++;
+        }
     }
   });
 
   if (count > 0) {
     await batch.commit();
-    console.log(`⚡ [COMMAND] Phát lệnh ${command}. Lý do: ${intelMsg}`);
+    console.log(`⚡ [BROADCAST] Đã cập nhật cho ${count} users. CMD: ${command} | Alert: ${newsAlertStatus}`);
+  } else {
+    console.log(`💤 [BROADCAST] Không có thay đổi nào cần cập nhật.`);
   }
 }
