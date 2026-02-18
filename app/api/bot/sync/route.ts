@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 export const dynamic = 'force-dynamic';
 
 // ==============================================================================
-// 👇 HÀM GET: LẤY DỮ LIỆU HIỂN THỊ LÊN DASHBOARD
+// 👇 HÀM GET: LẤY DỮ LIỆU ĐỂ HIỂN THỊ CHI TIẾT BOT (KHI CLICK VÀO HÀNG)
 // ==============================================================================
 export async function GET(req: Request) {
     try {
@@ -19,7 +19,7 @@ export async function GET(req: Request) {
         const botSnap = await botDocRef.get();
 
         let accountInfo = { 
-            botName: "Unknown Bot", // 🔥 Mặc định
+            botName: "Unknown Bot",
             balance: 0, 
             equity: 0, 
             floatingProfit: 0, 
@@ -30,11 +30,12 @@ export async function GET(req: Request) {
         if (botSnap.exists) {
             const data = botSnap.data() || {};
             accountInfo = {
-                botName: data.botName || "Spartan AI", // 🔥 LẤY TÊN BOT TỪ DB
+                botName: data.botName || "Spartan AI",
                 balance: data.balance || 0,
                 equity: data.equity || 0,
                 floatingProfit: data.floatingProfit || 0, 
-                realizedProfit: data.realizedProfit || data.profit || data.lastProfit || 0, 
+                // 🔥 Ưu tiên lấy trường 'profit' mới nhất
+                realizedProfit: data.profit !== undefined ? data.profit : (data.realizedProfit || 0), 
                 status: data.status || "UNKNOWN"
             };
         }
@@ -62,18 +63,18 @@ export async function GET(req: Request) {
 }
 
 // ==============================================================================
-// 👇 HÀM POST: NHẬN HEARTBEAT TỪ BOT (CẬP NHẬT TẤT CẢ BIẾN PROFIT)
+// 👇 HÀM POST: NHẬN HEARTBEAT TỪ BOT (CẬP NHẬT PROFIT VÀO DB)
 // ==============================================================================
 export async function POST(req: Request) {
   try {
     const data = await req.json(); 
-    // 🔥 Lấy thêm botName từ data gửi lên
     const { licenseKey, mt5Account, botName } = data;
 
     if (!mt5Account || !licenseKey) {
         return NextResponse.json({ valid: false, error: 'Missing Info' }, { status: 400 });
     }
 
+    // 1. Kiểm tra License (Xác thực quân nhân)
     const usersRef = adminDb.collection("users");
     const snapshot = await usersRef.where("licenseKey", "==", licenseKey).limit(1).get();
 
@@ -87,22 +88,24 @@ export async function POST(req: Request) {
 
     const userData = snapshot.docs[0].data();
     const botMT5 = String(mt5Account).trim();
-
-    // Check MT5 khớp với License không (Optional)
-    // if (String(userData.mt5Account).trim() !== botMT5) { ... }
-
     const isPaused = userData.remoteCommand === "PAUSE";
 
-    // 🎯 CẬP NHẬT FIRESTORE
+    // 🎯 2. CẬP NHẬT FIRESTORE (LƯU ĐẦY ĐỦ PROFIT)
     await adminDb.collection('bots').doc(botMT5).set({
-        botName: botName || "Spartan AI", // 🔥 LƯU TÊN BOT VÀO DB
+        botName: botName || "Spartan AI",
+        mt5Account: Number(botMT5),
+        
         balance: Number(data.balance) || 0,
         equity: Number(data.equity) || 0,
         floatingProfit: Number(data.floatingProfit) || 0,
-        mt5Account: Number(botMT5),
+        
+        // 🔥 QUAN TRỌNG: LƯU TRƯỜNG PROFIT (NET REALIZED)
+        // Nếu MT5 gửi lên thì lưu, không thì mặc định là 0
+        profit: data.profit !== undefined ? Number(data.profit) : 0,
+
         lastHeartbeat: new Date().toISOString(),
         status: isPaused ? "PAUSED" : "RUNNING"
-    }, { merge: true }); // Merge true để không mất các trường khác (ví dụ realizedProfit)
+    }, { merge: true }); // Merge true để giữ lại các trường khác nếu có
 
     return NextResponse.json({ 
         valid: true, 

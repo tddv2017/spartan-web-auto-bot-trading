@@ -1,10 +1,10 @@
 "use client";
 import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, query, orderBy, where, doc, deleteDoc, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, doc, deleteDoc, getDocs } from 'firebase/firestore';
 import { 
   Activity, ShieldAlert, WifiOff, Target, Radio, Sword, Lock,
-  Trash2, X, History
+  Trash2, X, History, ArrowDownAZ, Signal
 } from 'lucide-react';
 import { useAuth } from '@/app/context/AuthContext';
 
@@ -36,7 +36,9 @@ export default function BattlefieldDashboard() {
 
   // 🎧 LẮNG NGHE BOT REAL-TIME
   useEffect(() => {
-    const q = query(collection(db, "bots"), orderBy("lastHeartbeat", "desc"));
+    // Chỉ lấy dữ liệu thô, việc sắp xếp để Frontend lo
+    const q = query(collection(db, "bots")); 
+    
     const unsub = onSnapshot(q, (snapshot) => {
       setBots(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       setLoading(false);
@@ -50,14 +52,13 @@ export default function BattlefieldDashboard() {
   };
 
   // ✅ HÀM TRUY LỤC TRADES TỪ KHO 'trades'
- // ✅ HÀM TRUY LỤC TRADES TỪ ĐÚNG KHO CON (SUBCOLLECTION: bots/{botId}/trades)
   const openBotDetail = async (bot: any) => {
+    console.log("🔍 DỮ LIỆU BOT ĐANG CHỌN:", bot);
     setSelectedBot(bot);
     setLoadingHistory(true);
     try {
-      // Đã nắn lại nòng súng: Chui thẳng vào kho 'trades' của riêng con Bot này
       const q = query(
-        collection(db, "bots", bot.id, "trades"), // 👈 Tọa độ chuẩn xác 100%
+        collection(db, "bots", bot.id, "trades"), 
         orderBy("timestamp", "desc") 
       );
       const querySnapshot = await getDocs(q);
@@ -65,17 +66,21 @@ export default function BattlefieldDashboard() {
       setTradeHistory(history);
     } catch (e) {
       console.error("Lỗi truy lục trades:", e);
-      alert("❌ Firebase chặn quyền hoặc chưa có dữ liệu/Index!");
     }
     setLoadingHistory(false);
   };
 
   const stats = useMemo(() => {
     const now = Date.now();
-    let totalBalance = 0; let totalEquity = 0; let totalFloating = 0; let potentialCommission = 0; 
+    let totalBalance = 0; let totalEquity = 0; 
+    let totalFloating = 0; // Lãi đang chạy (chưa chốt)
+    let totalRealized = 0; // 🔥 Lãi đã chốt (Tiền tươi)
+    let potentialCommission = 0; 
     let onlineCount = 0; let offlineCount = 0; 
 
-    const processedBots = bots.map(bot => {
+    // 1. Xử lý tính toán số liệu & xác định Online/Offline
+    let processedList = bots.map(bot => {
+      // Logic Online: Heartbeat trong vòng 2 phút (120000ms)
       const isOnline = (now - (bot.lastHeartbeat ? new Date(bot.lastHeartbeat).getTime() : 0)) < 120000; 
       if (isOnline) onlineCount++; else offlineCount++;
 
@@ -83,14 +88,37 @@ export default function BattlefieldDashboard() {
       totalEquity += (Number(bot.equity) || 0);
       totalFloating += (Number(bot.floatingProfit) || 0);
       
+      // 🔥 LẤY DỮ LIỆU PROFIT MỚI TỪ MT5 (Đã sửa ở bước trước)
       const realizedProfit = Number(bot.profit) || 0; 
+      totalRealized += realizedProfit;
+
+      // Tính hoa hồng trên lãi đã chốt (20%)
       const comm = (realizedProfit > 0) ? realizedProfit * 0.2 : 0;
       potentialCommission += comm;
 
-      return { ...bot, isOnline, commission: comm };
+      return { ...bot, isOnline, commission: comm, realizedProfit };
     });
 
-    return { totalBots: bots.length, onlineCount, offlineCount, totalBalance, totalEquity, totalFloating, potentialCommission, processedBots };
+    // 🔥 CHIẾN THUẬT SẮP XẾP ĐA TẦNG:
+    // Tầng 1: Online lên trước, Offline xuống sau.
+    // Tầng 2: Tên A -> Z (để cố định vị trí, không nhảy lung tung).
+    processedList.sort((a, b) => {
+        // 1. So sánh trạng thái Online
+        if (a.isOnline && !b.isOnline) return -1; // a (Online) lên trên b (Offline)
+        if (!a.isOnline && b.isOnline) return 1;  // a (Offline) xuống dưới b (Online)
+
+        // 2. Nếu trạng thái giống nhau, so sánh Tên
+        const nameA = (a.botName || a.id || "").toString().toLowerCase();
+        const nameB = (b.botName || b.id || "").toString().toLowerCase();
+        return nameA.localeCompare(nameB);
+    });
+
+    return { 
+        totalBots: bots.length, onlineCount, offlineCount, 
+        totalBalance, totalEquity, 
+        totalFloating, totalRealized, // Trả về cả 2 loại lãi để hiển thị
+        potentialCommission, processedBots: processedList 
+    };
   }, [bots]);
 
   if (loading) return <div className="min-h-screen bg-black flex items-center justify-center text-green-500 font-mono animate-pulse">LOADING BATTLEFIELD...</div>;
@@ -116,18 +144,24 @@ export default function BattlefieldDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 relative z-10">
         <div className="bg-black border border-green-800 p-4">
             <p className="text-green-700 text-[10px] font-bold uppercase mb-1">ACTIVE UNITS</p>
-            <h3 className="text-4xl font-black text-white">{stats.totalBots}</h3>
+            <h3 className="text-4xl font-black text-white">{stats.onlineCount} <span className="text-sm text-green-600">/ {stats.totalBots}</span></h3>
         </div>
         <div className="bg-black border border-green-800 p-4">
             <p className="text-yellow-700 text-[10px] font-bold uppercase mb-1">WAR CHEST</p>
             <h3 className="text-3xl font-black text-white">${stats.totalBalance.toLocaleString()}</h3>
         </div>
+        
+        {/* 🔥 CARD 3: ĐÃ SỬA THÀNH NET PROFIT (LÃI THẬT) */}
         <div className="bg-black border border-green-800 p-4">
-            <p className="text-blue-700 text-[10px] font-bold uppercase mb-1">COMBAT P/L</p>
-            <h3 className={`text-3xl font-black ${stats.totalFloating >= 0 ? 'text-green-400' : 'text-red-500'}`}>
-                {stats.totalFloating > 0 ? '+' : ''}{stats.totalFloating.toFixed(2)}
+            <p className="text-green-700 text-[10px] font-bold uppercase mb-1">NET PROFIT (REALIZED)</p>
+            <h3 className={`text-3xl font-black ${stats.totalRealized >= 0 ? 'text-green-400' : 'text-red-500'}`}>
+                {stats.totalRealized > 0 ? '+' : ''}{stats.totalRealized.toLocaleString()}
             </h3>
+            <p className={`text-[10px] mt-1 ${stats.totalFloating >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                (Floating: {stats.totalFloating > 0 ? '+' : ''}{stats.totalFloating.toFixed(2)})
+            </p>
         </div>
+
         <div className="bg-green-900/20 border border-green-500/50 p-4">
              <p className="text-green-400 text-[10px] font-bold uppercase flex items-center gap-2"><Sword size={12}/> COMMANDER CUT</p>
              <h3 className="text-3xl font-black text-white mt-1">${stats.potentialCommission.toFixed(2)}</h3>
@@ -137,19 +171,24 @@ export default function BattlefieldDashboard() {
       {/* LIVE FEED TABLE */}
       <div className="border border-green-900 bg-black/90 relative z-10">
         <div className="p-4 border-b border-green-900 flex justify-between items-center bg-green-950/30">
-            <h3 className="font-bold text-green-500 flex items-center gap-2 text-sm tracking-widest"><Radio size={16} className="animate-pulse"/> LIVE FEED (CLICK TO SCAN)</h3>
+            <h3 className="font-bold text-green-500 flex items-center gap-2 text-sm tracking-widest">
+                <Radio size={16} className="animate-pulse"/> LIVE FEED
+            </h3>
+            <div className="flex items-center gap-2 text-[10px] text-green-700 font-bold border border-green-800 px-2 py-1 rounded">
+                <Signal size={12}/> PRIORITY: ONLINE &gt; OFFLINE &gt; A-Z
+            </div>
         </div>
         <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
                 <thead className="bg-green-900/20 text-green-600 uppercase font-black">
-                    <tr><th className="p-3">SIGNAL</th><th className="p-3">OPERATOR</th><th className="p-3 text-right">AMMO (BAL)</th><th className="p-3 text-right">COMBAT (P/L)</th><th className="p-3 text-right text-white">LOOT (20%)</th><th className="p-3 text-center">LAST COMMS</th><th className="p-3 text-right">ACTION</th></tr>
+                    <tr><th className="p-3">SIGNAL</th><th className="p-3">OPERATOR</th><th className="p-3 text-right">AMMO (BAL)</th><th className="p-3 text-right">NET PROFIT</th><th className="p-3 text-right text-white">LOOT (20%)</th><th className="p-3 text-center">LAST COMMS</th><th className="p-3 text-right">ACTION</th></tr>
                 </thead>
                 <tbody className="divide-y divide-green-900/30">
                     {stats.processedBots.map(bot => (
                         <tr 
                           key={bot.id} 
-                          onClick={() => openBotDetail(bot)} // ✅ GỌI HÀM LỤC LỊCH SỬ KHI CLICK
-                          className="hover:bg-green-900/20 cursor-crosshair transition-all group"
+                          onClick={() => openBotDetail(bot)} 
+                          className={`hover:bg-green-900/20 cursor-crosshair transition-all group ${!bot.isOnline ? 'opacity-50 grayscale hover:grayscale-0' : ''}`}
                         >
                             <td className="p-3 font-bold">{bot.isOnline ? <span className="text-green-400 flex items-center gap-2"><Target size={14} className="animate-spin-slow"/> ONLINE</span> : <span className="text-red-600 flex items-center gap-2"><WifiOff size={14}/> LOST</span>}</td>
                             <td className="p-3">
@@ -157,10 +196,15 @@ export default function BattlefieldDashboard() {
                                 <div className="text-[10px] text-slate-400">ID: {bot.mt5Account} | {bot.symbol || "UNK"}</div>
                             </td>
                             <td className="p-3 text-right text-green-300 font-mono">${(bot.balance || 0).toLocaleString()}</td>
+                            
+                            {/* CỘT LỢI NHUẬN (Đã sửa hiển thị Net Profit và Floating) */}
                             <td className="p-3 text-right font-mono">
                                 <div className={`font-black ${(bot.profit ?? 0) >= 0 ? 'text-green-400' : 'text-red-500'}`}>{(bot.profit ?? 0).toFixed(2)}</div>
-                                <div className={`text-[10px] ${bot.floatingProfit >= 0 ? 'text-green-600' : 'text-red-700'}`}>({(bot.floatingProfit || 0).toFixed(2)} Float)</div>
+                                <div className={`text-[9px] ${bot.floatingProfit >= 0 ? 'text-green-600' : 'text-red-700'}`}>
+                                    Float: {(bot.floatingProfit || 0).toFixed(2)}
+                                </div>
                             </td>
+
                             <td className="p-3 text-right font-black font-mono text-white bg-green-900/20">+${(bot.commission || 0).toFixed(2)}</td>
                             <td className="p-3 text-center text-[10px] text-green-700">{bot.lastHeartbeat ? new Date(bot.lastHeartbeat).toLocaleTimeString('vi-VN') : 'NEVER'}</td>
                             <td className="p-3 text-right">
@@ -173,7 +217,7 @@ export default function BattlefieldDashboard() {
         </div>
       </div>
 
-      {/* ✅ MODAL HUD: TẬN DỤNG KHO DỮ LIỆU TRADES */}
+      {/* ✅ MODAL HUD */}
       {selectedBot && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
           <div className="w-full max-w-4xl bg-black border-2 border-green-500 flex flex-col max-h-[90vh] shadow-[0_0_50px_rgba(34,197,94,0.2)]">
@@ -186,21 +230,38 @@ export default function BattlefieldDashboard() {
 
             <div className="p-6 overflow-y-auto">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                {/* 1. BALANCE */}
                 <div className="border border-green-900 p-3 bg-green-950/10">
                   <p className="text-[10px] text-green-700 font-bold uppercase">Balance</p>
                   <p className="text-xl font-black text-white">${(selectedBot.balance || 0).toLocaleString()}</p>
                 </div>
+
+                {/* 2. EQUITY */}
                 <div className="border border-green-900 p-3 bg-green-950/10">
                   <p className="text-[10px] text-green-700 font-bold uppercase">Equity</p>
                   <p className="text-xl font-black text-white">${(selectedBot.equity || 0).toLocaleString()}</p>
                 </div>
+
+                {/* 3. NET PROFIT (KÈM FLOATING SUBTEXT) */}
                 <div className="border border-green-900 p-3 bg-green-950/10">
-                  <p className="text-[10px] text-green-700 font-bold uppercase">Floating P/L</p>
-                  <p className={`text-xl font-black ${selectedBot.floatingProfit >= 0 ? 'text-green-400' : 'text-red-500'}`}>${(selectedBot.floatingProfit || 0).toFixed(2)}</p>
+                  <p className="text-[10px] text-green-700 font-bold uppercase">Net Profit (Realized)</p>
+                  <p className={`text-xl font-black ${(selectedBot.profit || 0) >= 0 ? 'text-green-400' : 'text-red-500'}`}>
+                      ${(selectedBot.profit || 0).toFixed(2)}
+                  </p>
+                  <p className={`text-[9px] mt-1 ${selectedBot.floatingProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      (Float: {selectedBot.floatingProfit > 0 ? '+' : ''}{(selectedBot.floatingProfit || 0).toFixed(2)})
+                  </p>
                 </div>
-                <div className="border border-green-900 p-3 bg-green-950/10">
-                  <p className="text-[10px] text-green-700 font-bold uppercase">Operator ID</p>
-                  <p className="text-xl font-black text-blue-400">{selectedBot.mt5Account}</p>
+
+                {/* 4. COMMANDER CUT (LOOT - 20%) - THAY CHO Ô FLOATING CŨ */}
+                <div className="border border-green-500/30 p-3 bg-green-900/20">
+                  <p className="text-[10px] text-green-400 font-bold uppercase flex items-center gap-1">
+                      <Sword size={10}/> Commander Loot
+                  </p>
+                  <p className="text-xl font-black text-white">
+                      ${((selectedBot.profit > 0 ? selectedBot.profit * 0.2 : 0)).toFixed(2)}
+                  </p>
+                  <p className="text-[9px] text-green-600 mt-1 uppercase tracking-wider">:: 20% Applied ::</p>
                 </div>
               </div>
 
