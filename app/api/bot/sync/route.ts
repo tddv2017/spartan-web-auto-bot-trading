@@ -115,6 +115,7 @@ export async function POST(req: Request) {
         floatingProfit: Number(floatingProfit) || 0,
         profit: profit !== undefined ? Number(profit) : 0,
         symbol: symbol || "UNK",
+        brainActive: data.brainActive === true,
         
         // 🔥 Lấy time từ Bot gửi lên để khớp từng giây, nếu không có mới lấy giờ Server
         lastHeartbeat: time || new Date().toISOString(),
