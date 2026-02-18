@@ -59,7 +59,7 @@ export default function BattlefieldDashboard() {
     try {
       const q = query(
         collection(db, "bots", bot.id, "trades"), 
-        orderBy("timestamp", "desc") 
+        orderBy("time", "desc") // 🔥 ĐỔI TỪ timestamp SANG time
       );
       const querySnapshot = await getDocs(q);
       const history = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -287,7 +287,28 @@ export default function BattlefieldDashboard() {
                             <td className={`p-3 text-right font-black ${trade.profit >= 0 ? 'text-green-400' : 'text-red-500'}`}>
                               ${(trade.profit || 0).toFixed(2)}
                             </td>
-                            <td className="p-3 text-center text-slate-500">{trade.timestamp ? new Date(trade.timestamp).toLocaleString('vi-VN') : '---'}</td>
+                            <td className="p-3 text-center text-slate-500">
+                              {(() => {
+                                // 1. Ưu tiên lấy trường 'time' (ISO String)
+                                // 2. Nếu không có, lấy trường 'timestamp' (Number)
+                                const rawDate = trade.time || trade.timestamp;
+                                
+                                if (!rawDate) return "---";
+
+                                const dateObj = new Date(rawDate);
+
+                                // Kiểm tra xem Date có hợp lệ không trước khi format
+                                if (isNaN(dateObj.getTime())) return "Format Error";
+
+                                return dateObj.toLocaleString('vi-VN', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: '2-digit'
+                                });
+                              })()}
+                            </td>
                           </tr>
                         ))
                       )}
