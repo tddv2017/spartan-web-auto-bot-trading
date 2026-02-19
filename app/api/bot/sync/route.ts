@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 export const dynamic = 'force-dynamic';
 
 // ==============================================================================
-// 👇 HÀM GET: TRUY XUẤT THEO TRƯỜNG "TIME" (GIỮ NGUYÊN)
+// 👇 HÀM GET: TRUY XUẤT THEO TRƯỜNG "TIME" (ISO STRING)
 // ==============================================================================
 export async function GET(req: Request) {
     try {
@@ -37,12 +37,14 @@ export async function GET(req: Request) {
                 balance: data.balance || 0,
                 equity: data.equity || 0,
                 floatingProfit: data.floatingProfit || 0, 
+                // Ưu tiên lấy 'profit' mới nhất từ MT5
                 profit: data.profit !== undefined ? data.profit : (data.realizedProfit || 0),
                 realizedProfit: data.profit !== undefined ? data.profit : (data.realizedProfit || 0),
                 status: data.status || "UNKNOWN"
             };
         }
 
+        // 🔥 TRUY VẤN THEO TRƯỜNG 'TIME' (String ISO giúp sort chính xác tuyệt đối)
         const tradesRef = botDocRef.collection("trades");
         const tradesSnap = await tradesRef.orderBy("time", "desc").limit(50).get();
 
@@ -53,7 +55,7 @@ export async function GET(req: Request) {
                 symbol: d.symbol,
                 type: d.type,
                 profit: Number(d.profit) || 0,
-                time: d.time 
+                time: d.time // Trả về chuỗi "2026-02-18T..."
             };
         });
 
@@ -66,7 +68,7 @@ export async function GET(req: Request) {
 }
 
 // ==============================================================================
-// 👇 HÀM POST: CÓ CHỐT CHẶN RADAR (ĐÃ CẬP NHẬT)
+// 👇 HÀM POST: NHẬN HEARTBEAT & TRẢ VỀ LỆNH TÁC CHIẾN + TIN TỨC
 // ==============================================================================
 export async function POST(req: Request) {
   try {
@@ -104,23 +106,11 @@ export async function POST(req: Request) {
     const botMT5 = String(mt5Account).trim();
     const isPaused = userData.remoteCommand === "PAUSE";
     
-    // 🔥 LẤY TRẠNG THÁI TIN TỨC TỪ FIRESTORE
+    // 🔥 LẤY TRẠNG THÁI TIN TỨC TỪ FIRESTORE (Do Cron Job cập nhật)
+    // Nếu chưa có field này (lần chạy đầu tiên), mặc định là "LOW" (An toàn)
     const currentNewsAlert = userData.newsAlert || "LOW";
 
-    // ==============================================================================
-    // 🛑 CHỐT CHẶN RADAR: NẾU LÀ RADAR SCAN THÌ CHỈ TRẢ LỆNH, KHÔNG GHI DATABASE
-    // ==============================================================================
-    if (status === "RADAR_SCAN" || botMT5 === "RADAR_UNIT" || botMT5 === "0") {
-        return NextResponse.json({ 
-            valid: true, 
-            success: true, 
-            remoteCommand: isPaused ? "PAUSE" : "RUN",
-            newsAlert: currentNewsAlert,
-            msg: "RADAR_ACKNOWLEDGED" // Xác nhận đã nhận tín hiệu nhưng không lưu
-        }, { status: 200 });
-    }
-
-    // 🎯 2. CẬP NHẬT TRẠNG THÁI BOT (CHỈ CHẠY KHI LÀ DỮ LIỆU THẬT)
+    // 🎯 2. CẬP NHẬT TRẠNG THÁI BOT
     await adminDb.collection('bots').doc(botMT5).set({
         mt5Account: Number(botMT5),
         botName: botName || "Spartan AI",
@@ -141,7 +131,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ 
         valid: true, 
         success: true, 
-        remoteCommand: isPaused ? "PAUSE" : "RUN",
+        remoteCommand: isPaused ? "PAUSE" : "RUN", // <--- Đã thêm dấu phẩy ở đây
+        
+        // 👇 CỜ HIỆU BÁO ĐỘNG (Để Python V1.8 đọc)
         newsAlert: currentNewsAlert
     }, { status: 200 });
 
