@@ -3,8 +3,8 @@ import { adminDb } from '@/lib/firebaseAdmin';
 import { fetchLiveEconomicCalendar } from './newsProvider';
 
 const DEFENSE_CONFIG = {
-  HIGH_IMPACT: { before: 60, after: 60 },
-  MEDIUM_IMPACT: { before: 30, after: 30 },
+  HIGH_IMPACT: { before: 45, after: 30 },
+  MEDIUM_IMPACT: { before: 15, after: 15 },
   TARGET_CURRENCY: ['USD']
 };
 
