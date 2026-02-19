@@ -81,7 +81,8 @@ export default function BattlefieldDashboard() {
       totalEquity += (Number(bot.equity) || 0);
       totalFloating += (Number(bot.floatingProfit) || 0);
       
-      const realizedProfit = Number(bot.profit) || 0; 
+      // 🔥 SỬA: Ưu tiên lấy realizedProfit, nếu không có mới lấy profit
+      const realizedProfit = Number(bot.realizedProfit ?? bot.profit) || 0; 
       totalRealized += realizedProfit;
 
       const comm = (realizedProfit > 0) ? realizedProfit * 0.2 : 0;
@@ -185,7 +186,10 @@ export default function BattlefieldDashboard() {
                             </td>
                             <td className="p-3 text-right text-green-300 font-mono">${(bot.balance || 0).toLocaleString()}</td>
                             <td className="p-3 text-right font-mono">
-                                <div className={`font-black ${(bot.profit ?? 0) >= 0 ? 'text-green-400' : 'text-red-500'}`}>{(bot.profit ?? 0).toFixed(2)}</div>
+                                {/* 🔥 SỬA: Hiển thị realizedProfit */}
+                                <div className={`font-black ${(bot.realizedProfit ?? 0) >= 0 ? 'text-green-400' : 'text-red-500'}`}>
+                                    {(bot.realizedProfit ?? bot.profit ?? 0).toFixed(2)}
+                                </div>
                                 <div className={`text-[9px] ${bot.floatingProfit >= 0 ? 'text-green-600' : 'text-red-700'}`}>Float: {(bot.floatingProfit || 0).toFixed(2)}</div>
                             </td>
                             <td className="p-3 text-right font-black font-mono text-white bg-green-900/20">+${(bot.commission || 0).toFixed(2)}</td>
@@ -223,12 +227,18 @@ export default function BattlefieldDashboard() {
                 </div>
                 <div className="border border-green-900 p-3 bg-green-950/10">
                   <p className="text-[10px] text-green-700 font-bold uppercase">Net Profit</p>
-                  <p className={`text-xl font-black ${selectedBot.profit >= 0 ? 'text-green-400' : 'text-red-500'}`}>${(selectedBot.profit || 0).toFixed(2)}</p>
+                  {/* 🔥 SỬA: Hiển thị realizedProfit */}
+                  <p className={`text-xl font-black ${(selectedBot.realizedProfit ?? 0) >= 0 ? 'text-green-400' : 'text-red-500'}`}>
+                      ${(selectedBot.realizedProfit ?? selectedBot.profit ?? 0).toFixed(2)}
+                  </p>
                   <p className={`text-[9px] mt-1 ${selectedBot.floatingProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>Float: {(selectedBot.floatingProfit || 0).toFixed(2)}</p>
                 </div>
                 <div className="border border-green-500/30 p-3 bg-green-900/20">
                   <p className="text-[10px] text-green-400 font-bold uppercase flex items-center gap-1"><Sword size={10}/> Commander Loot</p>
-                  <p className="text-xl font-black text-white">${(selectedBot.profit > 0 ? selectedBot.profit * 0.2 : 0).toFixed(2)}</p>
+                  {/* 🔥 SỬA: Tính Loot dựa trên realizedProfit */}
+                  <p className="text-xl font-black text-white">
+                      ${((selectedBot.realizedProfit ?? selectedBot.profit ?? 0) > 0 ? (selectedBot.realizedProfit ?? selectedBot.profit ?? 0) * 0.2 : 0).toFixed(2)}
+                  </p>
                 </div>
               </div>
 
