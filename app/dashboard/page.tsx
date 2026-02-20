@@ -70,12 +70,16 @@ function DashboardContent() {
   const RankIcon = rank.icon;
   const isLifetime = profile?.plan === 'LIFETIME' || profile?.role === 'admin';
 
+  // ✅ ĐÃ VÁ: Nếu là Lifetime thì không bao giờ hết hạn (isExpired luôn false)
   const isExpired = useMemo(() => {
-    if (!profile?.expiryDate) return false;
-    const seconds = profile.expiryDate.seconds || profile.expiryDate._seconds;
-    if (!seconds) return false;
-    return seconds < Date.now() / 1000;
-  }, [profile]);
+  if (isLifetime) return false; // Thêm dòng này để ưu tiên gói Trọn đời
+  if (!profile?.expiryDate) return false;
+  
+  const seconds = profile.expiryDate.seconds || profile.expiryDate._seconds;
+  if (!seconds) return false;
+  
+  return seconds < Date.now() / 1000;
+  }, [profile, isLifetime]); // Thêm isLifetime vào dependency
 
   const formatExpiryDate = () => {
     if (!profile?.expiryDate) return t.dashboard.status.lifetime;
