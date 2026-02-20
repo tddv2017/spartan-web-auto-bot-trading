@@ -81,10 +81,14 @@ function DashboardContent() {
   return seconds < Date.now() / 1000;
   }, [profile, isLifetime]); // Thêm isLifetime vào dependency
 
+  // ✅ ĐÃ VÁ: Ưu tiên trả về text "Trọn đời" nếu plan là LIFETIME
   const formatExpiryDate = () => {
+    if (isLifetime) return t.dashboard.status.lifetime; // Ưu tiên hiển thị Trọn đời
+    
     if (!profile?.expiryDate) return t.dashboard.status.lifetime;
     const seconds = profile.expiryDate.seconds || profile.expiryDate._seconds;
     if (!seconds) return t.dashboard.status.updating;
+    
     return new Date(seconds * 1000).toLocaleDateString('vi-VN');
   };
 
