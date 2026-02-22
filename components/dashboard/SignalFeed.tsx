@@ -25,7 +25,7 @@ export default function SignalFeed() {
     return () => unsub();
   }, []);
 
-  // 2. XỬ LÝ DATA (FORMAT LẠI ĐỂ HIỂN THỊ)
+  // 2. XỬ LÝ DATA
   const formattedSignals = useMemo(() => {
     return signals.map(sig => {
         const date = sig.createdAt?.seconds ? new Date(sig.createdAt.seconds * 1000) : new Date();
@@ -46,7 +46,7 @@ export default function SignalFeed() {
       const total = signals.length;
       const buyCount = signals.filter(s => s.type.toString().toUpperCase().includes("BUY")).length;
       const sellCount = total - buyCount;
-      const latest = formattedSignals[0]; // Lấy cái mới nhất
+      const latest = formattedSignals[0];
       
       return {
           totalSignals: total,
@@ -58,11 +58,10 @@ export default function SignalFeed() {
       };
   }, [signals, formattedSignals]);
 
-  // Lấy tín hiệu mới nhất để hiển thị to
   const latestSignal = formattedSignals[0];
 
   return (
-    <div className="bg-black/90 border border-green-800/50 rounded-2xl p-6 w-full h-[500px] flex flex-col relative overflow-hidden">
+    <div className="bg-black/90 border border-green-800/50 rounded-2xl p-6 w-full h-[600px] flex flex-col relative overflow-hidden">
       
       {/* HEADER CHUNG */}
       <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-800">
@@ -75,57 +74,69 @@ export default function SignalFeed() {
         </div>
       </div>
 
-      {/* --- PHẦN CHIA CỘT 50-50 --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full overflow-hidden">
           
-          {/* CỘT TRÁI: THỐNG KÊ & TÍN HIỆU MỚI NHẤT (HERO SECTION) */}
+          {/* CỘT TRÁI: THỐNG KÊ & TÍN HIỆU MỚI NHẤT */}
           <div className="flex flex-col gap-4 h-full">
               
-              {/* 1. Bảng Stats Grid */}
               <div className="grid grid-cols-2 gap-3">
                   <div className="bg-green-900/10 border border-green-500/20 p-3 rounded-xl flex flex-col items-center justify-center">
-                      <span className="text-[10px] text-green-500 uppercase font-bold mb-1">BUY SIGNAL</span>
+                      <span className="text-[10px] text-green-500 uppercase font-bold mb-1">BUY</span>
                       <span className="text-2xl font-black text-green-400">{stats.buy}</span>
                   </div>
                   <div className="bg-red-900/10 border border-red-500/20 p-3 rounded-xl flex flex-col items-center justify-center">
-                      <span className="text-[10px] text-red-500 uppercase font-bold mb-1">SELL SIGNAL</span>
+                      <span className="text-[10px] text-red-500 uppercase font-bold mb-1">SELL</span>
                       <span className="text-2xl font-black text-red-400">{stats.sell}</span>
                   </div>
               </div>
 
-              {/* 2. Thẻ Tín Hiệu Mới Nhất (BIG CARD) */}
               {latestSignal ? (
                   <div className={`flex-grow border-2 rounded-2xl p-6 flex flex-col justify-between relative overflow-hidden ${latestSignal.isBuy ? 'border-green-500/50 bg-green-500/5' : 'border-red-500/50 bg-red-500/5'}`}>
                       {/* Background Effect */}
                       <div className={`absolute -right-10 -top-10 w-40 h-40 rounded-full blur-3xl opacity-20 ${latestSignal.isBuy ? 'bg-green-500' : 'bg-red-500'}`}></div>
 
-                      <div>
+                      <div className="relative z-10">
                           <div className="flex justify-between items-start mb-2">
                               <span className="bg-black/40 px-2 py-1 rounded text-[10px] text-slate-400 font-mono border border-slate-700">{latestSignal.fullTime}</span>
-                              <Zap size={24} className={`animate-pulse ${latestSignal.isBuy ? 'text-green-500' : 'text-red-500'}`} />
+                              <div className="flex items-center gap-2 bg-black/60 px-2 py-1 rounded border border-white/10">
+                                <span className="text-[10px] font-bold text-yellow-500">{latestSignal.confidence || 0}% CONFIDENCE</span>
+                              </div>
                           </div>
+                          
                           <h2 className="text-4xl font-black text-white mb-1 tracking-tighter">{latestSignal.symbol}</h2>
                           <div className={`text-lg font-bold flex items-center gap-2 ${latestSignal.isBuy ? 'text-green-400' : 'text-red-400'}`}>
                               {latestSignal.isBuy ? <TrendingUp size={24}/> : <TrendingDown size={24}/>}
-                              {latestSignal.type}
+                              {latestSignal.type} AT {latestSignal.price}
+                          </div>
+
+                          {/* 🔳 BLACKBOX ANALYSIS (NHIỆM VỤ MỚI) */}
+                          <div className="mt-6 bg-black/60 border border-white/5 rounded-xl p-4">
+                            <p className="text-[10px] text-green-500 font-bold uppercase tracking-widest mb-2 flex items-center gap-2">
+                              <Zap size={12}/> AI Tactical Reasoning
+                            </p>
+                            <p className="text-sm text-slate-200 leading-relaxed italic">
+                              "{latestSignal.reasoning || 'Đang phân tích cấu trúc thị trường...'}"
+                            </p>
                           </div>
                       </div>
 
-                      <div className="mt-4">
-                          <p className="text-slate-400 text-xs uppercase tracking-widest mb-1">ENTRY PRICE</p>
-                          <p className={`text-5xl font-black font-mono tracking-tighter ${latestSignal.isBuy ? 'text-green-400' : 'text-red-400'}`}>
-                              {latestSignal.price}
-                          </p>
+                      <div className="mt-4 flex justify-between items-end">
+                          <div>
+                            <p className="text-slate-400 text-[10px] uppercase tracking-widest mb-1">RISK LEVEL</p>
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded ${latestSignal.risk === 'HIGH' ? 'bg-red-500/20 text-red-500' : 'bg-blue-500/20 text-blue-500'}`}>
+                              {latestSignal.risk || 'STABLE'}
+                            </span>
+                          </div>
                       </div>
                   </div>
               ) : (
                   <div className="flex-grow border border-slate-800 rounded-2xl flex items-center justify-center text-slate-600 bg-slate-900/20">
-                      <p>Waiting for signals...</p>
+                      <p>Connecting to HQ...</p>
                   </div>
               )}
           </div>
 
-          {/* CỘT PHẢI: DANH SÁCH LỊCH SỬ (SCROLLABLE LIST) */}
+          {/* CỘT PHẢI: DANH SÁCH LỊCH SỬ */}
           <div className="h-full flex flex-col bg-slate-900/30 rounded-2xl border border-slate-800 overflow-hidden">
               <div className="p-3 border-b border-slate-800 bg-slate-900/50">
                   <h4 className="text-xs font-bold text-slate-400 flex items-center gap-2">
@@ -147,14 +158,13 @@ export default function SignalFeed() {
                                           {sig.isBuy ? "BUY" : "SELL"}
                                       </span>
                                   </div>
-                                  <p className="text-[10px] text-slate-500 font-mono mt-0.5">{sig.fullTime}</p>
+                                  <p className="text-[10px] text-slate-500 font-mono mt-0.5">{sig.shortTime}</p>
                               </div>
                           </div>
                           <div className="text-right">
                               <p className={`font-mono font-bold text-sm group-hover:scale-110 transition-transform ${sig.isBuy ? 'text-green-400' : 'text-red-400'}`}>
                                   {sig.price}
                               </p>
-                              <p className="text-[9px] text-slate-600 uppercase tracking-wider">{sig.type.replace('BUY_', '').replace('SELL_', '')}</p>
                           </div>
                       </div>
                   ))}
