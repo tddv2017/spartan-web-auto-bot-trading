@@ -23,10 +23,14 @@ export async function POST(req: Request) {
 
     console.log("📨 Nhận tín hiệu chiến thuật (Auth OK):", body);
 
-    // 2. Validate (Kiểm tra dữ liệu đầu vào cơ bản)
-    if (!body.symbol || !body.price || !body.type) {
+    // 🛠️ 2. FIX LỖI VALIDATE (VÔ HIỆU HÓA BẪY SỐ 0)
+    // Đổi !body.price thành body.price === undefined để giá trị 0 không bị chặn lại
+    if (!body.symbol || body.price === undefined || !body.type) {
       return NextResponse.json(
-        { message: 'Thiếu thông tin quan trọng (symbol, price, type)' },
+        { 
+          message: 'Thiếu thông tin quan trọng (symbol, price, type)',
+          received_data: body // 🔥 Trả lại gói tin lỗi để Đại tá dễ dàng nội soi
+        },
         { status: 400 }
       );
     }
