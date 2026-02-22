@@ -1,43 +1,41 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/firebase'; // Đảm bảo đường dẫn này đúng
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+
+// 🎯 DÒNG 3: TRỎ VÀO ĐÚNG KHO ĐẠN ADMIN CỦA ĐẠI TÁ
+// (Ví dụ: '@/lib/firebase-admin' hoặc '@/lib/admin' tuỳ ngài đặt tên)
+import { adminDb } from '@/lib/firebaseAdmin'; 
+import { FieldValue } from 'firebase-admin/firestore';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   try {
-    // 🛡️ 1. LÍNH GÁC CỔNG: KIỂM TRA MẬT KHẨU API (GIỮ NGUYÊN)
+    // 🛡️ 1. LÍNH GÁC CỔNG: BẢO VỆ API BẰNG MẬT KHẨU
     const secret = req.headers.get("x-api-secret");
-    
-    // So sánh mật khẩu gửi lên với mật khẩu trong file .env.local
     if (secret !== process.env.API_SECRET_KEY) {
-      console.warn("⛔ PHÁT HIỆN XÂM NHẬP: Sai mật khẩu API hoặc thiếu Key!");
+      console.warn("⛔ TỪ CHỐI KHÁCH KHÔNG MỜI: Sai mật khẩu!");
       return NextResponse.json(
         { success: false, message: "CÚT RA NGOÀI! (Unauthorized Access)" },
         { status: 401 }
       );
     }
 
-    // ✅ NẾU MẬT KHẨU ĐÚNG -> TIẾP TỤC XỬ LÝ NHƯ CŨ
+    // Nhận kiện hàng từ Python
     const body = await req.json();
+    console.log("📨 Nhận tín hiệu từ MT5 (Auth OK):", body);
 
-    console.log("📨 Nhận tín hiệu chiến thuật (Auth OK):", body);
-
-    // 🛠️ 2. FIX LỖI VALIDATE (VÔ HIỆU HÓA BẪY SỐ 0)
-    // Đổi !body.price thành body.price === undefined để giá trị 0 không bị chặn lại
+    // 🛠️ 2. KIỂM DUYỆT HÀNG HÓA (Đã bỏ bẫy số 0)
     if (!body.symbol || body.price === undefined || !body.type) {
       return NextResponse.json(
         { 
           message: 'Thiếu thông tin quan trọng (symbol, price, type)',
-          received_data: body // 🔥 Trả lại gói tin lỗi để Đại tá dễ dàng nội soi
+          received_data: body 
         },
         { status: 400 }
       );
     }
 
-    // 3. Ghi vào Firestore (Database) - HỢP NHẤT CŨ VÀ MỚI
-    const docRef = await addDoc(collection(db, "signals"), {
-      // --- NHIỆM VỤ CŨ (Thông số kỹ thuật lệnh) ---
+    // 🚀 3. ĐẠP CỬA FIREBASE BẰNG QUYỀN ADMIN (Bypass 100% Rules)
+    const docRef = await adminDb.collection("signals").add({
       symbol: body.symbol,
       type: body.type,          
       price: Number(body.price),
@@ -45,28 +43,28 @@ export async function POST(req: Request) {
       tp: Number(body.tp || 0),
       time: body.time || new Date().toISOString(),
       
-      // --- 🔥 NHIỆM VỤ MỚI (Tình báo Blackbox & Định danh) ---
+      // Thông tin tình báo Blackbox
       licenseKey: body.licenseKey || body.license || "UNKNOWN",
       mt5Account: body.mt5Account || "UNKNOWN",
-      reasoning: body.reasoning || "Đang phân tích cấu trúc thị trường...",
+      reasoning: body.reasoning || "Không có giải trình",
       confidence: Number(body.confidence || 0),
       risk: body.risk || "STABLE",
 
-      // Đóng dấu thời gian máy chủ
-      createdAt: serverTimestamp() 
+      // Đóng dấu thời gian bằng Server Admin
+      createdAt: FieldValue.serverTimestamp() 
     });
 
-    console.log("✅ Đã lưu tín hiệu vào DB với ID:", docRef.id);
+    console.log("✅ [ADMIN SUCCESS] Đã lưu vào DB với ID:", docRef.id);
 
-    // 4. Trả về thành công
+    // 4. GỬI BÁO CÁO THÀNH CÔNG VỀ PYTHON
     return NextResponse.json(
-      { success: true, id: docRef.id, message: "Signal Received & Saved" },
+      { success: true, id: docRef.id, message: "OK" },
       { status: 200 }
     );
 
   } catch (error: any) {
-    // 💥 NẾU CÓ LỖI SERVER
-    console.error("❌ LỖI SERVER:", error);
+    // 💥 NẾU CÓ LỖI CHẾT NGƯỜI
+    console.error("❌ [LỖI TƯỚNG QUÂN]:", error);
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 }
