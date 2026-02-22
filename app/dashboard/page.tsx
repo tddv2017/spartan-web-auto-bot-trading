@@ -14,11 +14,11 @@ import {
 } from 'lucide-react';
 
 import PaymentModal from '@/components/landing/PaymentModal';
-import { VerificationLock } from '@/components/dashboard/onboarding/VerificationLock';
-import { GuideModal } from '@/components/dashboard/modals/GuideModal';
-import { OverviewTab } from '@/components/dashboard/tabs/OverviewTab';
-import { WarRoomTab } from '@/components/dashboard/tabs/WarRoomTab';
-import { PartnerTab } from '@/components/dashboard/tabs/PartnerTab';
+import { VerificationLock } from '@/app/dashboard/onboarding/VerificationLock';
+import { GuideModal } from '@/app/dashboard/modals/GuideModal';
+import { OverviewTab } from '@/app/dashboard/tabs/OverviewTab';
+import { WarRoomTab } from '@/app/dashboard/tabs/WarRoomTab';
+import { PartnerTab } from '@/app/dashboard/tabs/PartnerTab';
 
 // ... (Giữ nguyên getRankInfo và TabButton) ...
 const getRankInfo = (profile: any) => {
