@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 
 // 🎯 DÒNG 3: TRỎ VÀO ĐÚNG KHO ĐẠN ADMIN CỦA ĐẠI TÁ
-// (Ví dụ: '@/lib/firebase-admin' hoặc '@/lib/admin' tuỳ ngài đặt tên)
 import { adminDb } from '@/lib/firebaseAdmin'; 
 import { FieldValue } from 'firebase-admin/firestore';
 
@@ -23,7 +22,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     console.log("📨 Nhận tín hiệu từ MT5 (Auth OK):", body);
 
-    // 🛠️ 2. KIỂM DUYỆT HÀNG HÓA (Đã bỏ bẫy số 0)
+    // 🛠️ 2. KIỂM DUYỆT HÀNG HÓA
     if (!body.symbol || body.price === undefined || !body.type) {
       return NextResponse.json(
         { 
@@ -34,7 +33,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // 🚀 3. ĐẠP CỬA FIREBASE BẰNG QUYỀN ADMIN (Bypass 100% Rules)
+    // 🚀 3. ĐẠP CỬA FIREBASE BẰNG QUYỀN ADMIN
     const docRef = await adminDb.collection("signals").add({
       symbol: body.symbol,
       type: body.type,          
@@ -43,12 +42,13 @@ export async function POST(req: Request) {
       tp: Number(body.tp || 0),
       time: body.time || new Date().toISOString(),
       
-      // Thông tin tình báo Blackbox
+      // Thông tin tình báo Blackbox & Công binh
       licenseKey: body.licenseKey || body.license || "UNKNOWN",
       mt5Account: body.mt5Account || "UNKNOWN",
       reasoning: body.reasoning || "Không có giải trình",
       confidence: Number(body.confidence || 0),
       risk: body.risk || "STABLE",
+      session: body.session || "UNKNOWN", // ⛏️ ĐÃ BỔ SUNG LƯU THẺ PHIÊN VÀO FIREBASE
 
       // Đóng dấu thời gian bằng Server Admin
       createdAt: FieldValue.serverTimestamp() 

@@ -3,7 +3,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { 
-  ArrowUpCircle, ArrowDownCircle, Target, Activity, Clock, Zap, TrendingUp, TrendingDown
+  ArrowUpCircle, ArrowDownCircle, Target, Activity, Clock, Zap, TrendingUp, TrendingDown, Globe
 } from 'lucide-react';
 
 export default function SignalFeed() {
@@ -42,21 +42,35 @@ export default function SignalFeed() {
   // 3. TÍNH TOÁN STATS
   const stats = useMemo(() => {
       if (signals.length === 0) return { totalSignals: 0, buy: 0, sell: 0, lastPrice: 0, lastType: "WAITING" };
-      
       const total = signals.length;
       const buyCount = signals.filter(s => s.type.toString().toUpperCase().includes("BUY")).length;
-      const sellCount = total - buyCount;
       const latest = formattedSignals[0];
       
       return {
           totalSignals: total,
           buy: buyCount,
-          sell: sellCount,
+          sell: total - buyCount,
           lastPrice: latest?.price || 0,
           lastType: latest?.isBuy ? "BUY" : "SELL",
           lastSymbol: latest?.symbol || "---"
       };
   }, [signals, formattedSignals]);
+
+  // ⛏️ COMPONENT VẼ HUY HIỆU PHIÊN GIAO DỊCH
+  const getSessionBadge = (sessionName: string) => {
+    switch (sessionName) {
+      case "ASIAN":
+        return <span className="flex items-center gap-1 bg-green-500/20 text-green-400 text-[10px] font-bold px-2 py-0.5 rounded border border-green-500/30"><Globe size={10}/> PHIÊN Á</span>;
+      case "EUROPEAN":
+        return <span className="flex items-center gap-1 bg-yellow-500/20 text-yellow-400 text-[10px] font-bold px-2 py-0.5 rounded border border-yellow-500/30"><Globe size={10}/> PHIÊN ÂU</span>;
+      case "OVERLAP":
+        return <span className="flex items-center gap-1 bg-red-500/20 text-red-400 text-[10px] font-bold px-2 py-0.5 rounded border border-red-500/30 animate-pulse"><Globe size={10}/> ÂU-MỸ GIAO TRANH</span>;
+      case "AMERICAN":
+        return <span className="flex items-center gap-1 bg-blue-500/20 text-blue-400 text-[10px] font-bold px-2 py-0.5 rounded border border-blue-500/30"><Globe size={10}/> PHIÊN MỸ</span>;
+      default:
+        return null;
+    }
+  };
 
   const latestSignal = formattedSignals[0];
 
@@ -92,7 +106,6 @@ export default function SignalFeed() {
 
               {latestSignal ? (
                   <div className={`flex-grow border-2 rounded-2xl p-6 flex flex-col justify-between relative overflow-hidden ${latestSignal.isBuy ? 'border-green-500/50 bg-green-500/5' : 'border-red-500/50 bg-red-500/5'}`}>
-                      {/* Background Effect */}
                       <div className={`absolute -right-10 -top-10 w-40 h-40 rounded-full blur-3xl opacity-20 ${latestSignal.isBuy ? 'bg-green-500' : 'bg-red-500'}`}></div>
 
                       <div className="relative z-10">
@@ -103,13 +116,17 @@ export default function SignalFeed() {
                               </div>
                           </div>
                           
-                          <h2 className="text-4xl font-black text-white mb-1 tracking-tighter">{latestSignal.symbol}</h2>
+                          {/* ⛏️ CHÈN HUY HIỆU PHIÊN VÀO KẾ BÊN TÊN CẶP TIỀN */}
+                          <div className="flex items-center gap-3 mb-1">
+                            <h2 className="text-4xl font-black text-white tracking-tighter">{latestSignal.symbol}</h2>
+                            {getSessionBadge(latestSignal.session)}
+                          </div>
+
                           <div className={`text-lg font-bold flex items-center gap-2 ${latestSignal.isBuy ? 'text-green-400' : 'text-red-400'}`}>
                               {latestSignal.isBuy ? <TrendingUp size={24}/> : <TrendingDown size={24}/>}
                               {latestSignal.type} AT {latestSignal.price}
                           </div>
 
-                          {/* 🔳 BLACKBOX ANALYSIS (NHIỆM VỤ MỚI) */}
                           <div className="mt-6 bg-black/60 border border-white/5 rounded-xl p-4">
                             <p className="text-[10px] text-green-500 font-bold uppercase tracking-widest mb-2 flex items-center gap-2">
                               <Zap size={12}/> AI Tactical Reasoning
@@ -154,6 +171,10 @@ export default function SignalFeed() {
                               <div>
                                   <div className="flex items-center gap-2">
                                       <span className="text-white font-bold text-sm">{sig.symbol}</span>
+                                      
+                                      {/* ⛏️ CHÈN HUY HIỆU VÀO DANH SÁCH LỊCH SỬ */}
+                                      {getSessionBadge(sig.session)}
+
                                       <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${sig.isBuy ? "bg-green-600 text-black" : "bg-red-600 text-white"}`}>
                                           {sig.isBuy ? "BUY" : "SELL"}
                                       </span>
