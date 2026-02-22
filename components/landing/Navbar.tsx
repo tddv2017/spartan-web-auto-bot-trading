@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
-  Menu, X, Globe, User, LayoutDashboard, LogIn, 
+  Menu, X, Globe, User, LayoutDashboard, 
   ChevronRight, Shield, Zap 
 } from 'lucide-react';
 import { useLanguage } from '@/app/context/LanguageContext';
@@ -22,157 +22,138 @@ export default function Navbar() {
   }, []);
 
   return (
-    <nav className={`fixed w-full z-50 transition-all duration-300 ${
+    <nav className={`fixed w-full z-50 transition-all duration-300 border-b ${
       isScrolled 
-        ? 'border-b border-white/10 bg-slate-950/90 backdrop-blur-md py-4 shadow-2xl' 
-        : 'bg-transparent py-4 md:py-6'
+        ? 'border-slate-800 bg-[#0B1120]/90 backdrop-blur-md py-4' 
+        : 'border-transparent bg-transparent py-6'
     }`}>
-      <div className="max-w-7xl mx-auto px-4 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
         
-        {/* --- 1. LOGO --- */}
-        <Link href="/" className="flex items-center gap-2 group z-50">
-          <div className="w-9 h-9 md:w-10 md:h-10 bg-green-500 rounded-xl flex items-center justify-center font-black text-black text-xl italic shadow-[0_0_15px_rgba(34,197,94,0.4)] group-hover:rotate-12 transition-transform">
+        {/* LOGO */}
+        <Link href="/" className="flex items-center gap-3 group z-50">
+          <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center font-bold text-[#0B1120] text-xl shadow-sm">
             S
           </div>
           <div className="flex flex-col">
-            <span className="text-lg md:text-xl font-black tracking-wider text-white leading-none">
-              SPARTAN <span className="text-green-500">V7.3.3</span>
+            <span className="text-lg font-bold tracking-tight text-white leading-none">
+              SPARTAN
             </span>
+            <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-widest mt-1">Trading System</span>
           </div>
         </Link>
 
-        {/* --- 2. MENU GIỮA (DESKTOP ONLY) --- */}
-        <div className="hidden md:flex gap-8 text-sm font-bold text-slate-400">
-          <a href="#features" className="hover:text-green-400 transition-colors">{t.nav?.features}</a>
-          <a href="#performance" className="hover:text-green-400 transition-colors">{t.nav?.performance}</a>
-          <a href="#pricing" className="hover:text-green-400 transition-colors">{t.nav?.pricing}</a>
+        {/* MENU GIỮA */}
+        <div className="hidden md:flex gap-8 text-sm font-semibold text-slate-400">
+          <a href="#features" className="hover:text-white transition-colors">{t.nav?.features}</a>
+          <a href="#performance" className="hover:text-white transition-colors">{t.nav?.performance}</a>
+          <a href="#pricing" className="hover:text-white transition-colors">{t.nav?.pricing}</a>
         </div>
 
-        {/* --- 3. KHU VỰC BÊN PHẢI --- */}
+        {/* BÊN PHẢI */}
         <div className="flex items-center gap-3 md:gap-4">
           
-          {/* NÚT ĐỔI NGÔN NGỮ */}
           <button 
             onClick={() => setLanguage(language === 'vi' ? 'en' : 'vi')}
-            className="flex items-center gap-1.5 text-xs font-bold border border-slate-700 rounded-lg px-2.5 py-2 hover:border-green-500 transition-colors bg-slate-900/80 text-slate-300"
+            className="flex items-center gap-1.5 text-xs font-bold border border-slate-800 rounded-lg px-3 py-2 hover:bg-[#111827] hover:text-white transition-colors bg-[#0B1120] text-slate-400"
           >
-            <Globe size={16} className="text-green-500" />
+            <Globe size={14} className="text-slate-500" />
             <span className="uppercase">{language}</span>
           </button>
 
-          {/* --- USER / LOGIN (DESKTOP) --- */}
           <div className="hidden md:block">
             {user ? (
-              // ✅ PC: ĐÃ LOGIN
               <Link 
                 href="/dashboard" 
-                className="flex items-center gap-3 bg-slate-900 border border-slate-700 hover:border-green-500/50 pl-2 pr-4 py-1.5 rounded-full transition-all group"
+                className="flex items-center gap-3 bg-[#111827] border border-slate-800 hover:border-slate-600 pl-2 pr-4 py-1.5 rounded-full transition-all group shadow-sm"
               >
-                <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-black font-bold overflow-hidden">
+                <div className="w-8 h-8 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500 overflow-hidden">
                    {user.photoURL ? (
                      <img src={user.photoURL} alt="User" className="w-full h-full object-cover" />
                    ) : (
-                     <User size={18} />
+                     <User size={16} />
                    )}
                 </div>
                 <div className="flex flex-col text-left">
-                  <span className="text-xs font-bold text-white uppercase group-hover:text-green-400 truncate max-w-[100px]">
+                  <span className="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors truncate max-w-[100px]">
                     {profile?.displayName || user.email?.split('@')[0]}
                   </span>
-                  <span className="text-[9px] text-green-500 font-bold tracking-wider flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-                    ONLINE
+                  <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> Active
                   </span>
                 </div>
               </Link>
             ) : (
-              // ❌ PC: CHƯA LOGIN
               <div className="flex items-center gap-3">
-                <Link 
-                  href="/login"
-                  className="text-sm font-bold text-white hover:text-green-400 transition-colors"
-                >
+                <Link href="/login" className="text-sm font-semibold text-slate-300 hover:text-white transition-colors px-4 py-2">
                   {t.nav?.login}
                 </Link>
-                <Link 
-                  href="/login"
-                  className="flex items-center gap-2 bg-green-500 hover:bg-green-400 text-black px-5 py-2 rounded-full text-sm font-bold transition-all shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:scale-105"
-                >
-                  <Zap size={16} fill="currentColor" />
+                <Link href="/login" className="flex items-center gap-2 bg-white hover:bg-slate-200 text-[#0B1120] px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm">
                   {t.nav?.join}
                 </Link>
               </div>
             )}
           </div>
 
-          {/* --- NÚT 3 GẠCH (MOBILE) --- */}
           <button 
-            className="md:hidden text-white hover:text-green-500 transition-colors p-1"
+            className="md:hidden text-slate-400 hover:text-white transition-colors p-2 bg-[#111827] border border-slate-800 rounded-lg"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
-            {isMobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
+            {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
-
         </div>
-
       </div>
       
-      {/* --- 4. MOBILE MENU DROPDOWN --- */}
+      {/* MOBILE MENU */}
       {isMobileMenuOpen && (
-        <div className="md:hidden absolute top-full left-0 w-full bg-slate-950 border-b border-slate-800 p-6 flex flex-col gap-6 shadow-2xl animate-in slide-in-from-top-5 h-screen z-40">
-          
-          {/* Links Mobile */}
-          <div className="flex flex-col gap-4 text-base font-bold text-slate-300">
-             <a href="#features" onClick={() => setIsMobileMenuOpen(false)} className="flex justify-between items-center hover:text-green-400 py-3 border-b border-slate-800/50">
-               {t.nav?.features} <ChevronRight size={16}/>
+        <div className="md:hidden absolute top-full left-0 w-full bg-[#0B1120] border-b border-slate-800 p-6 flex flex-col gap-6 shadow-2xl animate-in slide-in-from-top-5 h-screen z-40">
+          <div className="flex flex-col gap-2 text-sm font-semibold text-slate-300">
+             <a href="#features" onClick={() => setIsMobileMenuOpen(false)} className="flex justify-between items-center hover:bg-[#111827] hover:text-white px-4 py-3 rounded-xl transition-colors">
+               {t.nav?.features} <ChevronRight size={16} className="text-slate-600"/>
              </a>
-             <a href="#performance" onClick={() => setIsMobileMenuOpen(false)} className="flex justify-between items-center hover:text-green-400 py-3 border-b border-slate-800/50">
-               {t.nav?.performance} <ChevronRight size={16}/>
+             <a href="#performance" onClick={() => setIsMobileMenuOpen(false)} className="flex justify-between items-center hover:bg-[#111827] hover:text-white px-4 py-3 rounded-xl transition-colors">
+               {t.nav?.performance} <ChevronRight size={16} className="text-slate-600"/>
              </a>
-             <a href="#pricing" onClick={() => setIsMobileMenuOpen(false)} className="flex justify-between items-center hover:text-green-400 py-3 border-b border-slate-800/50">
-               {t.nav?.pricing} <ChevronRight size={16}/>
+             <a href="#pricing" onClick={() => setIsMobileMenuOpen(false)} className="flex justify-between items-center hover:bg-[#111827] hover:text-white px-4 py-3 rounded-xl transition-colors">
+               {t.nav?.pricing} <ChevronRight size={16} className="text-slate-600"/>
              </a>
           </div>
 
-          {/* Mobile Auth Section */}
           {user ? (
-            // ✅ Mobile: Đã Login
-            <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 mt-2">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center text-black font-bold overflow-hidden border-2 border-slate-700">
-                  {user.photoURL ? <img src={user.photoURL} alt="User" className="w-full h-full object-cover" /> : <User size={24} />}
+            <div className="bg-[#111827] p-5 rounded-2xl border border-slate-800 mt-2">
+              <div className="flex items-center gap-4 mb-5">
+                <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500 overflow-hidden">
+                  {user.photoURL ? <img src={user.photoURL} alt="User" className="w-full h-full object-cover" /> : <User size={20} />}
                 </div>
                 <div>
-                  <p className="font-bold text-white text-lg">{profile?.displayName || t.nav?.warrior}</p>
-                  <p className="text-xs text-green-500 font-mono flex items-center gap-1 bg-green-500/10 px-2 py-1 rounded w-fit mt-1">
-                     <Shield size={10} /> {t.nav?.activated}
+                  <p className="font-bold text-white text-base tracking-tight">{profile?.displayName || t.nav?.warrior}</p>
+                  <p className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wider flex items-center gap-1 mt-1">
+                     <Shield size={12} /> {t.nav?.activated}
                   </p>
                 </div>
               </div>
               <Link 
                 href="/dashboard" 
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="w-full py-4 bg-green-500 text-black font-black rounded-xl flex items-center justify-center gap-2 text-lg shadow-lg active:scale-95 transition-transform"
+                className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 text-sm transition-colors shadow-sm"
               >
-                <LayoutDashboard size={20} /> {t.nav?.dashboard}
+                <LayoutDashboard size={18} /> {t.nav?.dashboard}
               </Link>
             </div>
           ) : (
-            // ❌ Mobile: Chưa Login
             <div className="flex flex-col gap-3 mt-auto mb-10">
               <Link 
                 href="/login" 
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="w-full py-4 bg-slate-800 text-white font-bold rounded-xl flex items-center justify-center border border-slate-700 hover:bg-slate-700"
+                className="w-full py-3.5 bg-[#111827] text-white font-bold rounded-xl flex items-center justify-center border border-slate-800 hover:border-slate-600 transition-colors text-sm"
               >
-                <User size={20} className="mr-2"/> {t.nav?.login}
+                {t.nav?.login}
               </Link>
               <Link 
                 href="/login" 
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="w-full py-4 bg-green-500 text-black font-black rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:scale-105 transition-transform"
+                className="w-full py-3.5 bg-white hover:bg-slate-200 text-[#0B1120] font-bold rounded-xl flex items-center justify-center shadow-sm transition-colors text-sm"
               >
-                <Zap size={20} fill="currentColor" className="mr-2"/> {t.nav?.join}
+                {t.nav?.join}
               </Link>
             </div>
           )}

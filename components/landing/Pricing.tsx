@@ -7,48 +7,44 @@ import Link from 'next/link';
 export default function Pricing() {
   const { t } = useLanguage();
 
-  // MẢNG CẤU HÌNH GÓI CƯỚC
-  // ⚠️ QUAN TRỌNG: ID phải khớp với logic trong Dashboard
   const plans = [
     {
-      id: "starter", // Gói tháng
+      id: "starter", 
       data: t.pricing.starter,
       icon: Zap,
       isRecommended: false,
       isPopular: false
     },
     {
-      id: "yearly", // Gói năm
+      id: "yearly", 
       data: t.pricing.yearly,
       icon: Star,
-      isRecommended: true, // Tag: Best Choice
+      isRecommended: true, 
       isPopular: false
     },
     {
-      id: "LIFETIME", // ⚠️ VIẾT HOA ĐỂ KÍCH HOẠT QUYỀN RESELLER
+      id: "LIFETIME", 
       data: t.pricing.lifetime,
       icon: Crown,
       isRecommended: false,
-      isPopular: true // Tag: Business VIP
+      isPopular: true 
     }
   ];
 
   return (
-    <section id="pricing" className="py-20 relative overflow-hidden bg-slate-950">
-      {/* Background Gradients */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-green-500/5 blur-[120px] rounded-full pointer-events-none"></div>
+    <section id="pricing" className="py-24 relative overflow-hidden bg-[#0B1120] border-t border-slate-800/50">
 
-      <div className="max-w-7xl mx-auto px-4 relative z-10">
-        <div className="text-center mb-16 animate-in slide-in-from-bottom-10 duration-700">
-          <h2 className="text-4xl md:text-5xl font-black text-white mb-4 tracking-tighter">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="text-center mb-16">
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 tracking-tight">
             {t.pricing.title}
           </h2>
-          <p className="text-slate-400 max-w-2xl mx-auto text-lg">
+          <p className="text-slate-400 max-w-2xl mx-auto text-sm leading-relaxed">
             {t.pricing.sub}
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {plans.map((plan) => (
             <PricingCard
               key={plan.id}
@@ -65,69 +61,61 @@ export default function Pricing() {
   );
 }
 
-// --- COMPONENT CON: THẺ GIÁ ---
 const PricingCard = ({ id, data, Icon, isRecommended, isPopular }: any) => {
   return (
     <div className={`
-      relative p-8 rounded-[2.5rem] border transition-all duration-500 group hover:-translate-y-2 flex flex-col h-full
+      relative p-8 rounded-2xl border transition-all duration-300 flex flex-col h-full bg-[#111827]
       ${isPopular
-        ? "bg-slate-900/90 border-yellow-500/50 shadow-[0_0_40px_rgba(234,179,8,0.15)] hover:shadow-yellow-500/30"
+        ? "border-amber-500/50 shadow-sm hover:border-amber-500"
         : isRecommended
-          ? "bg-slate-900/90 border-green-500 shadow-[0_0_40px_rgba(34,197,94,0.15)] scale-105 z-10 hover:shadow-green-500/30"
-          : "bg-slate-950/50 border-slate-800 hover:border-slate-600"
+          ? "border-emerald-500 shadow-sm md:-translate-y-4 md:scale-105 z-10 hover:border-emerald-400"
+          : "border-slate-800 hover:border-slate-600"
       }
     `}>
-      {/* Badge Tags */}
       {isRecommended && (
-        <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-green-500 text-black font-black text-xs px-4 py-1.5 rounded-full uppercase tracking-widest shadow-lg shadow-green-500/40">
+        <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-emerald-500 text-[#0B1120] font-bold text-[10px] px-3 py-1 rounded-md uppercase tracking-widest shadow-sm">
           {data.tag}
         </div>
       )}
       {isPopular && (
-        <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-yellow-500 text-black font-black text-xs px-4 py-1.5 rounded-full uppercase tracking-widest shadow-lg shadow-yellow-500/40 flex items-center gap-1">
-          <Crown size={14} fill="black"/> {data.tag}
+        <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-amber-500 text-[#0B1120] font-bold text-[10px] px-3 py-1 rounded-md uppercase tracking-widest shadow-sm flex items-center gap-1.5">
+          <Crown size={12} fill="currentColor"/> {data.tag}
         </div>
       )}
 
-      {/* Header */}
-      <div className="mb-8 text-center md:text-left">
-        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 mx-auto md:mx-0 shadow-lg ${isPopular ? "bg-yellow-500 text-black shadow-yellow-500/20" : isRecommended ? "bg-green-500 text-black shadow-green-500/20" : "bg-slate-800 text-slate-400"}`}>
-          <Icon size={28} fill="currentColor" />
+      <div className="mb-8">
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-6 shadow-sm ${isPopular ? "bg-amber-500/10 text-amber-500 border border-amber-500/20" : isRecommended ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" : "bg-[#0B1120] text-slate-400 border border-slate-800"}`}>
+          <Icon size={24} />
         </div>
-        <h3 className={`text-lg font-bold uppercase tracking-widest mb-2 ${isPopular ? "text-yellow-500" : isRecommended ? "text-green-500" : "text-slate-400"}`}>{data.name}</h3>
-        <div className="flex items-baseline justify-center md:justify-start">
-          <span className={`text-4xl md:text-5xl font-black ${isPopular ? "text-white" : "text-white"}`}>{data.price}</span>
-          <span className="text-slate-500 font-bold ml-2 text-sm">{data.period}</span>
+        <h3 className={`text-sm font-bold uppercase tracking-widest mb-2 ${isPopular ? "text-amber-500" : isRecommended ? "text-emerald-500" : "text-slate-400"}`}>{data.name}</h3>
+        <div className="flex items-baseline">
+          <span className="text-4xl font-bold text-white tracking-tight">{data.price}</span>
+          <span className="text-slate-500 font-semibold ml-2 text-xs uppercase tracking-wider">{data.period}</span>
         </div>
       </div>
 
-      {/* Features List */}
       <ul className="space-y-4 mb-8 flex-1">
         {data.features.map((feature: string, idx: number) => (
-          <li key={idx} className="flex items-start gap-3 text-sm text-slate-300 group/item">
-            <div className={`mt-0.5 p-0.5 rounded-full ${isPopular ? "bg-yellow-500/20 text-yellow-500" : "bg-green-500/20 text-green-500"}`}>
-                <Check size={12} strokeWidth={4} />
+          <li key={idx} className="flex items-start gap-3 text-sm text-slate-300">
+            <div className={`mt-0.5 shrink-0 ${isPopular ? "text-amber-500" : "text-emerald-500"}`}>
+                <Check size={16} />
             </div>
-            <span className="group-hover/item:text-white transition-colors">{feature}</span>
+            <span className="leading-snug">{feature}</span>
           </li>
         ))}
       </ul>
 
-      {/* Button Action */}
       <Link
-        // 👇 LOGIC ĐIỀU HƯỚNG QUAN TRỌNG:
-        // Chuyển hướng sang Dashboard kèm tham số ?action=checkout&plan=ID
         href={`/dashboard?action=checkout&plan=${id}`}
-        className={`w-full py-4 rounded-xl font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95 hover:shadow-xl
+        className={`w-full py-3.5 rounded-xl font-bold text-sm uppercase tracking-wider flex items-center justify-center gap-2 transition-colors
           ${isPopular
-            ? "bg-yellow-500 hover:bg-yellow-400 text-black shadow-yellow-500/20"
+            ? "bg-amber-600 hover:bg-amber-500 text-white"
             : isRecommended
-              ? "bg-green-500 hover:bg-green-400 text-black shadow-green-500/20"
-              : "bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 hover:border-slate-500"
+              ? "bg-emerald-600 hover:bg-emerald-500 text-white"
+              : "bg-[#0B1120] hover:bg-slate-800 text-white border border-slate-700"
           }
         `}
       >
-        {isPopular ? <Crown size={18} fill="black" /> : <Zap size={18} fill="currentColor" />}
         {data.btn}
       </Link>
     </div>

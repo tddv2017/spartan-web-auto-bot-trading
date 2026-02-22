@@ -1,6 +1,6 @@
 "use client";
 import React from 'react';
-import Link from 'next/link'; // 👈 Import Link
+import Link from 'next/link'; 
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/app/context/AuthContext';
 import { 
@@ -8,127 +8,100 @@ import {
   ShieldAlert, 
   LogOut, 
   House,
-  UserCircle,
-  CreditCard,
-  ChevronRight,
-  Menu
+  ChevronRight
 } from 'lucide-react';
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { isAdmin, logout, user, profile } = useAuth();
+  const { isAdmin, logout, profile } = useAuth();
 
   const menuItems = [
-    // 👇 CHỈ GIỮ LẠI DASHBOARD (Các tính năng kia tạm ẩn)
-    { name: 'DASHBOARD', icon: <LayoutDashboard size={22} />, path: '/dashboard' },
-    
-    { name: 'TỔNG HÀNH DINH', icon: <House size={22} />, path: '/admin' },
-    // { name: 'HỒ SƠ TÀI KHOẢN', icon: <UserCircle size={22} />, path: '/dashboard/profile' },
-    // { name: 'NẠP QUÂN LƯƠNG', icon: <CreditCard size={22} />, path: '/dashboard/billing' },
+    { name: 'DASHBOARD', icon: <LayoutDashboard size={20} />, path: '/dashboard' },
+    { name: 'TỔNG HÀNH DINH', icon: <House size={20} />, path: '/admin' },
   ];
 
   if (isAdmin) {
     menuItems.push({ 
-      name: 'BATTLEFIED LIVE', 
-      icon: <ShieldAlert size={22} />, 
+      name: 'BATTLEFIELD LIVE', 
+      icon: <ShieldAlert size={20} />, 
       path: '/battlefield' 
     });
   }
 
   return (
-    <aside className="group fixed left-0 top-0 h-screen w-20 hover:w-[280px] bg-slate-950 border-r border-slate-800 transition-all duration-300 ease-in-out z-50 shadow-2xl flex flex-col overflow-hidden">
+    <aside className="group fixed left-0 top-0 h-screen w-20 hover:w-[260px] bg-[#111827] border-r border-slate-800 transition-all duration-300 ease-in-out z-50 flex flex-col overflow-hidden">
       
-      {/* --- LOGO AREA (ĐÃ SỬA: BẤM VÀO VỀ TRANG CHỦ) --- */}
       <Link 
         href="/" 
-        className="h-20 flex items-center px-4 mb-2 relative cursor-pointer hover:bg-slate-900 transition-colors"
-        title="Về trang chủ"
+        className="h-20 flex items-center px-5 mb-2 relative hover:bg-[#0B1120] transition-colors border-b border-slate-800"
       >
-        {/* Logo Icon (Luôn cố định) */}
-        <div className="min-w-[48px] h-12 bg-green-500 rounded-xl flex items-center justify-center text-black font-black text-xl italic shadow-[0_0_15px_rgba(34,197,94,0.4)] z-10 group-active:scale-95 transition-transform">
+        <div className="min-w-[40px] h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-[#0B1120] font-bold text-lg shadow-sm z-10 shrink-0">
           S
         </div>
 
-        {/* Logo Text (Trượt ra khi hover) */}
-        <div className="absolute left-20 opacity-0 group-hover:opacity-100 transition-all duration-300 delay-100 whitespace-nowrap pl-2">
-          <h1 className="text-xl font-black italic tracking-tighter text-white">
-            SPARTAN <span className="text-green-500">AI</span>
+        <div className="absolute left-20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pl-3">
+          <h1 className="text-lg font-bold tracking-tight text-white leading-none">
+            SPARTAN
           </h1>
-          <p className="text-[10px] text-slate-500 font-bold tracking-[0.2em] uppercase">Trading System</p>
+          <p className="text-[9px] text-emerald-500 font-bold tracking-widest uppercase mt-1">Trading System</p>
         </div>
       </Link>
 
-      {/* --- MENU LIST --- */}
-      <nav className="flex-1 px-3 space-y-2 py-4">
+      <nav className="flex-1 px-4 py-4 space-y-2">
         {menuItems.map((item) => {
           const isActive = pathname === item.path;
-          const isAdminItem = item.path === '/admin';
+          const isAdminItem = item.path === '/admin' || item.path === '/battlefield';
 
           return (
             <Link key={item.path} href={item.path} className="block">
               <div 
-                className={`relative flex items-center h-12 px-3 rounded-xl transition-all duration-200 cursor-pointer overflow-hidden ${
+                className={`relative flex items-center h-12 px-3 rounded-xl transition-colors duration-200 overflow-hidden ${
                   isActive 
-                    ? (isAdminItem ? 'bg-red-600/10 text-red-500' : 'bg-green-500/10 text-green-400') 
-                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+                    ? (isAdminItem ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20') 
+                    : 'text-slate-400 hover:bg-[#0B1120] hover:text-white border border-transparent'
                 }`}
               >
-                {/* Active Indicator */}
-                {isActive && (
-                  <div className={`absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 rounded-r-full ${isAdminItem ? 'bg-red-500' : 'bg-green-500'}`} />
-                )}
-
-                {/* Icon */}
                 <div className="min-w-[24px] flex items-center justify-center z-10">
                   {item.icon}
                 </div>
 
-                {/* Text */}
-                <span className={`ml-4 font-bold text-sm whitespace-nowrap opacity-0 -translate-x-4 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 delay-75 ${isActive ? '' : 'font-medium'}`}>
+                <span className={`ml-3 text-xs uppercase tracking-wider font-bold whitespace-nowrap opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200`}>
                   {item.name}
                 </span>
-
-                {/* Glow Effect */}
-                {isActive && (
-                  <div className={`absolute inset-0 opacity-20 blur-xl ${isAdminItem ? 'bg-red-500' : 'bg-green-500'}`}></div>
-                )}
               </div>
             </Link>
           );
         })}
       </nav>
 
-      {/* --- USER FOOTER --- */}
-      <div className="p-4 border-t border-slate-800 bg-slate-900/50">
-        <div className="flex items-center overflow-hidden relative h-12">
-          
-          {/* Avatar */}
-          <div className="min-w-[40px] h-10 rounded-full bg-slate-800 border border-slate-600 flex items-center justify-center shrink-0 z-10">
+      <div className="p-4 border-t border-slate-800 bg-[#0B1120]">
+        <div className="flex items-center h-12">
+          <div className="min-w-[40px] h-10 rounded-full bg-[#111827] border border-slate-700 flex items-center justify-center shrink-0 overflow-hidden">
              {profile?.photoURL ? (
-                <img src={profile.photoURL} alt="User" className="w-full h-full rounded-full object-cover" />
+                <img src={profile.photoURL} alt="User" className="w-full h-full object-cover" />
              ) : (
-                <span className="font-bold text-green-500">{profile?.displayName?.[0] || "U"}</span>
+                <User size={18} className="text-slate-400" /> // Cần thêm import User từ lucide-react nếu muốn hiện icon User
              )}
           </div>
 
-          {/* Info & Logout */}
-          <div className="ml-3 opacity-0 group-hover:opacity-100 transition-all duration-300 delay-100 whitespace-nowrap">
+          <div className="ml-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap overflow-hidden">
             <p className="text-xs font-bold text-white truncate w-32">{profile?.displayName || "Chiến Binh"}</p>
             <button 
               onClick={logout} 
-              className="text-[10px] text-red-400 hover:text-red-300 hover:underline flex items-center gap-1 mt-0.5"
+              className="text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-red-400 flex items-center gap-1.5 mt-1 transition-colors"
             >
-              <LogOut size={10} /> Đăng xuất
+              <LogOut size={12} /> THOÁT
             </button>
           </div>
         </div>
       </div>
 
-      {/* Decoration: Mũi tên gợi ý */}
-      <div className="absolute top-1/2 -right-3 p-1 bg-slate-800 rounded-full border border-slate-700 text-slate-500 opacity-100 group-hover:opacity-0 transition-opacity duration-200 pointer-events-none">
-        <ChevronRight size={12} />
+      <div className="absolute top-1/2 -right-3 p-1 bg-[#111827] rounded-full border border-slate-700 text-slate-500 group-hover:opacity-0 transition-opacity pointer-events-none">
+        <ChevronRight size={14} />
       </div>
 
     </aside>
   );
 }
+
+import { User } from 'lucide-react'; // Đã thêm import cho User
