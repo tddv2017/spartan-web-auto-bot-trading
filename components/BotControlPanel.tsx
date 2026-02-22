@@ -1,20 +1,19 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { db } from '@/lib/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
-import { Zap, ZapOff, ShieldAlert, Activity, Lock, Radio } from 'lucide-react';
+import { Zap, ZapOff, ShieldAlert, Activity, Lock, Radio, Loader2 } from 'lucide-react';
 
 export const BotControlPanel = ({ userData }: { userData: any }) => {
   const [loading, setLoading] = useState(false);
   
   // 1. Lấy trạng thái thực từ Firestore (Real-time)
-  // Khi Admin bấm nút bên trang Admin, biến này tự động đổi thành "PAUSE"
   const isPaused = userData?.remoteCommand === "PAUSE";
   
-  // 2. Lấy thông điệp tình báo từ Admin (Ví dụ: "⚠️ HIGH IMPACT NEWS")
+  // 2. Lấy thông điệp tình báo từ Admin
   const intelMessage = userData?.intelMessage || "MARKET STABLE";
   
-  // 3. Kiểm tra xem có bị Admin khóa cứng (STOP/Lock Key) không
+  // 3. Kiểm tra xem có bị Admin khóa cứng không
   const isLockedByAdmin = userData?.licenseKey === "STOP";
 
   // Hàm xử lý khi KHÁCH tự bấm nút
@@ -38,62 +37,61 @@ export const BotControlPanel = ({ userData }: { userData: any }) => {
       const docId = userData.id || userData.uid;
       await updateDoc(doc(db, "users", docId), {
         remoteCommand: newStatus,
-        // Nếu khách tự bấm, đổi thông báo thành mặc định
         intelMessage: newStatus === "PAUSE" ? "PAUSED BY USER" : "MARKET STABLE"
       });
     } catch (e) { alert("Lỗi kết nối!"); }
     setLoading(false);
   };
 
-  // --- GIAO DIỆN KHÓA (KHI HẾT HẠN HOẶC VI PHẠM) ---
+  // --- GIAO DIỆN KHÓA (SYSTEM LOCKED) ---
   if (isLockedByAdmin) {
     return (
-      <div className="p-6 rounded-[2rem] border-2 bg-red-950/20 border-red-500/50 flex items-center justify-between animate-pulse">
-        <div className="flex items-center gap-4">
-          <div className="p-4 rounded-2xl bg-red-500/20 text-red-500">
-            <Lock size={28} />
+      <div className="bg-[#111827] border border-red-500/30 p-6 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-6 animate-pulse shadow-sm">
+        <div className="flex items-center gap-5">
+          <div className="p-4 rounded-xl bg-red-500/10 text-red-500 border border-red-500/20">
+            <Lock size={24} />
           </div>
           <div>
-            <h4 className="text-xl font-black tracking-tighter text-red-500">SYSTEM LOCKED</h4>
-            <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Contact Admin for support</p>
+            <h4 className="text-lg font-bold tracking-tight text-red-500 uppercase">SYSTEM LOCKED</h4>
+            <p className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold mt-0.5">Contact Admin for support</p>
           </div>
         </div>
-        <button disabled className="px-8 py-4 rounded-xl font-black text-[11px] uppercase tracking-widest bg-slate-800 text-slate-500 cursor-not-allowed">
+        <button disabled className="w-full md:w-auto px-8 py-3.5 rounded-xl font-bold text-[11px] uppercase tracking-wider bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700">
           DISABLED
         </button>
       </div>
     );
   }
 
-  // --- GIAO DIỆN ĐIỀU KHIỂN CHÍNH ---
+  // --- GIAO DIỆN ĐIỀU KHIỂN CHÍNH (PREMIUM TAILADMIN) ---
   return (
     <div className="space-y-4">
       
       {/* 🔔 1. THANH THÔNG BÁO TÌNH BÁO (INTEL BANNER) - HIỆN KHI PAUSE */}
       {isPaused && (
-        <div className={`w-full p-3 rounded-xl flex items-center justify-center gap-2 border ${intelMessage.includes("HIGH IMPACT") ? 'bg-orange-500/10 border-orange-500 text-orange-500 animate-pulse' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
-            {intelMessage.includes("HIGH IMPACT") ? <ShieldAlert size={18}/> : <Radio size={18}/>}
-            <span className="text-xs font-black uppercase tracking-widest">{intelMessage}</span>
+        <div className={`w-full p-4 rounded-2xl flex items-center justify-center gap-2.5 border shadow-sm transition-colors ${intelMessage.includes("HIGH IMPACT") ? 'bg-amber-500/10 border-amber-500/30 text-amber-500' : 'bg-[#111827] border-slate-800 text-slate-400'}`}>
+            {intelMessage.includes("HIGH IMPACT") ? <ShieldAlert size={18} className="animate-pulse"/> : <Radio size={18}/>}
+            <span className="text-[11px] font-bold uppercase tracking-wider">{intelMessage}</span>
         </div>
       )}
 
       {/* 2. BẢNG ĐIỀU KHIỂN */}
-      <div className={`p-6 rounded-[2rem] border-2 flex flex-col md:flex-row items-center justify-between gap-4 transition-all duration-500 ${isPaused ? 'bg-orange-950/10 border-orange-500/50 shadow-[0_0_30px_rgba(249,115,22,0.1)]' : 'bg-green-950/10 border-green-500/50 shadow-[0_0_30px_rgba(34,197,94,0.1)]'}`}>
+      <div className={`p-6 rounded-2xl border flex flex-col md:flex-row items-center justify-between gap-6 transition-all duration-500 shadow-sm ${isPaused ? 'bg-[#111827] border-amber-500/30' : 'bg-[#111827] border-emerald-500/30'}`}>
         
-        <div className="flex items-center gap-4 w-full md:w-auto">
+        <div className="flex items-center gap-5 w-full md:w-auto">
           {/* Icon Trạng Thái */}
-          <div className={`p-4 rounded-2xl ${isPaused ? 'bg-orange-500/20 text-orange-500' : 'bg-green-500/20 text-green-500'}`}>
-            {isPaused ? <ZapOff size={28} /> : <Activity size={28} className="animate-pulse" />}
+          <div className={`flex h-14 w-14 items-center justify-center rounded-xl border ${isPaused ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'}`}>
+            {isPaused ? <ZapOff size={24} /> : <Activity size={24} className="animate-pulse" />}
           </div>
           
           {/* Text Trạng Thái */}
           <div>
-            <h4 className={`text-xl font-black tracking-tighter ${isPaused ? 'text-orange-500' : 'text-green-500'}`}>
+            <h4 className={`text-xl font-bold tracking-tight uppercase ${isPaused ? 'text-amber-500' : 'text-emerald-500'}`}>
               {isPaused ? "CEASEFIRE (PAUSED)" : "COMBAT READY"}
             </h4>
-            <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold flex items-center gap-2">
-              Status: 
-              <span className={isPaused ? "text-orange-400" : "text-green-400"}>
+            <p className="text-[11px] uppercase tracking-wider text-slate-500 font-bold flex items-center gap-1.5 mt-1">
+              System Status: 
+              <span className={isPaused ? "text-amber-400" : "text-emerald-400"}>
                 {isPaused ? "Defensive Mode Active" : "Scanning Market"}
               </span>
             </p>
@@ -104,12 +102,13 @@ export const BotControlPanel = ({ userData }: { userData: any }) => {
         <button 
           onClick={handleToggle}
           disabled={loading}
-          className={`w-full md:w-auto px-8 py-4 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all active:scale-95 shadow-xl ${
+          className={`w-full md:w-auto px-8 py-4 rounded-xl font-bold text-xs uppercase tracking-wider transition-all shadow-sm flex justify-center items-center gap-2 ${
             isPaused 
-              ? 'bg-green-600 hover:bg-green-500 shadow-green-900/20 text-white border-b-4 border-green-800' 
-              : 'bg-orange-600 hover:bg-orange-500 shadow-orange-900/20 text-white border-b-4 border-orange-800'
+              ? 'bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-70' 
+              : 'bg-amber-600 hover:bg-amber-500 text-white disabled:opacity-70'
           }`}
         >
+          {loading ? <Loader2 size={16} className="animate-spin"/> : (isPaused ? <Zap size={16}/> : <ZapOff size={16}/>)}
           {loading ? "TRANSMITTING..." : (isPaused ? "RESUME MISSION" : "PAUSE BOT")}
         </button>
       </div>
