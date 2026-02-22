@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAuth } from "@/app/context/AuthContext"; 
-import SignalFeed from '@/app/dashboard/SignalFeed'; 
+import SignalFeed from '@/app/dashboard/components/SignalFeed'; 
 import TradesLog from '@/app/dashboard/components/TradesLog'; 
 
 import { db } from '@/lib/firebase';
